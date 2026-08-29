@@ -9,7 +9,7 @@ namespace SourceGit.Tests;
 public sealed class DevSpaceTerminalProfileIconTests
 {
     [Fact]
-    public void AnimalIconChoicesContainTwentyUniqueIcons()
+    public void AnimalIconChoicesContainTwentyUniqueQuickPicks()
     {
         var choices = DevSpaceProfileSettings.ProfileIcons;
 
@@ -33,28 +33,43 @@ public sealed class DevSpaceTerminalProfileIconTests
     }
 
     [Fact]
-    public void ClonePreservesAnimalIcon()
+    public void ClonePreservesCustomEmoji()
     {
         var profile = new DevSpaceTerminalProfile
         {
             Name = "Backend",
-            Icon = "🦊",
+            Icon = "👨‍💻",
         };
 
         var clone = profile.Clone(createNewId: true);
 
-        Assert.Equal("🦊", clone.Icon);
-        Assert.Equal("🦊 Backend", clone.DisplayName);
+        Assert.Equal("👨‍💻", clone.Icon);
+        Assert.Equal("👨‍💻 Backend", clone.DisplayName);
         Assert.NotEqual(profile.Id, clone.Id);
     }
 
     [Fact]
-    public void ValidateProfileFallsBackForUnknownIcon()
+    public void ValidateProfilePreservesCustomEmoji()
     {
         var profile = new DevSpaceTerminalProfile
         {
             Name = "Backend",
-            Icon = "not-an-animal",
+            Icon = "🚀",
+        };
+
+        DevSpaceProfileSettings.ValidateProfile(profile);
+
+        Assert.Equal("🚀", profile.Icon);
+        Assert.Equal("🚀 Backend", profile.DisplayName);
+    }
+
+    [Fact]
+    public void ValidateProfileFallsBackForBlankIcon()
+    {
+        var profile = new DevSpaceTerminalProfile
+        {
+            Name = "Backend",
+            Icon = "   ",
         };
 
         DevSpaceProfileSettings.ValidateProfile(profile);
@@ -82,12 +97,12 @@ public sealed class DevSpaceTerminalProfileIconTests
     }
 
     [Fact]
-    public void JsonRoundTripPreservesAnimalIcon()
+    public void JsonRoundTripPreservesCustomEmoji()
     {
         var profile = new DevSpaceTerminalProfile
         {
             Name = "Backend",
-            Icon = "🦊",
+            Icon = "🔥",
             Path = "src/Backend",
             Command = "dotnet watch",
         };
@@ -96,8 +111,8 @@ public sealed class DevSpaceTerminalProfileIconTests
         var restored = JsonSerializer.Deserialize<DevSpaceTerminalProfile>(json);
 
         Assert.NotNull(restored);
-        Assert.Equal("🦊", restored.Icon);
-        Assert.Equal("🦊 Backend", restored.DisplayName);
-        Assert.Equal("🦊 Backend", restored.ToString());
+        Assert.Equal("🔥", restored.Icon);
+        Assert.Equal("🔥 Backend", restored.DisplayName);
+        Assert.Equal("🔥 Backend", restored.ToString());
     }
 }

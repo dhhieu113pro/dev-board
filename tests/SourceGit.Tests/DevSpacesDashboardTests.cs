@@ -61,6 +61,27 @@ namespace SourceGit.Tests
         }
 
         [Fact]
+        public void GitSummaryCanNavigateToWorkingCopy()
+        {
+            var root = CreateTempDirectory();
+            var gitDir = Path.Combine(root, ".git");
+            Directory.CreateDirectory(gitDir);
+            try
+            {
+                var repository = new Repository(false, root, gitDir);
+                using var spaces = new ViewModels.DevSpaces(repository, root, new FakeLauncher());
+
+                spaces.Dashboard.OpenWorkingCopy();
+
+                Assert.Equal(1, repository.SelectedViewIndex);
+            }
+            finally
+            {
+                Directory.Delete(root, true);
+            }
+        }
+
+        [Fact]
         public void OpenFileSelectsFilesWithoutChangingSessions()
         {
             var root = CreateTempDirectory();

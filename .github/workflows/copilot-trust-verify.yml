@@ -1,0 +1,21 @@
+name: Copilot Trust Verify
+
+on:
+  push:
+    branches:
+      - fix/copilot-auto-trust-workspace
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: Run Copilot workspace trust tests
+        run: dotnet test tests/SourceGit.Tests/SourceGit.Tests.csproj -c Release --filter CopilotWorkspaceTrustTests

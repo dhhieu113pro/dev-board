@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -25,23 +27,16 @@ namespace SourceGit.Mcp
 {
     public sealed class SourceGitMcpHost : IAsyncDisposable
     {
-        public SourceGitMcpHost(
-            DevSpaceTerminalRegistry registry,
-            Func<IReadOnlyCollection<string>> knownRootsProvider = null)
+        public SourceGitMcpHost(DevSpaceTerminalRegistry registry, Func<IReadOnlyCollection<string>> knownRootsProvider = null)
         {
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
             _knownRootsProvider = knownRootsProvider ?? static () => Array.Empty<string>();
         }
 
         public bool IsRunning => _app != null;
-
         public string LastError { get; private set; } = string.Empty;
-
         public string BaseAddress { get; private set; } = string.Empty;
-
-        public string SseEndpoint => string.IsNullOrEmpty(BaseAddress)
-            ? string.Empty
-            : $"{BaseAddress.TrimEnd('/')}/sse";
+        public string SseEndpoint => string.IsNullOrEmpty(BaseAddress) ? string.Empty : $"{BaseAddress.TrimEnd('/')}/sse";
 
         public static string GetBaseAddress(SourceGitMcpOptions options)
         {
@@ -49,72 +44,41 @@ namespace SourceGit.Mcp
             return $"http://127.0.0.1:{options.Port}";
         }
 
-        public static string GetSseEndpoint(SourceGitMcpOptions options)
-        {
-            return $"{GetBaseAddress(options)}/sse";
-        }
+        public static string GetSseEndpoint(SourceGitMcpOptions options) => $"{GetBaseAddress(options)}/sse";
 
         public static void ConfigureTransport(HttpServerTransportOptions options)
         {
             ArgumentNullException.ThrowIfNull(options);
             options.SessionMode = HttpServerSessionMode.Stateful;
-#pragma warning disable MCP9004 // Legacy SSE is intentionally required by the SourceGit MCP feature.
+#pragma warning disable MCP9004
             options.EnableLegacySse = true;
 #pragma warning restore MCP9004
         }
 
         public static bool IsAuthorized(SourceGitMcpOptions options, string authorization)
         {
-            if (options == null || string.IsNullOrEmpty(options.AuthToken) || string.IsNullOrEmpty(authorization))
-                return false;
-
+            if (options == null || string.IsNullOrEmpty(options.AuthToken) || string.IsNullOrEmpty(authorization)) return false;
             const string prefix = "Bearer ";
-            if (!authorization.StartsWith(prefix, StringComparison.Ordinal))
-                return false;
-
+            if (!authorization.StartsWith(prefix, StringComparison.Ordinal)) return false;
             var supplied = authorization.AsSpan(prefix.Length);
             var expected = options.AuthToken.AsSpan();
-            if (supplied.Length != expected.Length)
-                return false;
-
-            var suppliedBytes = Encoding.UTF8.GetBytes(supplied.ToString());
-            var expectedBytes = Encoding.UTF8.GetBytes(expected.ToString());
-            return CryptographicOperations.FixedTimeEquals(suppliedBytes, expectedBytes);
+            if (supplied.Length != expected.Length) return false;
+            return CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(supplied.ToString()), Encoding.UTF8.GetBytes(expected.ToString()));
         }
 
-        public async Task<bool> StartAsync(
-            SourceGitMcpOptions options,
-            CancellationToken cancellationToken = default)
+        public async Task<bool> StartAsync(SourceGitMcpOptions options, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(options);
             await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
-
             WebApplication app = null;
             try
             {
-                if (_app != null)
-                    return true;
-
+                if (_app != null) return true;
                 LastError = string.Empty;
                 BaseAddress = string.Empty;
-
-                if (options.Port < 0 || options.Port > 65535)
-                {
-                    LastError = "MCP port must be between 0 and 65535.";
-                    return false;
-                }
-
-                if (string.IsNullOrWhiteSpace(options.AuthToken))
-                {
-                    LastError = "MCP authentication token is required.";
-                    return false;
-                }
-
-                if (options.MaxConcurrentToolCalls <= 0)
-                {
-                    LastError = "MCP concurrent tool call limit must be greater than zero.";
-                    return false;
-                }
+                if (options.Port < 0 || options.Port > 65535) { LastError = "MCP port must be between 0 and 65535."; return false; }
+                if (string.IsNullOrWhiteSpace(options.AuthToken)) { LastError = "MCP authentication token is required."; return false; }
+                if (options.MaxConcurrentToolCalls <= 0) { LastError = "MCP concurrent tool call limit must be greater than zero."; return false; }
 
                 var requestLimiter = new SourceGitMcpRequestLimiter(options.MaxConcurrentToolCalls);
                 var builder = WebApplication.CreateSlimBuilder();
@@ -122,58 +86,84 @@ namespace SourceGit.Mcp
                 builder.WebHost.UseSetting(WebHostDefaults.PreventHostingStartupKey, "true");
                 builder.WebHost.UseUrls(GetBaseAddress(options));
 
+                var mcpDataDir = string.IsNullOrWhiteSpace(Native.OS.DataDir)
+                    ? Path.Combine(Path.GetTempPath(), "devboard", "mcp")
+                    : Path.Combine(Native.OS.DataDir, "mcp");
+                var skillsDir = Path.Combine(mcpDataDir, "skills");
+                var historyPath = Path.Combine(mcpDataDir, "execution-history.jsonl");
+
                 builder.Services.AddSingleton(_registry);
                 builder.Services.AddSingleton(options);
                 builder.Services.AddSingleton(_ => new McpWorkspaceRegistry(_knownRootsProvider));
+                builder.Services.AddSingleton<McpPathSandbox>();
+                builder.Services.AddSingleton<McpSensitiveFileFilter>();
+                builder.Services.AddSingleton<McpFileService>();
+                builder.Services.AddSingleton(_ => new McpCommandService(SourceGitMcpOptions.DefaultCommandTimeoutSeconds, SourceGitMcpOptions.DefaultMaxCommandOutputBytes));
+                builder.Services.AddSingleton<McpGitService>();
+                builder.Services.AddSingleton(_ => new McpSkillStore(skillsDir));
+                builder.Services.AddSingleton<McpSkillRouter>();
+                builder.Services.AddSingleton(_ => McpRemoteSkillFetcher.CreateClient());
+                builder.Services.AddSingleton<McpRemoteSkillFetcher>();
+                builder.Services.AddSingleton<McpSkillService>();
+                builder.Services.AddSingleton(_ => new McpExecutionHistory(historyPath, 2_000, 10L * 1024 * 1024));
+
                 builder.Services
                     .AddMcpServer()
                     .WithHttpTransport(ConfigureTransport)
+                    .WithRequestFilters(filters =>
+                    {
+                        filters.AddCallToolFilter(next => async (context, ct) =>
+                        {
+                            var stopwatch = Stopwatch.StartNew();
+                            var history = context.Services?.GetService<McpExecutionHistory>();
+                            try
+                            {
+                                var result = await next(context, ct).ConfigureAwait(false);
+                                stopwatch.Stop();
+                                if (history != null)
+                                {
+                                    try { await history.RecordAsync(context.Params.Name, context.Params.Arguments, result.IsError != true, stopwatch.ElapsedMilliseconds).ConfigureAwait(false); }
+                                    catch { }
+                                }
+                                return result;
+                            }
+                            catch (Exception ex)
+                            {
+                                stopwatch.Stop();
+                                if (history != null)
+                                {
+                                    try { await history.RecordAsync(context.Params.Name, context.Params.Arguments, false, stopwatch.ElapsedMilliseconds, ex.Message).ConfigureAwait(false); }
+                                    catch { }
+                                }
+                                throw;
+                            }
+                        });
+                    })
                     .WithTools<SourceGitMcpTools>()
-                    .WithTools<McpWorkspaceTools>();
+                    .WithTools<McpWorkspaceTools>()
+                    .WithTools<McpFileTools>()
+                    .WithTools<McpGitTools>()
+                    .WithTools<McpShellTools>()
+                    .WithTools<McpSkillTools>()
+                    .WithTools<McpHistoryTools>();
 
                 app = builder.Build();
                 app.Use(async (context, next) =>
                 {
-                    if (!IsLoopbackHost(context.Request.Host.Host))
-                    {
-                        context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                        return;
-                    }
-
-                    if (!IsAuthorized(options, context.Request.Headers.Authorization.ToString()))
-                    {
-                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                        return;
-                    }
-
+                    if (!IsLoopbackHost(context.Request.Host.Host)) { context.Response.StatusCode = StatusCodes.Status400BadRequest; return; }
+                    if (!IsAuthorized(options, context.Request.Headers.Authorization.ToString())) { context.Response.StatusCode = StatusCodes.Status401Unauthorized; return; }
                     if (HttpMethods.IsPost(context.Request.Method))
                     {
-                        if (!requestLimiter.TryEnter(out var lease))
-                        {
-                            context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-                            return;
-                        }
-
-                        using (lease)
-                            await next().ConfigureAwait(false);
+                        if (!requestLimiter.TryEnter(out var lease)) { context.Response.StatusCode = StatusCodes.Status429TooManyRequests; return; }
+                        using (lease) await next().ConfigureAwait(false);
                         return;
                     }
-
                     await next().ConfigureAwait(false);
                 });
                 app.MapMcp();
-
                 await app.StartAsync(cancellationToken).ConfigureAwait(false);
-
-                var addresses = app.Services
-                    .GetRequiredService<IServer>()
-                    .Features
-                    .Get<IServerAddressesFeature>()?
-                    .Addresses;
-                BaseAddress = addresses?
-                    .FirstOrDefault(x => x.StartsWith("http://127.0.0.1:", StringComparison.OrdinalIgnoreCase))?
-                    .TrimEnd('/') ?? GetBaseAddress(options);
-
+                var addresses = app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()?.Addresses;
+                BaseAddress = addresses?.FirstOrDefault(x => x.StartsWith("http://127.0.0.1:", StringComparison.OrdinalIgnoreCase))?.TrimEnd('/') ?? GetBaseAddress(options);
                 _app = app;
                 app = null;
                 return true;
@@ -188,16 +178,8 @@ namespace SourceGit.Mcp
             {
                 if (app != null)
                 {
-                    try
-                    {
-                        await app.DisposeAsync().ConfigureAwait(false);
-                    }
-                    catch
-                    {
-                        // A failed optional MCP host must never bring down SourceGit.
-                    }
+                    try { await app.DisposeAsync().ConfigureAwait(false); } catch { }
                 }
-
                 _gate.Release();
             }
         }
@@ -208,25 +190,13 @@ namespace SourceGit.Mcp
             try
             {
                 var app = _app;
-                if (app == null)
-                    return;
-
+                if (app == null) return;
                 _app = null;
                 BaseAddress = string.Empty;
-
-                try
-                {
-                    await app.StopAsync(cancellationToken).ConfigureAwait(false);
-                }
-                finally
-                {
-                    await app.DisposeAsync().ConfigureAwait(false);
-                }
+                try { await app.StopAsync(cancellationToken).ConfigureAwait(false); }
+                finally { await app.DisposeAsync().ConfigureAwait(false); }
             }
-            finally
-            {
-                _gate.Release();
-            }
+            finally { _gate.Release(); }
         }
 
         public async ValueTask DisposeAsync()
@@ -235,11 +205,7 @@ namespace SourceGit.Mcp
             _gate.Dispose();
         }
 
-        private static bool IsLoopbackHost(string host)
-        {
-            return host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
-                   host.Equals("localhost", StringComparison.OrdinalIgnoreCase);
-        }
+        private static bool IsLoopbackHost(string host) => host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) || host.Equals("localhost", StringComparison.OrdinalIgnoreCase);
 
         private readonly DevSpaceTerminalRegistry _registry;
         private readonly Func<IReadOnlyCollection<string>> _knownRootsProvider;

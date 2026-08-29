@@ -179,6 +179,12 @@ namespace SourceGit.ViewModels
             SourceGit.DevSpaces.DevSpaceProfileSettings.ValidateProfile(profile);
             var settings = SourceGit.DevSpaces.DevSpaceProfileSettings.Instance;
             var workingDirectory = SourceGit.DevSpaces.DevSpaceProfileSettings.ResolveWorkingDirectory(_workingDirectory, profile.Path);
+
+            if (string.Equals(profile.Command, "codex", StringComparison.OrdinalIgnoreCase))
+                SourceGit.DevSpaces.CodexWorkspaceTrust.EnsureTrusted(workingDirectory);
+            else if (string.Equals(profile.Command, "agy", StringComparison.OrdinalIgnoreCase))
+                SourceGit.DevSpaces.AntigravityWorkspaceTrust.EnsureTrusted(workingDirectory);
+
             return CreateTerminalAt(preferredSlot, settings.DefaultTerminal, profile.Name, workingDirectory, profile.Command);
         }
 
@@ -194,6 +200,11 @@ namespace SourceGit.ViewModels
             ArgumentNullException.ThrowIfNull(agent);
             if (string.Equals(agent.Command, "copilot", StringComparison.OrdinalIgnoreCase))
                 return CreateCopilotTerminalAt(preferredSlot);
+            if (string.Equals(agent.Command, "codex", StringComparison.OrdinalIgnoreCase))
+                SourceGit.DevSpaces.CodexWorkspaceTrust.EnsureTrusted(_workingDirectory);
+            else if (string.Equals(agent.Command, "agy", StringComparison.OrdinalIgnoreCase))
+                SourceGit.DevSpaces.AntigravityWorkspaceTrust.EnsureTrusted(_workingDirectory);
+
             var settings = SourceGit.DevSpaces.DevSpaceProfileSettings.Instance;
             return CreateTerminalAt(preferredSlot, settings.DefaultTerminal, agent.Name, _workingDirectory, agent.Command);
         }

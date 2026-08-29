@@ -69,6 +69,12 @@ namespace SourceGit.Views
             e.Handled = true;
         }
 
+        private void OnFilesTabPressed(object sender, PointerPressedEventArgs e)
+        {
+            _owner?.ActivateFiles();
+            e.Handled = true;
+        }
+
         private void OnTerminalTabPressed(object sender, PointerPressedEventArgs e)
         {
             if (_owner != null && sender is Border { DataContext: ViewModels.DevSpaceTerminal session })

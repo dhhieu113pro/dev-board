@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 
 using SourceGit.DevSpaces;
 using SourceGit.Models;
@@ -26,16 +27,10 @@ namespace SourceGit.Tests
 
                 spaces.ActivateFiles();
                 Assert.Equal(DevSpacePage.Files, spaces.ActivePage);
-                Assert.True(spaces.IsFilesActive);
-
                 spaces.ActivateTerminals();
                 Assert.Equal(DevSpacePage.Terminals, spaces.ActivePage);
-                Assert.True(spaces.IsTerminalsActive);
-
                 spaces.ActivateRoslyn();
                 Assert.Equal(DevSpacePage.Roslyn, spaces.ActivePage);
-                Assert.True(spaces.IsRoslynActive);
-
                 spaces.ActivateDashboard();
                 Assert.Equal(DevSpacePage.Dashboard, spaces.ActivePage);
             }
@@ -59,6 +54,115 @@ namespace SourceGit.Tests
                 Assert.False(opened);
                 Assert.Equal(DevSpacePage.Files, spaces.ActivePage);
                 Assert.Equal(before, spaces.Sessions.Count);
+            }
+            finally
+            {
+                Directory.Delete(root, true);
+            }
+        }
+
+        [Fact]
+        public void QuickStartAndSessionSelectionReuseExistingSessionObjects()
+        {
+            var root = CreateTempDirectory();
+            try
+            {
+                using var spaces = new ViewModels.DevSpaces(root, new FakeLauncher());
+                var created = spaces.Dashboard.StartDefaultTerminal();
+
+                Assert.Single(spaces.Sessions);
+                Assert.Same(created, spaces.ActiveTerminal);
+                Assert.Equal(DevSpacePage.Terminals, spaces.ActivePage);
+
+                spaces.ActivateDashboard();
+                spaces.Dashboard.OpenSession(created);
+
+                Assert.Single(spaces.Sessions);
+                Assert.Same(created, spaces.ActiveTerminal);
+                Assert.Equal(DevSpacePage.Terminals, spaces.ActivePage);
+            }
+            finally
+            {
+                Directory.Delete(root, true);
+            }
+        }
+
+        [Theory]
+        [InlineData("Codex", "codex")]
+        [InlineData("Antigravity", "agy")]
+        public void AgentQuickStartUsesBuiltInCommandMapping(string name, string command)
+        {
+            var root = CreateTempDirectory();
+            try
+            {
+                using var spaces = new ViewModels.DevSpaces(root, new FakeLauncher());
+                var agent = DevSpaceAgent.BuiltIn.Single(x => x.Name == name);
+
+                var created = spaces.Dashboard.StartAgent(agent);
+
+                Assert.Equal(command, created.StartupCommand);
+                Assert.Equal(DevSpacePage.Terminals, spaces.ActivePage);
+            }
+            finally
+            {
+                Directory.Delete(root, true);
+            }
+        }
+
+        [Fact]
+        public void CloseAllDelegatesToExistingSessionLifecycle()
+        {
+            var root = CreateTempDirectory();
+            try
+            {
+                using var spaces = new ViewModels.DevSpaces(root, new FakeLauncher());
+                spaces.Dashboard.StartDefaultTerminal();
+                spaces.Dashboard.StartDefaultTerminal();
+
+                spaces.Dashboard.CloseAllSessions();
+
+                Assert.Empty(spaces.Sessions);
+                Assert.Null(spaces.ActiveTerminal);
+            }
+            finally
+            {
+                Directory.Delete(root, true);
+            }
+        }
+
+        [Fact]
+        public void DashboardActivityIsIsolatedByWorkspaceInstance()
+        {
+            var firstRoot = CreateTempDirectory();
+            var secondRoot = CreateTempDirectory();
+            try
+            {
+                using var first = new ViewModels.DevSpaces(firstRoot, new FakeLauncher());
+                using var second = new ViewModels.DevSpaces(secondRoot, new FakeLauncher());
+
+                first.Dashboard.AddActivity(DevSpaceActivityKind.FileOpened, "first.cs");
+
+                Assert.Single(first.Dashboard.Activity);
+                Assert.Empty(second.Dashboard.Activity);
+            }
+            finally
+            {
+                Directory.Delete(firstRoot, true);
+                Directory.Delete(secondRoot, true);
+            }
+        }
+
+        [Fact]
+        public void ToolHealthFindsCommandsFromProvidedPathAndReturnsUnavailableOtherwise()
+        {
+            var root = CreateTempDirectory();
+            try
+            {
+                var command = OperatingSystem.IsWindows() ? "dashboard-tool.cmd" : "dashboard-tool";
+                File.WriteAllText(Path.Combine(root, command), string.Empty);
+
+                Assert.Equal(DevSpaceCapabilityState.Available, DevSpaceToolHealth.CheckCommand("dashboard-tool", root));
+                Assert.Equal(DevSpaceCapabilityState.Unavailable, DevSpaceToolHealth.CheckCommand("missing-dashboard-tool", root));
             }
             finally
             {

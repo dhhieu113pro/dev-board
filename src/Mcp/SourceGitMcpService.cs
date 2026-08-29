@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
@@ -35,13 +36,16 @@ namespace SourceGit.Mcp
                 nameof(SourceGitMcpSettings.AuthToken);
         }
 
-        public static void Initialize(SourceGitMcpSettings settings = null)
+        public static void Initialize(
+            SourceGitMcpSettings settings = null,
+            Func<IReadOnlyCollection<string>> knownRootsProvider = null)
         {
             settings ??= SourceGitMcpSettings.Instance;
+            knownRootsProvider ??= static () => Array.Empty<string>();
 
             lock (_sync)
             {
-                if (ReferenceEquals(_settings, settings))
+                if (ReferenceEquals(_settings, settings) && _host != null)
                     return;
 
                 if (_settings != null)
@@ -49,7 +53,7 @@ namespace SourceGit.Mcp
 
                 _settings = settings;
                 _settings.PropertyChanged += OnSettingsChanged;
-                _host ??= new SourceGitMcpHost(DevSpaceTerminalRegistry.Instance);
+                _host ??= new SourceGitMcpHost(DevSpaceTerminalRegistry.Instance, knownRootsProvider);
             }
 
             _ = ApplyAsync();

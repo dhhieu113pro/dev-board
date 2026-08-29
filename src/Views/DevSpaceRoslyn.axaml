@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:SourceGit.ViewModels"
+             x:Class="SourceGit.Views.DevSpaceRoslyn"
+             x:DataType="vm:DevSpaceRoslyn">
+  <Grid RowDefinitions="Auto,Auto,*" Margin="8">
+    <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+      <TextBlock Grid.Column="0"
+                 VerticalAlignment="Center"
+                 Text="Workspace"/>
+      <ComboBox Grid.Column="1"
+                MinWidth="280"
+                ItemsSource="{Binding WorkspaceCandidates}"
+                SelectedItem="{Binding SelectedWorkspace, Mode=TwoWay}"/>
+      <Button Grid.Column="2"
+              MinWidth="120"
+              Click="OnAnalyze"
+              IsEnabled="{Binding !IsBusy}"
+              Content="Analyze Project"/>
+    </Grid>
+
+    <Grid Grid.Row="1" Margin="0,8,0,8" ColumnDefinitions="Auto,*" ColumnSpacing="8">
+      <TextBlock Grid.Column="0" FontWeight="SemiBold" Text="{Binding StatusText}"/>
+      <TextBlock Grid.Column="1"
+                 Foreground="{DynamicResource Brush.FG2}"
+                 Text="{Binding ErrorMessage}"
+                 TextWrapping="Wrap"/>
+    </Grid>
+
+    <Border Grid.Row="2"
+            BorderThickness="1"
+            BorderBrush="{DynamicResource Brush.Border2}"
+            CornerRadius="4"
+            Padding="8">
+      <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                    VerticalScrollBarVisibility="Auto">
+        <TextBlock FontFamily="Cascadia Mono,Consolas,monospace"
+                   Text="{Binding Output}"
+                   TextWrapping="NoWrap"/>
+      </ScrollViewer>
+    </Border>
+  </Grid>
+</UserControl>

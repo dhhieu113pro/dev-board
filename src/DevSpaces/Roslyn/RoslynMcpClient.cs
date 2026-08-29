@@ -1,14 +1,14 @@
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace SourceGit.DevSpaces.Roslyn
 {
-    public sealed class RoslynMcpClient : IAsyncDisposable
+    public sealed class RoslynMcpClient : IDisposable, IAsyncDisposable
     {
         public const string Package = "RoslynMcp.Dnx@1.0.0";
 
@@ -26,6 +26,7 @@ namespace SourceGit.DevSpaces.Roslyn
 
         public async Task StartAsync(CancellationToken cancellationToken = default)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             if (IsRunning)
                 return;
 
@@ -53,6 +54,13 @@ namespace SourceGit.DevSpaces.Roslyn
             {
                 if (!process.Start())
                     throw new InvalidOperationException("Failed to start Roslyn MCP.");
+            }
+            catch (Win32Exception ex)
+            {
+                process.Dispose();
+                throw new InvalidOperationException(
+                    "Roslyn Analysis requires the .NET 10 SDK with the dnx command available on PATH.",
+                    ex);
             }
             catch
             {
@@ -92,8 +100,40 @@ namespace SourceGit.DevSpaces.Roslyn
             return await SendRequestAsync("tools/call", parameters, cancellationToken).ConfigureAwait(false);
         }
 
+        public void Dispose()
+        {
+            if (_disposed)
+                return;
+
+            _disposed = true;
+            var process = DetachProcess();
+            if (process != null)
+            {
+                process.ErrorDataReceived -= OnErrorDataReceived;
+                try
+                {
+                    if (!process.HasExited)
+                        process.Kill(true);
+                }
+                catch
+                {
+                    // Best-effort shutdown during synchronous disposal.
+                }
+                finally
+                {
+                    process.Dispose();
+                }
+            }
+
+            _gate.Dispose();
+        }
+
         public async ValueTask DisposeAsync()
         {
+            if (_disposed)
+                return;
+
+            _disposed = true;
             await DisposeProcessAsync().ConfigureAwait(false);
             _gate.Dispose();
         }
@@ -206,13 +246,18 @@ namespace SourceGit.DevSpaces.Roslyn
                 LastError = e.Data;
         }
 
-        private async Task DisposeProcessAsync()
+        private Process? DetachProcess()
         {
             var process = _process;
             _process = null;
             _input = null;
             _output = null;
+            return process;
+        }
 
+        private async Task DisposeProcessAsync()
+        {
+            var process = DetachProcess();
             if (process == null)
                 return;
 
@@ -254,5 +299,6 @@ namespace SourceGit.DevSpaces.Roslyn
         private StreamWriter? _input;
         private StreamReader? _output;
         private long _nextRequestId;
+        private bool _disposed;
     }
 }

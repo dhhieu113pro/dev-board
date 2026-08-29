@@ -12,22 +12,31 @@
             <TextBlock Opacity="0.7" Text="{Binding WorkspacePath}" TextTrimming="CharacterEllipsis"/>
           </StackPanel>
           <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Spacing="12" Margin="0,10,0,0">
-            <TextBlock Text="{Binding CurrentBranch, StringFormat='Branch: {0}'}"/>
-            <TextBlock Text="{Binding BaseBranch, StringFormat='Base: {0}'}"/>
+            <StackPanel Orientation="Horizontal" Spacing="4">
+              <TextBlock Text="{DynamicResource Text.DevSpaces.Branch}"/>
+              <TextBlock Text="{Binding CurrentBranch}"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="4">
+              <TextBlock Text="{DynamicResource Text.DevSpaces.BaseBranch}"/>
+              <TextBlock Text="{Binding BaseBranch}"/>
+            </StackPanel>
             <TextBlock Text="{Binding AheadCount, StringFormat='↑ {0}'}"/>
             <TextBlock Text="{Binding BehindCount, StringFormat='↓ {0}'}"/>
           </StackPanel>
           <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" Spacing="12" Margin="0,8,0,0">
-            <TextBlock Text="{Binding GitSummary.Total, StringFormat='Changed {0}'}"/>
+            <StackPanel Orientation="Horizontal" Spacing="4">
+              <TextBlock Text="{DynamicResource Text.DevSpaces.Changed}"/>
+              <TextBlock Text="{Binding GitSummary.Total}"/>
+            </StackPanel>
             <TextBlock Text="{Binding GitSummary.Added, StringFormat='+{0}'}"/>
             <TextBlock Text="{Binding GitSummary.Modified, StringFormat='~{0}'}"/>
             <TextBlock Text="{Binding GitSummary.Deleted, StringFormat='-{0}'}"/>
-            <TextBlock Text="{Binding GitSummary.Renamed, StringFormat='Renamed {0}'}"/>
           </StackPanel>
-          <Button Grid.Row="0" Grid.Column="1" Grid.RowSpan="3" Classes="flat" VerticalAlignment="Center" Click="OnOpenFiles">
+          <Button Grid.Row="0" Grid.Column="1" Grid.RowSpan="3" Classes="flat" VerticalAlignment="Center" Click="OnOpenFiles"
+                  ToolTip.Tip="{DynamicResource Text.DevSpaces.Files}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <Path Width="13" Height="13" Data="{StaticResource Icons.Folder}"/>
-              <TextBlock Text="Files"/>
+              <TextBlock Text="{DynamicResource Text.DevSpaces.Files}"/>
             </StackPanel>
           </Button>
         </Grid>
@@ -37,8 +46,9 @@
         <Border Width="430" MinHeight="190" Margin="0,0,12,12" Padding="14" CornerRadius="6" Background="{DynamicResource Brush.Contents}" BorderBrush="{DynamicResource Brush.Border2}" BorderThickness="1">
           <Grid RowDefinitions="Auto,*">
             <Grid ColumnDefinitions="*,Auto">
-              <TextBlock FontSize="15" FontWeight="SemiBold" Text="Active Spaces"/>
-              <Button Grid.Column="1" Classes="flat" Content="Close All" Click="OnCloseAll"/>
+              <TextBlock FontSize="15" FontWeight="SemiBold" Text="{DynamicResource Text.DevSpaces.ActiveSpaces}"/>
+              <Button Grid.Column="1" Classes="flat" Content="{DynamicResource Text.DevSpaces.CloseAll}" Click="OnCloseAll"
+                      ToolTip.Tip="{DynamicResource Text.DevSpaces.CloseAll}"/>
             </Grid>
             <ItemsControl Grid.Row="1" Margin="0,10,0,0" ItemsSource="{Binding Sessions}">
               <ItemsControl.ItemTemplate>
@@ -60,34 +70,65 @@
 
         <Border Width="430" MinHeight="190" Margin="0,0,12,12" Padding="14" CornerRadius="6" Background="{DynamicResource Brush.Contents}" BorderBrush="{DynamicResource Brush.Border2}" BorderThickness="1">
           <StackPanel Spacing="10">
-            <TextBlock FontSize="15" FontWeight="SemiBold" Text="Quick Start"/>
+            <TextBlock FontSize="15" FontWeight="SemiBold" Text="{DynamicResource Text.DevSpaces.QuickStart}"/>
             <WrapPanel>
               <Button Margin="0,0,8,8" Content="Copilot" Tag="copilot" Click="OnStartAgent"/>
               <Button Margin="0,0,8,8" Content="Codex" Tag="codex" Click="OnStartAgent"/>
               <Button Margin="0,0,8,8" Content="Antigravity" Tag="agy" Click="OnStartAgent"/>
-              <Button Margin="0,0,8,8" Content="Terminal" Click="OnStartTerminal"/>
-              <Button Margin="0,0,8,8" Content="Files" Click="OnOpenFiles"/>
+              <Button Margin="0,0,8,8" Content="{DynamicResource Text.DevSpaces.NewTerminal}" Click="OnStartTerminal"/>
+              <Button Margin="0,0,8,8" Content="{DynamicResource Text.DevSpaces.Files}" Click="OnOpenFiles"/>
             </WrapPanel>
-            <TextBlock Opacity="0.65" Text="Roslyn diagnostics: unavailable until the Roslyn DevSpace integration is present." TextWrapping="Wrap"/>
+            <TextBlock Opacity="0.65" Text="{DynamicResource Text.DevSpaces.RoslynUnavailable}" TextWrapping="Wrap"/>
           </StackPanel>
         </Border>
 
         <Border Width="430" MinHeight="190" Margin="0,0,12,12" Padding="14" CornerRadius="6" Background="{DynamicResource Brush.Contents}" BorderBrush="{DynamicResource Brush.Border2}" BorderThickness="1">
           <StackPanel Spacing="8">
-            <TextBlock FontSize="15" FontWeight="SemiBold" Text="Git Changes"/>
-            <TextBlock Text="{Binding GitSummary.Total, StringFormat='Total changed files: {0}'}"/>
-            <TextBlock Text="{Binding GitSummary.Staged, StringFormat='Staged: {0}'}"/>
-            <TextBlock Text="{Binding GitSummary.Unstaged, StringFormat='Unstaged: {0}'}"/>
-            <TextBlock Text="{Binding GitSummary.Added, StringFormat='Added: {0}'}"/>
-            <TextBlock Text="{Binding GitSummary.Modified, StringFormat='Modified: {0}'}"/>
-            <TextBlock Text="{Binding GitSummary.Deleted, StringFormat='Deleted: {0}'}"/>
-            <TextBlock Text="{Binding GitSummary.Renamed, StringFormat='Renamed: {0}'}"/>
+            <TextBlock FontSize="15" FontWeight="SemiBold" Text="{DynamicResource Text.DevSpaces.GitChanges}"/>
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="{DynamicResource Text.DevSpaces.Changed}"/>
+              <TextBlock Grid.Column="1" Text="{Binding GitSummary.Total}"/>
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="{DynamicResource Text.DevSpaces.Staged}"/>
+              <TextBlock Grid.Column="1" Text="{Binding GitSummary.Staged}"/>
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="{DynamicResource Text.DevSpaces.Unstaged}"/>
+              <TextBlock Grid.Column="1" Text="{Binding GitSummary.Unstaged}"/>
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="{DynamicResource Text.DevSpaces.Added}"/>
+              <TextBlock Grid.Column="1" Text="{Binding GitSummary.Added}"/>
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="{DynamicResource Text.DevSpaces.Modified}"/>
+              <TextBlock Grid.Column="1" Text="{Binding GitSummary.Modified}"/>
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="{DynamicResource Text.DevSpaces.Deleted}"/>
+              <TextBlock Grid.Column="1" Text="{Binding GitSummary.Deleted}"/>
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBlock Text="{DynamicResource Text.DevSpaces.Renamed}"/>
+              <TextBlock Grid.Column="1" Text="{Binding GitSummary.Renamed}"/>
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <Border Width="430" MinHeight="190" Margin="0,0,12,12" Padding="14" CornerRadius="6" Background="{DynamicResource Brush.Contents}" BorderBrush="{DynamicResource Brush.Border2}" BorderThickness="1">
+          <StackPanel Spacing="8">
+            <TextBlock FontSize="15" FontWeight="SemiBold" Text="{DynamicResource Text.DevSpaces.WorkspaceHealth}"/>
+            <Grid ColumnDefinitions="*,Auto"><TextBlock Text="Copilot"/><TextBlock Grid.Column="1" Text="{Binding CopilotCapability}"/></Grid>
+            <Grid ColumnDefinitions="*,Auto"><TextBlock Text="Codex"/><TextBlock Grid.Column="1" Text="{Binding CodexCapability}"/></Grid>
+            <Grid ColumnDefinitions="*,Auto"><TextBlock Text="Antigravity"/><TextBlock Grid.Column="1" Text="{Binding AntigravityCapability}"/></Grid>
+            <Grid ColumnDefinitions="*,Auto"><TextBlock Text="Roslyn"/><TextBlock Grid.Column="1" Text="{Binding RoslynCapability}"/></Grid>
           </StackPanel>
         </Border>
 
         <Border Width="430" MinHeight="190" Margin="0,0,12,12" Padding="14" CornerRadius="6" Background="{DynamicResource Brush.Contents}" BorderBrush="{DynamicResource Brush.Border2}" BorderThickness="1">
           <Grid RowDefinitions="Auto,*">
-            <TextBlock FontSize="15" FontWeight="SemiBold" Text="Recent Activity"/>
+            <TextBlock FontSize="15" FontWeight="SemiBold" Text="{DynamicResource Text.DevSpaces.RecentActivity}"/>
             <ItemsControl Grid.Row="1" Margin="0,8,0,0" ItemsSource="{Binding Activity}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="vm:DevSpaceActivityEntry">

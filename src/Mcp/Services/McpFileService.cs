@@ -87,17 +87,35 @@ namespace SourceGit.Mcp.Services
             if (string.IsNullOrWhiteSpace(query))
                 throw new ArgumentException("Search query is required.", nameof(query));
             var root = Resolve(workspaceId, path, false);
+            var workspaceRoot = _workspaces.GetRoot(workspaceId);
             var limit = Math.Clamp(maxResults, 1, SourceGitMcpOptions.DefaultMaxSearchResults);
             Regex expression = null;
             if (regex)
                 expression = new Regex(query, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
             var results = new List<object>();
-            foreach (var file in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
+            var enumeration = new EnumerationOptions
+            {
+                RecurseSubdirectories = true,
+                IgnoreInaccessible = true,
+                AttributesToSkip = FileAttributes.ReparsePoint,
+            };
+            foreach (var file in Directory.EnumerateFiles(root, "*", enumeration))
             {
                 if (results.Count >= limit)
                     break;
                 if (_sensitive.IsBlocked(file) || IsBinary(file))
                     continue;
+
+                var relativePath = Path.GetRelativePath(workspaceRoot, file);
+                try
+                {
+                    _sandbox.Resolve(workspaceRoot, relativePath);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    continue;
+                }
+
                 var info = new FileInfo(file);
                 if (info.Length > SourceGitMcpOptions.DefaultMaxSearchFileBytes)
                     continue;
@@ -108,7 +126,7 @@ namespace SourceGit.Mcp.Services
                 {
                     var matched = expression?.IsMatch(lines[i]) ?? lines[i].Contains(query, StringComparison.OrdinalIgnoreCase);
                     if (matched)
-                        results.Add(new { path = Path.GetRelativePath(_workspaces.GetRoot(workspaceId), file), line = i + 1, text = lines[i] });
+                        results.Add(new { path = relativePath, line = i + 1, text = lines[i] });
                 }
             }
             return new { count = results.Count, results };

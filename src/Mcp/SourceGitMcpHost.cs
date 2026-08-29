@@ -30,7 +30,7 @@ namespace SourceGit.Mcp
         public SourceGitMcpHost(DevSpaceTerminalRegistry registry, Func<IReadOnlyCollection<string>> knownRootsProvider = null)
         {
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
-            _knownRootsProvider = knownRootsProvider ?? static () => Array.Empty<string>();
+            _knownRootsProvider = knownRootsProvider ?? (() => Array.Empty<string>());
         }
 
         public bool IsRunning => _app != null;

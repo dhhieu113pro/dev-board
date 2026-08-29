@@ -30,18 +30,20 @@
 **Create**
 - `src/Models/DevSpacePage.cs` — internal DevSpaces page enum.
 - `src/ViewModels/DevSpaceDashboard.cs` — dashboard projection, activity, health, and delegated actions.
-- `src/ViewModels/DevSpaceDashboardModels.cs` — immutable dashboard row/summary records.
+- `src/ViewModels/DevSpaceDashboardModels.cs` — immutable dashboard row/summary records and capability state.
+- `src/DevSpaces/IDevSpaceRoslynStatusProvider.cs` — optional Roslyn status/action adapter that keeps Dashboard independent of a concrete Roslyn implementation.
+- `src/DevSpaces/NullDevSpaceRoslynStatusProvider.cs` — neutral provider used when Roslyn is unavailable.
 - `src/Views/DevSpaceDashboard.axaml` — responsive dashboard cards.
 - `src/Views/DevSpaceDashboard.axaml.cs` — thin interaction/navigation bridge only where bindings are insufficient.
-- `tests/SourceGit.Tests/DevSpacesDashboardTests.cs` — page/session/activity/quick-start isolation tests.
+- `tests/SourceGit.Tests/DevSpacesDashboardTests.cs` — page/session/activity/quick-start/isolation tests.
 - `tests/SourceGit.Tests/DevSpaceDashboardSummaryTests.cs` — pure aggregation tests.
 
 **Modify**
 - `src/ViewModels/DevSpaces.cs` — own `ActivePage` and `Dashboard`, migrate `IsFilesActive` to page-derived state, expose navigation helpers.
 - `src/Views/DevSpaces.axaml` — add Dashboard/Files/Terminals/Roslyn internal navigation and host the dashboard without unloading terminal controls.
 - `src/Views/DevSpaces.axaml.cs` — switch page visibility/input state without recreating terminal surfaces.
-- `src/DevSpaces/DevSpaceRegistry.cs` — pass the owning repository into the DevSpaces model if needed for summary/navigation while preserving path keying.
-- `src/Resources/Locales/DevSpaces.axaml` — English/default Dashboard localization keys used by the injected DevSpaces resources.
+- `src/DevSpaces/DevSpaceRegistry.cs` — pass the owning repository into the DevSpaces model while preserving path keying.
+- `src/Resources/Locales/DevSpaces.axaml` — Dashboard localization keys used by DevSpaces resources.
 - Existing locale resources only where SourceGit's localization validation requires matching keys.
 
 ---
@@ -77,8 +79,6 @@ Assert.Equal(Models.DevSpacePage.Terminals, spaces.ActivePage);
 Also assert `OpenFile(relativePath)` changes `ActivePage` to `Files` and does not modify `Sessions`.
 
 - [ ] **Step 2: Run the focused test and verify RED**
-
-Run:
 
 ```bash
 dotnet test tests/SourceGit.Tests/SourceGit.Tests.csproj --filter DevSpacesDashboardTests
@@ -132,7 +132,7 @@ Do **not** move `EnsureFirstSession()` into Dashboard; it remains invoked by the
 
 - [ ] **Step 4: Re-run focused tests**
 
-Run the same `dotnet test --filter DevSpacesDashboardTests` command. Expected: PASS.
+Expected: PASS.
 
 - [ ] **Step 5: Commit**
 
@@ -153,19 +153,16 @@ git commit -m "feat: add DevSpaces internal page state"
 - Test: `tests/SourceGit.Tests/DevSpacesDashboardTests.cs`
 
 **Interfaces:**
-- Produces: `DevSpaceDashboardSessionRow`, `DevSpaceGitSummary`, `DevSpaceActivityEntry`, `DevSpaceCapabilityState`.
+- Produces: `DevSpaceDashboardSessionRow`, `DevSpaceGitSummary`, `DevSpaceActivityEntry`, `DevSpaceActivityKind`.
+- Produces: `DevSpaceCapabilityState { Checking, Available, Unavailable, Failed }`.
 - Produces: `DevSpaceDashboard.Activity`, capped at 20, newest first.
 - Produces: `DevSpaceDashboard.AddActivity(DevSpaceActivityKind kind, string text, DateTimeOffset? at = null)`.
 
 - [ ] **Step 1: Write failing pure summary/activity tests**
 
-Cover:
-- status count aggregation for Added/Modified/Deleted/Renamed and staged/unstaged flags using explicit test input;
-- activity insert order;
-- adding 25 entries leaves exactly 20 and preserves the newest 20;
-- two independently constructed `DevSpaces` instances have independent dashboard activity lists.
+Cover status count aggregation for Added/Modified/Deleted/Renamed and staged/unstaged flags, activity insert order, a 20-entry cap, and independent activity lists for two separate `DevSpaces` instances.
 
-- [ ] **Step 2: Run the two dashboard test classes and verify RED**
+- [ ] **Step 2: Run focused tests and verify RED**
 
 ```bash
 dotnet test tests/SourceGit.Tests/SourceGit.Tests.csproj --filter "DevSpaceDashboard"
@@ -173,11 +170,19 @@ dotnet test tests/SourceGit.Tests/SourceGit.Tests.csproj --filter "DevSpaceDashb
 
 Expected: missing types/properties.
 
-- [ ] **Step 3: Implement immutable rows and the dashboard child owner**
+- [ ] **Step 3: Implement immutable rows and dashboard child ownership**
 
-Keep models data-only, for example:
+Use data-only records/enums:
 
 ```csharp
+public enum DevSpaceCapabilityState
+{
+    Checking,
+    Available,
+    Unavailable,
+    Failed,
+}
+
 public sealed record DevSpaceGitSummary(
     int Total,
     int Added,
@@ -193,21 +198,18 @@ public sealed record DevSpaceActivityEntry(
     DateTimeOffset At);
 ```
 
-`DevSpaceDashboard` must receive the owning `DevSpaces` instance and workspace path, expose an `AvaloniaList<DevSpaceActivityEntry>`, insert at index 0, and remove the last item while count exceeds 20.
+`DevSpaceDashboard` receives the owning `DevSpaces` and workspace path, owns an `AvaloniaList<DevSpaceActivityEntry>`, inserts newest entries at index 0, and removes the last item while count exceeds 20.
 
-Instantiate exactly one dashboard in the `DevSpaces` constructor and dispose it from `DevSpaces.Dispose()` before/after `StopAll()` as appropriate to detach subscriptions without owning terminal disposal.
+Instantiate exactly one Dashboard from the `DevSpaces` constructor. Dispose Dashboard subscriptions from `DevSpaces.Dispose()` without giving Dashboard terminal-disposal ownership.
 
-- [ ] **Step 4: Make session lifecycle feed activity without changing PTY ownership**
+- [ ] **Step 4: Feed session lifecycle into Recent Activity**
 
-In existing `CreateTerminalAt(...)` and `CloseTerminal(...)`, add dashboard activity after the existing session mutation succeeds. Subscribe only to session metadata needed for state projection; never construct a terminal surface from Dashboard.
+Add activity after existing terminal/session mutations succeed. Subscribe only to session metadata required for projection; never create terminal surfaces from Dashboard.
 
-- [ ] **Step 5: Run focused tests**
-
-Expected: PASS.
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Run focused tests and commit**
 
 ```bash
+dotnet test tests/SourceGit.Tests/SourceGit.Tests.csproj --filter "DevSpaceDashboard"
 git add src/ViewModels/DevSpaceDashboard.cs src/ViewModels/DevSpaceDashboardModels.cs src/ViewModels/DevSpaces.cs tests/SourceGit.Tests/DevSpaceDashboardSummaryTests.cs tests/SourceGit.Tests/DevSpacesDashboardTests.cs
 git commit -m "feat: add DevSpaces dashboard state model"
 ```
@@ -219,21 +221,16 @@ git commit -m "feat: add DevSpaces dashboard state model"
 **Files:**
 - Modify: `src/ViewModels/DevSpaceDashboard.cs`
 - Modify: `src/ViewModels/DevSpaces.cs`
-- Modify: `src/DevSpaces/DevSpaceAgent.cs` only if a shared public/internal built-in agent lookup is not already exposed.
+- Modify: `src/DevSpaces/DevSpaceAgent.cs`
 - Test: `tests/SourceGit.Tests/DevSpacesDashboardTests.cs`
 
 **Interfaces:**
-- Produces: dashboard actions `OpenSession(DevSpaceTerminal)`, `OpenFiles()`, `StartDefaultTerminal()`, `StartProfile(DevSpaceTerminalProfile)`, `StartAgent(DevSpaceAgent)`, `CloseAllSessions()`.
-- Consumes: existing `CreateTerminalAt`, `CreateProfileTerminalAt`, built-in agent launch path, `ActivateTerminal`, `StopAll`.
+- Produces: `OpenSession(DevSpaceTerminal)`, `OpenFiles()`, `StartDefaultTerminal()`, `StartProfile(DevSpaceTerminalProfile)`, `StartAgent(DevSpaceAgent)`, `CloseAllSessions()`.
+- Consumes: existing terminal/profile launch paths, `ActivateTerminal`, and `StopAll`.
 
 - [ ] **Step 1: Write failing delegation tests with a fake launcher**
 
-Implement a test launcher for `IDevSpaceSessionLauncher` that records launches. Assert:
-- default terminal creates exactly one new existing `DevSpaceTerminal` and selects `Terminals`;
-- profile launch preserves profile startup command/path behavior by delegating through `CreateProfileTerminalAt`;
-- built-in Codex/Antigravity/Copilot use the same existing agent command mapping;
-- selecting a dashboard session sets `ActiveTerminal` to the **same object reference** and does not increase `Sessions.Count`;
-- `CloseAllSessions()` results in zero sessions through `StopAll()`.
+Implement a test launcher for `IDevSpaceSessionLauncher` that records launches. Assert default-terminal launch, profile startup command/path behavior, built-in Copilot/Codex/Antigravity mapping, exact-object session activation, and Close All delegation.
 
 - [ ] **Step 2: Run and verify RED**
 
@@ -242,8 +239,6 @@ dotnet test tests/SourceGit.Tests/SourceGit.Tests.csproj --filter DevSpacesDashb
 ```
 
 - [ ] **Step 3: Implement only delegation methods**
-
-`DevSpaceDashboard` methods should look conceptually like:
 
 ```csharp
 public void OpenSession(DevSpaceTerminal terminal)
@@ -259,11 +254,12 @@ public DevSpaceTerminal StartDefaultTerminal()
 }
 ```
 
-Use existing agent/profile methods rather than duplicating shell command construction.
+Expose/reuse one built-in agent lookup from `DevSpaceAgent.cs`; do not duplicate command strings in Dashboard.
 
 - [ ] **Step 4: Run focused tests and commit**
 
 ```bash
+dotnet test tests/SourceGit.Tests/SourceGit.Tests.csproj --filter DevSpacesDashboardTests
 git add src/ViewModels/DevSpaceDashboard.cs src/ViewModels/DevSpaces.cs src/DevSpaces/DevSpaceAgent.cs tests/SourceGit.Tests/DevSpacesDashboardTests.cs
 git commit -m "feat: add DevSpaces dashboard quick actions"
 ```
@@ -279,69 +275,88 @@ git commit -m "feat: add DevSpaces dashboard quick actions"
 - Test: `tests/SourceGit.Tests/DevSpaceDashboardSummaryTests.cs`
 
 **Interfaces:**
-- `DevSpaces` receives or retains the owning `ViewModels.Repository` reference in addition to `FullPath`.
-- `DevSpaceDashboard` exposes workspace name/path/current branch/base branch/ahead-behind/Git summary as bindable properties.
+- `DevSpaces` retains the owning `ViewModels.Repository` reference in addition to `FullPath`.
+- Dashboard exposes workspace name/path/current branch/base branch/ahead-behind/Git summary as bindable properties.
 
 - [ ] **Step 1: Write failing summary tests around explicit repository/change inputs**
 
-Avoid shelling out to Git in unit tests. Test the aggregation helper with representative change/status objects, including rename and mixed staged/unstaged state.
+Avoid shelling out to Git. Test the aggregation helper with representative status objects, including rename and mixed staged/unstaged state.
 
 - [ ] **Step 2: Update registry/model construction**
 
-Change new entry creation from:
+Change entry creation from `new ViewModels.DevSpaces(repository.FullPath)` to an overload that also receives `repository`, while keeping `_spaces` keyed by `repository.FullPath`.
 
-```csharp
-new ViewModels.DevSpaces(repository.FullPath)
-```
+Keep the existing path-only constructor for tests and forward it to the new overload with `repository: null`.
 
-to an overload that keeps the repository reference while preserving `DevSpaceRegistry` dictionary keying by `repository.FullPath`.
+- [ ] **Step 3: Subscribe to existing repository notifications**
 
-Keep the old constructor overload if tests/other code require it, forwarding to the new constructor with `repository: null`.
+Project values already held/refreshed by SourceGit. Do not add a timer or continuous Git invocation. Reuse the existing worktree base-branch capability; expose null/empty when unavailable.
 
-- [ ] **Step 3: Subscribe to existing repository property/change notifications**
+- [ ] **Step 4: Implement `RefreshGitSummary()` as a pure projection**
 
-Project values already held/refreshed by SourceGit. Do not add a timer or continuous command invocation. Base-branch display must call/reuse the existing worktree base-branch capability; if unavailable, expose null/empty.
-
-- [ ] **Step 4: Implement `RefreshGitSummary()` as pure projection**
-
-Map existing current working-copy/status collections to `DevSpaceGitSummary`, notify only changed properties, and leave unavailable values neutral.
+Map current working-copy/status collections to `DevSpaceGitSummary` and notify changed properties only.
 
 - [ ] **Step 5: Run focused tests and commit**
 
 ```bash
+dotnet test tests/SourceGit.Tests/SourceGit.Tests.csproj --filter DevSpaceDashboardSummaryTests
 git add src/DevSpaces/DevSpaceRegistry.cs src/ViewModels/DevSpaces.cs src/ViewModels/DevSpaceDashboard.cs tests/SourceGit.Tests/DevSpaceDashboardSummaryTests.cs
 git commit -m "feat: summarize workspace state on DevSpaces dashboard"
 ```
 
 ---
 
-### Task 5: Project Roslyn and tool-health capability state
+### Task 5: Add optional Roslyn and tool-health capability providers
 
 **Files:**
+- Create: `src/DevSpaces/IDevSpaceRoslynStatusProvider.cs`
+- Create: `src/DevSpaces/NullDevSpaceRoslynStatusProvider.cs`
 - Modify: `src/ViewModels/DevSpaceDashboard.cs`
-- Modify: existing Roslyn DevSpaces integration files discovered on the implementation branch only where an observable state adapter is required.
+- Modify: `src/ViewModels/DevSpaces.cs`
 - Test: `tests/SourceGit.Tests/DevSpacesDashboardTests.cs`
 
 **Interfaces:**
-- Produces neutral capability states: `Available`, `Unavailable`, `Checking`, `Failed` (or the exact enum names introduced in Task 2).
-- Dashboard consumes existing Roslyn analysis state; it does not start a sidecar merely to render.
+- Produces:
+
+```csharp
+public interface IDevSpaceRoslynStatusProvider
+{
+    DevSpaceCapabilityState Capability { get; }
+    string Target { get; }
+    string AnalysisState { get; }
+    int ErrorCount { get; }
+    int WarningCount { get; }
+    int InfoCount { get; }
+    DateTimeOffset? LastAnalysisAt { get; }
+    event EventHandler Changed;
+    Task AnalyzeAsync(CancellationToken cancellationToken = default);
+}
+```
+
+- `NullDevSpaceRoslynStatusProvider` returns `Unavailable`, zero counts, null metadata, and a completed `AnalyzeAsync`.
+- `DevSpaces` accepts an optional provider and defaults to the null provider. A concrete Roslyn feature can supply an adapter later without changing Dashboard.
 
 - [ ] **Step 1: Write failing capability tests**
 
-Assert missing Codex/Antigravity/Roslyn yields a non-throwing unavailable state and leaves other properties/actions usable.
+Assert the null Roslyn provider produces a non-fatal unavailable state and that Dashboard remains usable. Add a fake Roslyn provider test that changes counts, raises `Changed`, and verifies Dashboard refreshes its Roslyn summary. Add tests for `Checking`, `Available`, `Unavailable`, and `Failed` tool-health states.
 
-- [ ] **Step 2: Add lazy cached CLI checks**
+- [ ] **Step 2: Implement the provider contract and null provider**
 
-Use one check per capability per DevSpaces lifetime. Cache the result; never run process detection from a getter or every render.
+The null provider must have no process launch, timer, or side effect.
 
-- [ ] **Step 3: Add Roslyn projection adapter**
+- [ ] **Step 3: Add lazy cached AI CLI health checks**
 
-If Roslyn state is present, project target, analysis state, error/warning/info counts and last-analysis time. If not present, expose `Unavailable`. The `Analyze` action delegates to the existing Roslyn flow and then navigates to `DevSpacePage.Roslyn`.
+Check each CLI at most once per DevSpaces lifetime, cache `DevSpaceCapabilityState`, and never run detection from a property getter/render loop.
 
-- [ ] **Step 4: Run focused tests and commit**
+- [ ] **Step 4: Project provider state into Dashboard**
+
+Subscribe to `IDevSpaceRoslynStatusProvider.Changed`, copy target/count/state/time into bindable properties, and unsubscribe during Dashboard disposal. `AnalyzeAsync` delegates to the provider and then selects `DevSpacePage.Roslyn` only when capability is available.
+
+- [ ] **Step 5: Run focused tests and commit**
 
 ```bash
-git add src/ViewModels/DevSpaceDashboard.cs tests/SourceGit.Tests/DevSpacesDashboardTests.cs <only-required-existing-roslyn-files>
+dotnet test tests/SourceGit.Tests/SourceGit.Tests.csproj --filter DevSpacesDashboardTests
+git add src/DevSpaces/IDevSpaceRoslynStatusProvider.cs src/DevSpaces/NullDevSpaceRoslynStatusProvider.cs src/ViewModels/DevSpaceDashboard.cs src/ViewModels/DevSpaces.cs tests/SourceGit.Tests/DevSpacesDashboardTests.cs
 git commit -m "feat: surface DevSpaces capability health"
 ```
 
@@ -356,47 +371,34 @@ git commit -m "feat: surface DevSpaces capability health"
 - Modify: `src/Views/DevSpaces.axaml.cs`
 
 **Interfaces:**
-- Consumes all Task 1-5 dashboard properties/actions.
-- Produces internal navigation: Dashboard, Files, Terminals, Roslyn.
+- Consumes Task 1-5 dashboard properties/actions.
+- Produces internal navigation: Dashboard, Files, Terminals, conditional Roslyn.
 
-- [ ] **Step 1: Replace the current Files/session-tab-only top bar with internal page navigation**
+- [ ] **Step 1: Add internal page navigation**
 
-Add compact buttons/tabs for Dashboard, Files, Terminals and conditional Roslyn. Keep terminal session tabs/layout/+ controls in the Terminals page only.
+Replace the current Files/session-tab-only top-bar behavior with compact Dashboard, Files, Terminals and conditional Roslyn navigation. Keep terminal session tabs/layout/+ controls visible on the Terminals page only.
 
-- [ ] **Step 2: Host all page surfaces without breaking terminal persistence**
+- [ ] **Step 2: Host page surfaces without breaking terminal persistence**
 
-Dashboard and Files may use normal visibility. The existing terminal tree must continue using the current mounted/opacity/input strategy: switching away from Terminals must not remove or recreate terminal controls or PTYs.
+Dashboard and Files may use normal visibility. The existing terminal tree must continue using the current mounted/opacity/input strategy: switching away must not remove or recreate terminal controls or PTYs.
 
 - [ ] **Step 3: Create responsive Dashboard cards**
 
-`DevSpaceDashboard.axaml` contains:
-- workspace header;
-- Active Spaces;
-- Quick Start;
-- Git Changes;
-- Roslyn Diagnostics;
-- Recent Activity.
+`DevSpaceDashboard.axaml` contains workspace header, Active Spaces, Quick Start, Git Changes, Roslyn Diagnostics, and Recent Activity. Use existing SourceGit layout/theme resources and stack cards at narrow width.
 
-Use `WrapPanel`, responsive Grid definitions, or existing SourceGit adaptive layout patterns so cards stack at narrow width. No horizontal dashboard scrolling as the normal narrow-window behavior.
+- [ ] **Step 4: Wire session row selection to the exact existing terminal**
 
-- [ ] **Step 4: Wire session row click to exact existing terminal**
+Use binding/commands where possible. If code-behind is needed, pass the bound `DevSpaceTerminal` object to `OpenSession`; never clone it.
 
-Use command/binding where possible. Code-behind is acceptable only to pass the bound `DevSpaceTerminal` instance to the dashboard owner. Verify the reference is not cloned/recreated.
-
-- [ ] **Step 5: Build locally**
+- [ ] **Step 5: Build and commit**
 
 ```bash
 dotnet build src/SourceGit.csproj -c Debug
-```
-
-Expected: build succeeds without Avalonia binding/XAML compile errors.
-
-- [ ] **Step 6: Commit**
-
-```bash
 git add src/Views/DevSpaceDashboard.axaml src/Views/DevSpaceDashboard.axaml.cs src/Views/DevSpaces.axaml src/Views/DevSpaces.axaml.cs
 git commit -m "feat: add DevSpaces dashboard UI"
 ```
+
+Expected: no Avalonia XAML/binding compile errors.
 
 ---
 
@@ -404,31 +406,30 @@ git commit -m "feat: add DevSpaces dashboard UI"
 
 **Files:**
 - Modify: `src/Resources/Locales/DevSpaces.axaml`
-- Modify locale files required by repository localization validation.
+- Modify locale files required by the repository's localization validation.
 - Modify: `src/Views/DevSpaceDashboard.axaml`
 - Modify: `src/Views/DevSpaces.axaml`
 
 **Interfaces:**
-- Produces resource keys from the spec: Dashboard, Active Spaces, Quick Start, Workspace, Git Changes, Recent Activity, Workspace Health, states/actions/status labels.
+- Produces localized resources for Dashboard, Active Spaces, Quick Start, Workspace, Git Changes, Recent Activity, Workspace Health, states/actions/status labels.
 
 - [ ] **Step 1: Add/reuse localization keys**
 
-Prefer existing generic `Text.*` resources when wording already exists; add DevSpaces-specific resources only when needed. Do not leave user-facing hard-coded English in Dashboard XAML.
+Prefer existing generic `Text.*` resources when wording already exists. Add DevSpaces-specific keys only when needed. Do not leave user-facing hard-coded English in Dashboard XAML.
 
-- [ ] **Step 2: Add accessible labels/tooltips for icon-only controls**
+- [ ] **Step 2: Add accessible labels/tooltips**
 
-Ensure Copy Path, Open Folder, Close, Analyze and similar icon-only buttons have localized `ToolTip.Tip`/accessible text and that status includes textual Running/Exited/Failed labels rather than color-only meaning.
+Copy Path, Open Folder, Close, Analyze and other icon-only controls receive localized tooltips/accessible text. Running/Exited/Failed are textual, not color-only.
 
 - [ ] **Step 3: Verify keyboard navigation manually**
 
-Keyboard through internal page buttons, Quick Start, session rows, Close All and card navigation. Confirm moving to Terminals restores terminal focus and Dashboard does not intercept terminal shortcuts.
+Keyboard through internal pages, Quick Start, session rows, Close All and card navigation. Confirm terminal focus/shortcuts are unaffected on Terminals.
 
 - [ ] **Step 4: Run format/build and commit**
 
 ```bash
 dotnet format src/SourceGit.csproj --verify-no-changes
 dotnet build src/SourceGit.csproj -c Release
-
 git add src/Resources/Locales src/Views/DevSpaceDashboard.axaml src/Views/DevSpaces.axaml
 git commit -m "feat: localize DevSpaces dashboard"
 ```
@@ -440,12 +441,12 @@ git commit -m "feat: localize DevSpaces dashboard"
 **Files:**
 - Modify: `tests/SourceGit.Tests/DevSpacesDashboardTests.cs`
 - Modify: `tests/SourceGit.Tests/DevSpaceDashboardSummaryTests.cs`
-- Modify product files only for defects exposed by the tests.
+- Modify product files only for defects exposed by these tests.
 
 **Interfaces:**
 - Covers all V1 acceptance criteria from the spec that are testable without pixel/runtime-terminal validation.
 
-- [ ] **Step 1: Add the remaining acceptance tests**
+- [ ] **Step 1: Complete acceptance coverage**
 
 Ensure explicit tests exist for:
 1. Dashboard default page.
@@ -459,7 +460,7 @@ Ensure explicit tests exist for:
 9. Missing optional capabilities are non-fatal.
 10. Existing layout/session behavior remains unchanged.
 
-- [ ] **Step 2: Run the full test project**
+- [ ] **Step 2: Run full tests**
 
 ```bash
 dotnet test tests/SourceGit.Tests/SourceGit.Tests.csproj -c Release
@@ -493,10 +494,10 @@ On a real repository/worktree:
 - open a second worktree tab and confirm independent dashboard/session/activity state;
 - confirm Git counts update with working-copy changes;
 - confirm Roslyn unavailable/failure does not affect terminals/Files;
-- resize narrow/wide and verify cards stack without becoming unusable;
-- close the repository/worktree tab and confirm existing session cleanup still runs once.
+- resize narrow/wide and verify cards stack cleanly;
+- close the repository/worktree tab and confirm session cleanup still runs once.
 
-- [ ] **Step 6: Commit verification fixes, if any, then inspect the final diff**
+- [ ] **Step 6: Inspect final diff**
 
 ```bash
 git diff master...HEAD --check
@@ -505,7 +506,7 @@ git status --short
 
 Expected: no whitespace errors; only Dashboard-related product/tests/localization/docs changes.
 
-- [ ] **Step 7: Final commit if verification required changes**
+- [ ] **Step 7: Commit verification fixes if the previous steps changed code**
 
 ```bash
 git add src tests

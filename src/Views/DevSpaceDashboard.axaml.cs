@@ -22,6 +22,18 @@ namespace SourceGit.Views
             e.Handled = true;
         }
 
+        private void OnCloseSessionPointerPressed(object sender, PointerPressedEventArgs e)
+        {
+            e.Handled = true;
+        }
+
+        private void OnCloseSession(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button { DataContext: ViewModels.DevSpaceDashboardSessionRow row })
+                Model?.CloseSession(row.Terminal);
+            e.Handled = true;
+        }
+
         private void OnStartAgent(object sender, RoutedEventArgs e)
         {
             if (sender is Button { Tag: string command })
@@ -43,6 +55,21 @@ namespace SourceGit.Views
         private void OnStartTerminal(object sender, RoutedEventArgs e)
         {
             Model?.StartDefaultTerminal();
+            e.Handled = true;
+        }
+
+        private async void OnCopyPath(object sender, RoutedEventArgs e)
+        {
+            var model = Model;
+            var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+            if (model != null && clipboard != null)
+                await clipboard.SetTextAsync(model.WorkspacePath);
+            e.Handled = true;
+        }
+
+        private void OnOpenFolder(object sender, RoutedEventArgs e)
+        {
+            Model?.OpenWorkspaceFolder();
             e.Handled = true;
         }
 

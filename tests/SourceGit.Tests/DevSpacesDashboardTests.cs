@@ -158,7 +158,7 @@ namespace SourceGit.Tests
             var root = CreateTempDirectory();
             try
             {
-                var command = OperatingSystem.IsWindows() ? "dashboard-tool.cmd" : "dashboard-tool";
+                var command = System.OperatingSystem.IsWindows() ? "dashboard-tool.cmd" : "dashboard-tool";
                 File.WriteAllText(Path.Combine(root, command), string.Empty);
 
                 Assert.Equal(DevSpaceCapabilityState.Available, DevSpaceToolHealth.CheckCommand("dashboard-tool", root));

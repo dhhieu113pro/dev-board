@@ -1,0 +1,39 @@
+name: DevSpaces Screenshots
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  screenshots:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Capture DevSpaces screenshots
+        shell: pwsh
+        run: ./scripts/devspaces-screenshots.ps1
+
+      - name: Upload screenshot gallery
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: devspaces-screenshots-${{ github.sha }}
+          path: artifacts/devspaces-screenshots
+          if-no-files-found: error
+          retention-days: 14

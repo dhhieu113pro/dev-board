@@ -89,9 +89,23 @@ namespace SourceGit.Views
             e.Handled = true;
         }
 
-        private void OnDashboardTabPressed(object sender, PointerPressedEventArgs e) { _owner?.ActivateDashboard(); e.Handled = true; }
-        private void OnFilesTabPressed(object sender, PointerPressedEventArgs e) { _owner?.ActivateFiles(); e.Handled = true; }
-        private void OnTerminalsTabPressed(object sender, PointerPressedEventArgs e) { _owner?.ActivateTerminals(); e.Handled = true; }
+        private void OnDashboardTabPressed(object sender, PointerPressedEventArgs e)
+        {
+            _owner?.ActivateDashboard();
+            e.Handled = true;
+        }
+
+        private void OnFilesTabPressed(object sender, PointerPressedEventArgs e)
+        {
+            _owner?.ActivateFiles();
+            e.Handled = true;
+        }
+
+        private void OnTerminalsTabPressed(object sender, PointerPressedEventArgs e)
+        {
+            _owner?.ActivateTerminals();
+            e.Handled = true;
+        }
 
         private void OnTerminalTabPressed(object sender, PointerPressedEventArgs e)
         {
@@ -191,8 +205,10 @@ namespace SourceGit.Views
             if (!_pageActive || _owner?.IsTerminalsActive != true)
                 return;
             foreach (var slot in _owner.VisibleSlots)
+            {
                 if (slot.Terminal != null && _panes.TryGetValue(slot.Terminal.Id, out var pane))
                     pane.TerminalView.SetPageActive(true);
+            }
         }
 
         private Border GetOrCreatePane(ViewModels.DevSpaceTerminal session)
@@ -200,21 +216,51 @@ namespace SourceGit.Views
             if (_panes.TryGetValue(session.Id, out var cached))
                 return cached.Root;
             var terminalView = new DevSpaceTerminal { DataContext = session };
-            var title = new TextBlock { Text = session.Title, Margin = new Thickness(8, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center };
-            var close = new Button { Width = 24, Height = 24, Margin = new Thickness(2), Content = "×", DataContext = session };
+            var title = new TextBlock
+            {
+                Text = session.Title,
+                Margin = new Thickness(8, 0, 4, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            var close = new Button
+            {
+                Width = 24,
+                Height = 24,
+                Margin = new Thickness(2),
+                Content = "×",
+                DataContext = session,
+            };
             close.Classes.Add("icon_button");
-            close.Click += (_, e) => { CloseTerminal(session); e.Handled = true; };
+            close.Click += (_, e) =>
+            {
+                CloseTerminal(session);
+                e.Handled = true;
+            };
             ToolTip.SetTip(close, App.Text("DevSpaces.CloseTerminal"));
-            var header = new Grid { Height = 28, ColumnDefinitions = new ColumnDefinitions("*,Auto") };
+            var header = new Grid
+            {
+                Height = 28,
+                ColumnDefinitions = new ColumnDefinitions("*,Auto"),
+            };
             header.Children.Add(title);
             Grid.SetColumn(close, 1);
             header.Children.Add(close);
-            header.PointerPressed += (_, e) => { _owner?.ActivateTerminal(session); e.Handled = true; };
+            header.PointerPressed += (_, e) =>
+            {
+                _owner?.ActivateTerminal(session);
+                e.Handled = true;
+            };
             var content = new Grid { RowDefinitions = new RowDefinitions("28,*") };
             content.Children.Add(header);
             Grid.SetRow(terminalView, 1);
             content.Children.Add(terminalView);
-            var root = new Border { Margin = new Thickness(2), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4), Child = content };
+            var root = new Border
+            {
+                Margin = new Thickness(2),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4),
+                Child = content,
+            };
             _panes.Add(session.Id, new TerminalPaneHandle(root, terminalView));
             terminalView.Start(_owner.Launcher);
             TerminalGrid.Children.Add(root);
@@ -223,9 +269,22 @@ namespace SourceGit.Views
 
         private Button CreateEmptySlot(int slotIndex)
         {
-            var button = new Button { Margin = new Thickness(2), HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch, HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center, Content = App.Text("DevSpaces.NewTerminal"), Tag = slotIndex };
+            var button = new Button
+            {
+                Margin = new Thickness(2),
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Content = App.Text("DevSpaces.NewTerminal"),
+                Tag = slotIndex,
+            };
             button.Classes.Add("flat");
-            button.Click += (_, e) => { ShowTerminalPicker(button, slotIndex); e.Handled = true; };
+            button.Click += (_, e) =>
+            {
+                ShowTerminalPicker(button, slotIndex);
+                e.Handled = true;
+            };
             return button;
         }
 
@@ -248,10 +307,21 @@ namespace SourceGit.Views
             flyout.Items.Add(new Separator());
             var terminals = new MenuItem { Header = "Terminal" };
             foreach (var choice in SourceGit.DevSpaces.DevSpaceProfileSettings.SupportedTerminals)
-                terminals.Items.Add(CreateTerminalMenuItem(choice.Name, choice.Value, SourceGit.DevSpaces.DevSpaceProfileSettings.GetTerminalDisplayName(choice.Value), preferredSlot));
+            {
+                terminals.Items.Add(CreateTerminalMenuItem(
+                    choice.Name,
+                    choice.Value,
+                    SourceGit.DevSpaces.DevSpaceProfileSettings.GetTerminalDisplayName(choice.Value),
+                    preferredSlot));
+            }
             flyout.Items.Add(terminals);
             var manage = new MenuItem { Header = "Manage Profiles…" };
-            manage.Click += async (_, e) => { e.Handled = true; if (TopLevel.GetTopLevel(this) is Window owner) await new DevSpaceProfileManager().ShowDialog(owner); };
+            manage.Click += async (_, e) =>
+            {
+                e.Handled = true;
+                if (TopLevel.GetTopLevel(this) is Window owner)
+                    await new DevSpaceProfileManager().ShowDialog(owner);
+            };
             flyout.Items.Add(manage);
             flyout.ShowAt(target);
         }
@@ -259,7 +329,11 @@ namespace SourceGit.Views
         private MenuItem CreateAgentMenuItem(SourceGit.DevSpaces.DevSpaceAgent agent, int preferredSlot)
         {
             var item = new MenuItem { Header = agent.Name };
-            item.Click += (_, e) => { _owner?.CreateAgentTerminalAt(preferredSlot, agent); e.Handled = true; };
+            item.Click += (_, e) =>
+            {
+                _owner?.CreateAgentTerminalAt(preferredSlot, agent);
+                e.Handled = true;
+            };
             return item;
         }
 
@@ -267,14 +341,30 @@ namespace SourceGit.Views
         {
             var path = string.IsNullOrWhiteSpace(profile.Path) ? "." : profile.Path;
             var item = new MenuItem { Header = $"{profile.Name}  ·  {path}" };
-            item.Click += async (_, e) => { e.Handled = true; try { _owner?.CreateProfileTerminalAt(preferredSlot, profile); } catch (Exception ex) { if (TopLevel.GetTopLevel(this) is Window owner) await new Alert().ShowAsync(owner, ex.Message, true); } };
+            item.Click += async (_, e) =>
+            {
+                e.Handled = true;
+                try
+                {
+                    _owner?.CreateProfileTerminalAt(preferredSlot, profile);
+                }
+                catch (Exception ex)
+                {
+                    if (TopLevel.GetTopLevel(this) is Window owner)
+                        await new Alert().ShowAsync(owner, ex.Message, true);
+                }
+            };
             return item;
         }
 
         private MenuItem CreateTerminalMenuItem(string header, string terminal, string displayName, int preferredSlot)
         {
             var item = new MenuItem { Header = header };
-            item.Click += (_, e) => { _owner?.CreateTerminalAt(preferredSlot, terminal, displayName); e.Handled = true; };
+            item.Click += (_, e) =>
+            {
+                _owner?.CreateTerminalAt(preferredSlot, terminal, displayName);
+                e.Handled = true;
+            };
             return item;
         }
 

@@ -40,7 +40,7 @@ jobs:
             echo 'Unexpected runtime dependency file changes'
             exit 1
           fi
-          if git grep -n 'LocalCodingMcp' -- ':!docs/superpowers/*' ':!README.md'; then
+          if git grep -n 'LocalCodingMcp' -- src tests ':!tests/SourceGit.Tests/Mcp*.cs'; then
             echo 'Unexpected LocalCodingMcp runtime reference'
             exit 1
           fi

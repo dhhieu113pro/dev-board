@@ -81,9 +81,24 @@ jobs:
           node --test tests/store-assets.test.mjs
           node --test tests/store-workflow.test.mjs
 
+  unit-tests:
+    name: Store unit tests
+    needs: preflight
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Run unit tests once
+        shell: pwsh
+        run: dotnet test tests/DevBoard.Tests/DevBoard.Tests.csproj --configuration Release
+
   build-msix:
     name: Build Store MSIX (${{ matrix.arch }})
-    needs: preflight
+    needs: [preflight, unit-tests]
     strategy:
       fail-fast: false
       matrix:
@@ -109,12 +124,9 @@ jobs:
       - name: Restore
         shell: pwsh
         run: dotnet restore src/DevBoard.csproj -r ${{ matrix.rid }}
-      - name: Run unit tests
-        shell: pwsh
-        run: dotnet test tests/DevBoard.Tests/DevBoard.Tests.csproj --configuration Release
       - name: Publish DevBoard
         shell: pwsh
-        run: dotnet publish src/DevBoard.csproj --configuration Release --runtime ${{ matrix.rid }} --self-contained true --output "store/publish/${{ matrix.rid }}" -p:Version=${{ needs.preflight.outputs.version }}
+        run: dotnet publish src/DevBoard.csproj --configuration Release --runtime ${{ matrix.rid }} --self-contained true --no-restore --output "store/publish/${{ matrix.rid }}" -p:Version=${{ needs.preflight.outputs.version }}
       - name: Validate Store assets
         shell: pwsh
         run: ./scripts/validate-store-assets.ps1

@@ -175,7 +175,7 @@ namespace SourceGit.ViewModels
             return CreateTerminalAt(
                 preferredSlot,
                 settings.DefaultTerminal,
-                profile.Name,
+                profile.DisplayName,
                 workingDirectory,
                 profile.Command);
         }

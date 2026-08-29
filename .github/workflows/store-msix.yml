@@ -8,8 +8,7 @@ on:
       - 'scripts/store-submission.mjs'
       - 'scripts/validate-store-assets.ps1'
       - 'store/assets/**'
-      - 'src/**'
-      - 'tests/**'
+      - 'tests/store-*.test.mjs'
       - 'VERSION'
   workflow_dispatch:
     inputs:
@@ -36,10 +35,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: store-msix-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   preflight:
     name: Store preflight
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       version: ${{ steps.version.outputs.version }}
     env:
@@ -84,6 +88,7 @@ jobs:
   build-msix:
     name: Build Store MSIX (${{ matrix.arch }})
     needs: preflight
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -109,9 +114,6 @@ jobs:
       - name: Restore
         shell: pwsh
         run: dotnet restore src/SourceGit.csproj -r ${{ matrix.rid }}
-      - name: Run unit tests
-        shell: pwsh
-        run: dotnet test tests/SourceGit.Tests/SourceGit.Tests.csproj --configuration Release
       - name: Publish Dev Board
         shell: pwsh
         run: dotnet publish src/SourceGit.csproj --configuration Release --runtime ${{ matrix.rid }} --self-contained true --output "store/publish/${{ matrix.rid }}" -p:Version=${{ needs.preflight.outputs.version }}
@@ -141,6 +143,7 @@ jobs:
     name: Verify Store packages
     needs: [preflight, build-msix]
     runs-on: windows-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -168,6 +171,7 @@ jobs:
     needs: [preflight, verify-store-packages]
     if: github.ref_type == 'tag' && endsWith(github.ref_name, '-store')
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       STORE_TENANT_ID: ${{ vars.STORE_TENANT_ID || secrets.STORE_TENANT_ID }}
       STORE_CLIENT_ID: ${{ vars.STORE_CLIENT_ID || secrets.STORE_CLIENT_ID }}

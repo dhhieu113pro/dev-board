@@ -33,6 +33,13 @@ namespace SourceGit.Views
             e.Handled = true;
         }
 
+        private void OnStartProfile(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button { DataContext: SourceGit.DevSpaces.DevSpaceTerminalProfile profile })
+                Model?.StartProfile(profile);
+            e.Handled = true;
+        }
+
         private void OnStartTerminal(object sender, RoutedEventArgs e)
         {
             Model?.StartDefaultTerminal();
@@ -42,6 +49,12 @@ namespace SourceGit.Views
         private void OnOpenFiles(object sender, RoutedEventArgs e)
         {
             Model?.OpenFiles();
+            e.Handled = true;
+        }
+
+        private void OnOpenWorkingCopy(object sender, RoutedEventArgs e)
+        {
+            Model?.OpenWorkingCopy();
             e.Handled = true;
         }
 

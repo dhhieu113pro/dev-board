@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:SourceGit.ViewModels"
+             xmlns:ds="using:SourceGit.DevSpaces"
              x:Class="SourceGit.Views.DevSpaceDashboard"
              x:DataType="vm:DevSpaceDashboard">
   <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
@@ -78,41 +79,33 @@
               <Button Margin="0,0,8,8" Content="{DynamicResource Text.DevSpaces.NewTerminal}" Click="OnStartTerminal"/>
               <Button Margin="0,0,8,8" Content="{DynamicResource Text.DevSpaces.Files}" Click="OnOpenFiles"/>
             </WrapPanel>
+            <ItemsControl ItemsSource="{Binding Profiles}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="ds:DevSpaceTerminalProfile">
+                  <Button Margin="0,0,8,8" Content="{Binding Name}" Click="OnStartProfile"/>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
             <TextBlock Opacity="0.65" Text="{DynamicResource Text.DevSpaces.RoslynUnavailable}" TextWrapping="Wrap"/>
           </StackPanel>
         </Border>
 
         <Border Width="430" MinHeight="190" Margin="0,0,12,12" Padding="14" CornerRadius="6" Background="{DynamicResource Brush.Contents}" BorderBrush="{DynamicResource Brush.Border2}" BorderThickness="1">
           <StackPanel Spacing="8">
-            <TextBlock FontSize="15" FontWeight="SemiBold" Text="{DynamicResource Text.DevSpaces.GitChanges}"/>
             <Grid ColumnDefinitions="*,Auto">
-              <TextBlock Text="{DynamicResource Text.DevSpaces.Changed}"/>
-              <TextBlock Grid.Column="1" Text="{Binding GitSummary.Total}"/>
+              <TextBlock FontSize="15" FontWeight="SemiBold" Text="{DynamicResource Text.DevSpaces.GitChanges}"/>
+              <Button Grid.Column="1" Classes="flat" Content="{DynamicResource Text.DevSpaces.WorkingCopy}" Click="OnOpenWorkingCopy"/>
             </Grid>
-            <Grid ColumnDefinitions="*,Auto">
-              <TextBlock Text="{DynamicResource Text.DevSpaces.Staged}"/>
-              <TextBlock Grid.Column="1" Text="{Binding GitSummary.Staged}"/>
-            </Grid>
-            <Grid ColumnDefinitions="*,Auto">
-              <TextBlock Text="{DynamicResource Text.DevSpaces.Unstaged}"/>
-              <TextBlock Grid.Column="1" Text="{Binding GitSummary.Unstaged}"/>
-            </Grid>
-            <Grid ColumnDefinitions="*,Auto">
-              <TextBlock Text="{DynamicResource Text.DevSpaces.Added}"/>
-              <TextBlock Grid.Column="1" Text="{Binding GitSummary.Added}"/>
-            </Grid>
-            <Grid ColumnDefinitions="*,Auto">
-              <TextBlock Text="{DynamicResource Text.DevSpaces.Modified}"/>
-              <TextBlock Grid.Column="1" Text="{Binding GitSummary.Modified}"/>
-            </Grid>
-            <Grid ColumnDefinitions="*,Auto">
-              <TextBlock Text="{DynamicResource Text.DevSpaces.Deleted}"/>
-              <TextBlock Grid.Column="1" Text="{Binding GitSummary.Deleted}"/>
-            </Grid>
-            <Grid ColumnDefinitions="*,Auto">
-              <TextBlock Text="{DynamicResource Text.DevSpaces.Renamed}"/>
-              <TextBlock Grid.Column="1" Text="{Binding GitSummary.Renamed}"/>
-            </Grid>
+            <Grid ColumnDefinitions="*,Auto"><TextBlock Text="{DynamicResource Text.DevSpaces.Changed}"/><TextBlock Grid.Column="1" Text="{Binding GitSummary.Total}"/></Grid>
+            <Grid ColumnDefinitions="*,Auto"><TextBlock Text="{DynamicResource Text.DevSpaces.Staged}"/><TextBlock Grid.Column="1" Text="{Binding GitSummary.Staged}"/></Grid>
+            <Grid ColumnDefinitions="*,Auto"><TextBlock Text="{DynamicResource Text.DevSpaces.Unstaged}"/><TextBlock Grid.Column="1" Text="{Binding GitSummary.Unstaged}"/></Grid>
+            <Grid ColumnDefinitions="*,Auto"><TextBlock Text="{DynamicResource Text.DevSpaces.Added}"/><TextBlock Grid.Column="1" Text="{Binding GitSummary.Added}"/></Grid>
+            <Grid ColumnDefinitions="*,Auto"><TextBlock Text="{DynamicResource Text.DevSpaces.Modified}"/><TextBlock Grid.Column="1" Text="{Binding GitSummary.Modified}"/></Grid>
+            <Grid ColumnDefinitions="*,Auto"><TextBlock Text="{DynamicResource Text.DevSpaces.Deleted}"/><TextBlock Grid.Column="1" Text="{Binding GitSummary.Deleted}"/></Grid>
+            <Grid ColumnDefinitions="*,Auto"><TextBlock Text="{DynamicResource Text.DevSpaces.Renamed}"/><TextBlock Grid.Column="1" Text="{Binding GitSummary.Renamed}"/></Grid>
           </StackPanel>
         </Border>
 

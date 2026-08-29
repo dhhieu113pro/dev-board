@@ -1,7 +1,5 @@
 using System;
 
-using CommunityToolkit.Mvvm.ComponentModel;
-
 namespace SourceGit.ViewModels
 {
     public enum DevSpaceTerminalState
@@ -13,11 +11,9 @@ namespace SourceGit.ViewModels
         Stopping,
     }
 
-    public sealed class DevSpaceTerminal : ObservableObject, IDisposable
+    public sealed class DevSpaceTerminal : DevSpaceSession
     {
-        public Guid Id { get; } = Guid.NewGuid();
-
-        public string Title { get; }
+        public override DevSpaceSessionKind Kind => DevSpaceSessionKind.Terminal;
 
         public string Command { get; }
 
@@ -44,8 +40,8 @@ namespace SourceGit.ViewModels
         public event Action<DevSpaceTerminal> StopRequested;
 
         public DevSpaceTerminal(string title, string command, string workingDirectory)
+            : base(title)
         {
-            Title = title;
             Command = command;
             WorkingDirectory = workingDirectory;
         }
@@ -67,7 +63,7 @@ namespace SourceGit.ViewModels
             State = DevSpaceTerminalState.Failed;
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             if (_disposed)
                 return;

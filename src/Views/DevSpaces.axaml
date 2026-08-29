@@ -9,7 +9,7 @@
             BorderThickness="0,0,0,1"
             BorderBrush="{DynamicResource Brush.Border2}"
             Background="{DynamicResource Brush.ToolBar}">
-      <Grid ColumnDefinitions="*,Auto,Auto">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
         <ScrollViewer Grid.Column="0"
                       HorizontalScrollBarVisibility="Auto"
                       VerticalScrollBarVisibility="Disabled">
@@ -60,15 +60,28 @@
           </StackPanel>
         </ScrollViewer>
 
-        <ComboBox Grid.Column="1" Width="92" Height="28" Margin="8,4,0,4"
-                  IsVisible="{Binding IsTerminalsActive}" SelectedIndex="{Binding LayoutIndex, Mode=TwoWay}">
+        <Border Grid.Column="1" Height="28" Margin="8,4,0,4" CornerRadius="4"
+                BorderThickness="1" BorderBrush="{DynamicResource Brush.Border2}"
+                IsVisible="{Binding IsTerminalsActive}">
+          <StackPanel Orientation="Horizontal">
+            <Button Classes="flat" Height="26" Padding="8,0" Click="OnGridLayout">
+              <TextBlock Text="▦ Grid" FontWeight="{Binding IsGridLayout, Converter={x:Static BoolConverters.BoldIfTrue}}"/>
+            </Button>
+            <Button Classes="flat" Height="26" Padding="8,0" Click="OnListLayout">
+              <TextBlock Text="☰ List" FontWeight="{Binding IsListLayout, Converter={x:Static BoolConverters.BoldIfTrue}}"/>
+            </Button>
+          </StackPanel>
+        </Border>
+
+        <ComboBox Grid.Column="2" Width="92" Height="28" Margin="4,4,0,4"
+                  IsVisible="{Binding IsGridLayout}" SelectedIndex="{Binding LayoutIndex, Mode=TwoWay}">
           <ComboBoxItem Content="{DynamicResource Text.DevSpaces.Layout.Auto}"/>
           <ComboBoxItem Content="{DynamicResource Text.DevSpaces.Layout.1x2}"/>
           <ComboBoxItem Content="{DynamicResource Text.DevSpaces.Layout.2x2}"/>
           <ComboBoxItem Content="{DynamicResource Text.DevSpaces.Layout.3x3}"/>
         </ComboBox>
 
-        <Button Grid.Column="2" Classes="icon_button" Width="30" Height="30" Margin="4,3,6,3"
+        <Button Grid.Column="3" Classes="icon_button" Width="30" Height="30" Margin="4,3,6,3"
                 IsVisible="{Binding IsTerminalsActive}" Click="OnCreateTerminal"
                 ToolTip.Tip="{DynamicResource Text.DevSpaces.NewTerminal}">
           <Path Width="13" Height="13" Data="{StaticResource Icons.Plus}"/>

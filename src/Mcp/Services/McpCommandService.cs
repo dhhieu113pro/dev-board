@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -46,8 +47,8 @@ namespace SourceGit.Mcp.Services
             using var process = new Process { StartInfo = startInfo };
             var stopwatch = Stopwatch.StartNew();
             process.Start();
-            var stdoutTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-            var stderrTask = process.StandardError.ReadToEndAsync(cancellationToken);
+            var stdoutTask = ReadBoundedAsync(process.StandardOutput, cancellationToken);
+            var stderrTask = ReadBoundedAsync(process.StandardError, cancellationToken);
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(_timeoutSeconds));
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
             var timedOut = false;
@@ -68,22 +69,66 @@ namespace SourceGit.Mcp.Services
 
             if (timedOut)
                 await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+
             var stdout = await stdoutTask.ConfigureAwait(false);
             var stderr = await stderrTask.ConfigureAwait(false);
             stopwatch.Stop();
-            var truncated = false;
-            stdout = TruncateUtf8(stdout, ref truncated);
-            stderr = TruncateUtf8(stderr, ref truncated);
-            return new McpCommandResult(timedOut ? -1 : process.ExitCode, stdout, stderr, stopwatch.ElapsedMilliseconds, timedOut, truncated);
+            return new McpCommandResult(
+                timedOut ? -1 : process.ExitCode,
+                stdout.Text,
+                stderr.Text,
+                stopwatch.ElapsedMilliseconds,
+                timedOut,
+                stdout.Truncated || stderr.Truncated);
         }
 
-        private string TruncateUtf8(string value, ref bool truncated)
+        private async Task<BoundedText> ReadBoundedAsync(StreamReader reader, CancellationToken cancellationToken)
         {
-            if (Encoding.UTF8.GetByteCount(value) <= _maxOutputBytes)
-                return value;
-            truncated = true;
-            var bytes = Encoding.UTF8.GetBytes(value);
-            return Encoding.UTF8.GetString(bytes, 0, _maxOutputBytes);
+            var builder = new StringBuilder();
+            var buffer = new char[4096];
+            var retainedBytes = 0;
+            var truncated = false;
+
+            while (true)
+            {
+                var read = await reader.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);
+                if (read == 0)
+                    break;
+
+                if (truncated)
+                    continue;
+
+                var span = buffer.AsSpan(0, read);
+                var chunkBytes = Encoding.UTF8.GetByteCount(span);
+                if (retainedBytes + chunkBytes <= _maxOutputBytes)
+                {
+                    builder.Append(span);
+                    retainedBytes += chunkBytes;
+                    continue;
+                }
+
+                var remainingBytes = _maxOutputBytes - retainedBytes;
+                if (remainingBytes > 0)
+                {
+                    var low = 0;
+                    var high = span.Length;
+                    while (low < high)
+                    {
+                        var mid = low + ((high - low + 1) / 2);
+                        if (Encoding.UTF8.GetByteCount(span[..mid]) <= remainingBytes)
+                            low = mid;
+                        else
+                            high = mid - 1;
+                    }
+
+                    if (low > 0)
+                        builder.Append(span[..low]);
+                }
+
+                truncated = true;
+            }
+
+            return new BoundedText(builder.ToString(), truncated);
         }
 
         private static void TryKill(Process process)
@@ -91,6 +136,7 @@ namespace SourceGit.Mcp.Services
             try { if (!process.HasExited) process.Kill(true); } catch { }
         }
 
+        private sealed record BoundedText(string Text, bool Truncated);
         private readonly int _timeoutSeconds;
         private readonly int _maxOutputBytes;
     }

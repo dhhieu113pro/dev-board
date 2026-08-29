@@ -28,8 +28,7 @@
       <ListBox Grid.Row="1"
                Margin="2"
                ItemsSource="{Binding VisibleItems}"
-               SelectedItem="{Binding SelectedNode, Mode=TwoWay}"
-               HorizontalContentAlignment="Stretch">
+               SelectedItem="{Binding SelectedNode, Mode=TwoWay}">
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="vm:DevSpaceFileNode">
             <Grid Height="26"
@@ -116,8 +115,8 @@
                        AcceptsTab="True"
                        IsReadOnly="True"
                        TextWrapping="NoWrap"
-                       HorizontalScrollBarVisibility="Auto"
-                       VerticalScrollBarVisibility="Auto"
+                       ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                       ScrollViewer.VerticalScrollBarVisibility="Auto"
                        FontFamily="{DynamicResource Fonts.Monospace}"
                        Text="{Binding Content}"/>
             </Grid>

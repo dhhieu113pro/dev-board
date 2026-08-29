@@ -99,13 +99,8 @@ namespace SourceGit.DevSpaces
 
         public static string NormalizeProfileIcon(string value)
         {
-            foreach (var choice in ProfileIcons)
-            {
-                if (string.Equals(choice.Icon, value, StringComparison.Ordinal))
-                    return choice.Icon;
-            }
-
-            return DefaultProfileIcon;
+            var normalized = value?.Trim();
+            return string.IsNullOrWhiteSpace(normalized) ? DefaultProfileIcon : normalized;
         }
 
         public static string GetTerminalDisplayName(string value)

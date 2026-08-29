@@ -86,11 +86,9 @@
     </Border>
 
     <Grid Grid.Row="1">
-      <v:DevSpaceFiles DataContext="{Binding Files}"
-                       IsVisible="{Binding IsFilesActive}"/>
-      <Grid x:Name="TerminalGrid"
-            Margin="2"
-            IsVisible="{Binding IsFilesActive, Converter={x:Static BoolConverters.Not}}"/>
+      <v:DevSpaceFiles x:Name="FilesView"
+                       DataContext="{Binding Files}"/>
+      <Grid x:Name="TerminalGrid" Margin="2"/>
     </Grid>
   </Grid>
 </UserControl>

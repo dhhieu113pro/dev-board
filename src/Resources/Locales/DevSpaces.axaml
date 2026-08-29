@@ -11,4 +11,13 @@
   <x:String x:Key="Text.DevSpaces.NewTerminal" xml:space="preserve">New Terminal</x:String>
   <x:String x:Key="Text.DevSpaces.CloseTerminal" xml:space="preserve">Close Terminal</x:String>
   <x:String x:Key="Text.DevSpaces.StartFailed" xml:space="preserve">Failed to start terminal: {0}</x:String>
+  <x:String x:Key="Text.DevSpaces.Dashboard" xml:space="preserve">Dashboard</x:String>
+  <x:String x:Key="Text.DevSpaces.Files" xml:space="preserve">Files</x:String>
+  <x:String x:Key="Text.DevSpaces.Terminals" xml:space="preserve">Terminals</x:String>
+  <x:String x:Key="Text.DevSpaces.ActiveSpaces" xml:space="preserve">Active Spaces</x:String>
+  <x:String x:Key="Text.DevSpaces.QuickStart" xml:space="preserve">Quick Start</x:String>
+  <x:String x:Key="Text.DevSpaces.GitChanges" xml:space="preserve">Git Changes</x:String>
+  <x:String x:Key="Text.DevSpaces.RecentActivity" xml:space="preserve">Recent Activity</x:String>
+  <x:String x:Key="Text.DevSpaces.CloseAll" xml:space="preserve">Close All</x:String>
+  <x:String x:Key="Text.DevSpaces.RoslynUnavailable" xml:space="preserve">Roslyn diagnostics are unavailable until the Roslyn DevSpace integration is present.</x:String>
 </ResourceDictionary>

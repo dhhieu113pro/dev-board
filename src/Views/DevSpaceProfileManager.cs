@@ -15,12 +15,13 @@ namespace SourceGit.Views
         {
             Title = "DevSpace Terminal Profiles";
             Width = 720;
-            Height = 520;
+            Height = 590;
             MinWidth = 620;
-            MinHeight = 440;
+            MinHeight = 500;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
             BuildDefaultTerminalPicker();
+            BuildIconPicker();
             BuildContent();
             RefreshProfiles();
         }
@@ -46,6 +47,26 @@ namespace SourceGit.Views
 
             if (_defaultTerminal.SelectedIndex < 0 && _defaultTerminal.ItemCount > 0)
                 _defaultTerminal.SelectedIndex = 0;
+        }
+
+        private void BuildIconPicker()
+        {
+            foreach (var choice in SourceGit.DevSpaces.DevSpaceProfileSettings.ProfileIcons)
+            {
+                var icon = new RadioButton
+                {
+                    Content = choice.Icon,
+                    Tag = choice.Icon,
+                    GroupName = "DevSpaceTerminalProfileAnimalIcon",
+                    FontSize = 20,
+                    Margin = new Thickness(0, 0, 6, 6),
+                };
+                ToolTip.SetTip(icon, choice.Name);
+                icon.Checked += (_, _) => _selectedIcon = choice.Icon;
+                _iconPicker.Children.Add(icon);
+            }
+
+            SelectIcon(SourceGit.DevSpaces.DevSpaceProfileSettings.DefaultProfileIcon);
         }
 
         private void BuildContent()
@@ -107,25 +128,31 @@ namespace SourceGit.Views
 
             var editor = new Grid
             {
-                RowDefinitions = new RowDefinitions("Auto,6,Auto,6,Auto,6,Auto,12,Auto,*"),
+                RowDefinitions = new RowDefinitions("Auto,6,Auto,12,Auto,6,Auto,6,Auto,6,Auto,12,Auto,*"),
             };
             Grid.SetColumn(editor, 2);
             body.Children.Add(editor);
 
-            editor.Children.Add(new TextBlock { Text = "Name" });
-            Grid.SetRow(_name, 2);
+            editor.Children.Add(new TextBlock { Text = "Animal icon" });
+            Grid.SetRow(_iconPicker, 2);
+            editor.Children.Add(_iconPicker);
+
+            var nameLabel = new TextBlock { Text = "Name" };
+            Grid.SetRow(nameLabel, 4);
+            editor.Children.Add(nameLabel);
+            Grid.SetRow(_name, 6);
             editor.Children.Add(_name);
 
             var pathLabel = new TextBlock { Text = "Workspace-relative path" };
-            Grid.SetRow(pathLabel, 4);
+            Grid.SetRow(pathLabel, 8);
             editor.Children.Add(pathLabel);
-            Grid.SetRow(_path, 6);
+            Grid.SetRow(_path, 10);
             editor.Children.Add(_path);
 
             var commandLabel = new TextBlock { Text = "Startup command" };
-            Grid.SetRow(commandLabel, 8);
+            Grid.SetRow(commandLabel, 12);
             editor.Children.Add(commandLabel);
-            Grid.SetRow(_command, 9);
+            Grid.SetRow(_command, 13);
             editor.Children.Add(_command);
 
             _profiles.SelectionChanged += (_, _) => LoadSelectedProfile();
@@ -200,6 +227,7 @@ namespace SourceGit.Views
                 return true;
 
             profile.Name = _name.Text?.Trim() ?? string.Empty;
+            profile.Icon = _selectedIcon;
             profile.Path = _path.Text?.Trim() ?? string.Empty;
             profile.Command = _command.Text?.Trim() ?? string.Empty;
 
@@ -312,13 +340,25 @@ namespace SourceGit.Views
                 return;
             }
 
+            SelectIcon(profile.Icon);
             _name.Text = profile.Name;
             _path.Text = profile.Path;
             _command.Text = profile.Command;
         }
 
+        private void SelectIcon(string icon)
+        {
+            _selectedIcon = SourceGit.DevSpaces.DevSpaceProfileSettings.NormalizeProfileIcon(icon);
+            foreach (var child in _iconPicker.Children)
+            {
+                if (child is RadioButton { Tag: string value } radio)
+                    radio.IsChecked = string.Equals(value, _selectedIcon, StringComparison.Ordinal);
+            }
+        }
+
         private void ClearEditor()
         {
+            SelectIcon(SourceGit.DevSpaces.DevSpaceProfileSettings.DefaultProfileIcon);
             _name.Text = string.Empty;
             _path.Text = string.Empty;
             _command.Text = string.Empty;
@@ -343,6 +383,12 @@ namespace SourceGit.Views
             VerticalAlignment = VerticalAlignment.Stretch,
         };
 
+        private readonly WrapPanel _iconPicker = new()
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+
         private readonly TextBox _name = new();
         private readonly TextBox _path = new() { Watermark = ". or src/MyApp" };
         private readonly TextBox _command = new()
@@ -351,5 +397,7 @@ namespace SourceGit.Views
             AcceptsReturn = true,
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         };
+
+        private string _selectedIcon = SourceGit.DevSpaces.DevSpaceProfileSettings.DefaultProfileIcon;
     }
 }

@@ -36,6 +36,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: store-msix-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   preflight:
     name: Store preflight
@@ -85,6 +89,7 @@ jobs:
     name: Store unit tests
     needs: preflight
     runs-on: windows-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -110,6 +115,7 @@ jobs:
             rid: win-arm64
             arch: arm64
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     env:
       STORE_PACKAGE_NAME: ${{ github.event_name == 'pull_request' && 'DevBoard.Test' || inputs.package_name || vars.STORE_PACKAGE_NAME || secrets.STORE_PACKAGE_NAME }}
       STORE_PUBLISHER: ${{ github.event_name == 'pull_request' && 'CN=00000000-0000-0000-0000-000000000000' || inputs.publisher || vars.STORE_PUBLISHER || secrets.STORE_PUBLISHER }}

@@ -80,11 +80,16 @@ namespace SourceGit.ViewModels
         public int GridCapacity => GridRows * GridColumns;
 
         public DevSpaces(string workingDirectory, SourceGit.DevSpaces.IDevSpaceSessionLauncher launcher = null)
+            : this(null, workingDirectory, launcher)
+        {
+        }
+
+        public DevSpaces(Repository repository, string workingDirectory, SourceGit.DevSpaces.IDevSpaceSessionLauncher launcher = null)
         {
             _workingDirectory = workingDirectory;
             Launcher = launcher ?? new SourceGit.DevSpaces.LocalDevSpaceSessionLauncher();
             Files = new DevSpaceFiles(workingDirectory);
-            Dashboard = new DevSpaceDashboard(this, workingDirectory);
+            Dashboard = new DevSpaceDashboard(this, workingDirectory, repository);
 
             var savedLayout = Preferences.Instance.DevSpacesDefaultLayout;
             if (savedLayout == Models.DevSpaceLayout.FourByFour)

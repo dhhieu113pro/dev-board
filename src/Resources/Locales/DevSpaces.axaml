@@ -19,6 +19,8 @@
   <x:String x:Key="Text.DevSpaces.GitChanges" xml:space="preserve">Git Changes</x:String>
   <x:String x:Key="Text.DevSpaces.RecentActivity" xml:space="preserve">Recent Activity</x:String>
   <x:String x:Key="Text.DevSpaces.CloseAll" xml:space="preserve">Close All</x:String>
+  <x:String x:Key="Text.DevSpaces.CopyPath" xml:space="preserve">Copy Path</x:String>
+  <x:String x:Key="Text.DevSpaces.OpenFolder" xml:space="preserve">Open Folder</x:String>
   <x:String x:Key="Text.DevSpaces.RoslynUnavailable" xml:space="preserve">Roslyn diagnostics are unavailable until the Roslyn DevSpace integration is present.</x:String>
   <x:String x:Key="Text.DevSpaces.Branch" xml:space="preserve">Branch</x:String>
   <x:String x:Key="Text.DevSpaces.BaseBranch" xml:space="preserve">Base</x:String>

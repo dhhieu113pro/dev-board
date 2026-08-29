@@ -169,6 +169,25 @@ The existing commit-message AI integration supports OpenAI and OpenAI-compatible
 
 This is separate from the newer **DevSpace AI CLI integrations**, which launch coding agents directly inside the selected workspace.
 
+## MCP server
+
+Dev Board includes one local MCP server that combines its existing DevSpace terminal tools with workspace coding tools derived from LocalCodingMcp. The server stays loopback-only, requires the bearer token configured in Dev Board, and keeps the existing stateful HTTP/legacy SSE transport for compatibility.
+
+MCP filesystem access is deliberately narrower than LocalCodingMcp's configured-root model. `open_workspace` accepts only an exact canonical repository or worktree root currently represented by the running Dev Board launcher. It returns a deterministic `workspace_id`; file, Git, and shell calls require that ID. Arbitrary host filesystem paths are unavailable.
+
+Available categories include workspace discovery, file/directory read-write/search/patch operations, Git status/diff/log, bounded shell commands, local and HTTPS-installed skills, execution history, plus the existing `sourcegit_*` DevSpace terminal tools. Path traversal and symlink escapes are rejected, sensitive files such as `.env`, private-key material, credential JSON, and production secrets are blocked, and file/search/command/remote-skill operations have size or timeout limits.
+
+Typical flow:
+
+```text
+open_workspace(path: "D:/Development/example")
+read_file(path: "src/Program.cs", workspace_id: "returned-id")
+git_status(workspace_id: "returned-id")
+run_command(command: "dotnet test", workspace_id: "returned-id")
+```
+
+Skills are stored under Dev Board's application-data `mcp/skills` directory. The built-in `caveman`, `hallmark`, `superpowers`, and `ponytail` skills are seeded disabled and may be enabled explicitly. Remote skill installation/update accepts HTTPS only, validates redirects and front matter, limits download size, and records provenance plus SHA-256. Execution history is JSONL under application data, rotates when bounded storage is reached, and redacts credential/content-like arguments before persistence.
+
 ## Contributing
 
 Contributions are welcome. This repository continues to track and build on the excellent work from the upstream [SourceGit](https://github.com/sourcegit-scm/sourcegit) project while evolving the fork into the broader **Dev Board** development workspace.

@@ -9,12 +9,12 @@ namespace SourceGit.ViewModels
     {
         public int Index { get; }
 
-        public DevSpaceTerminal Terminal { get; }
+        public DevSpaceSession Session { get; }
 
-        public DevSpaceGridSlot(int index, DevSpaceTerminal terminal)
+        public DevSpaceGridSlot(int index, DevSpaceSession session)
         {
             Index = index;
-            Terminal = terminal;
+            Session = session;
         }
     }
 
@@ -22,14 +22,14 @@ namespace SourceGit.ViewModels
     {
         public SourceGit.DevSpaces.IDevSpaceSessionLauncher Launcher { get; }
 
-        public AvaloniaList<DevSpaceTerminal> Sessions { get; } = [];
+        public AvaloniaList<DevSpaceSession> Sessions { get; } = [];
 
         public AvaloniaList<DevSpaceGridSlot> VisibleSlots { get; } = [];
 
-        public DevSpaceTerminal ActiveTerminal
+        public DevSpaceSession ActiveSession
         {
-            get => _activeTerminal;
-            private set => SetProperty(ref _activeTerminal, value);
+            get => _activeSession;
+            private set => SetProperty(ref _activeSession, value);
         }
 
         public Models.DevSpaceLayout Layout
@@ -108,33 +108,46 @@ namespace SourceGit.ViewModels
 
             var number = _nextSessionNumber++;
             var terminal = new DevSpaceTerminal($"{displayName} {number}", command, _workingDirectory);
-
-            Sessions.Add(terminal);
-            ActiveTerminal = terminal;
-            _preferredSlot = preferredSlot;
-            RebuildSlots();
+            AddSession(terminal, preferredSlot);
             return terminal;
+        }
+
+        public DevSpaceRoslyn CreateRoslynAt(int preferredSlot)
+        {
+            var roslyn = new DevSpaceRoslyn(_workingDirectory);
+            AddSession(roslyn, preferredSlot);
+            return roslyn;
+        }
+
+        public void ActivateSession(DevSpaceSession session)
+        {
+            if (session == null || !Sessions.Contains(session))
+                return;
+
+            ActiveSession = session;
+            RebuildSlots();
+        }
+
+        public void CloseSession(DevSpaceSession session)
+        {
+            if (session == null || !Sessions.Remove(session))
+                return;
+
+            session.Dispose();
+            if (ActiveSession == session)
+                ActiveSession = Sessions.Count > 0 ? Sessions[Sessions.Count - 1] : null;
+
+            RebuildSlots();
         }
 
         public void ActivateTerminal(DevSpaceTerminal terminal)
         {
-            if (terminal == null || !Sessions.Contains(terminal))
-                return;
-
-            ActiveTerminal = terminal;
-            RebuildSlots();
+            ActivateSession(terminal);
         }
 
         public void CloseTerminal(DevSpaceTerminal terminal)
         {
-            if (terminal == null || !Sessions.Remove(terminal))
-                return;
-
-            terminal.Dispose();
-            if (ActiveTerminal == terminal)
-                ActiveTerminal = Sessions.Count > 0 ? Sessions[Sessions.Count - 1] : null;
-
-            RebuildSlots();
+            CloseSession(terminal);
         }
 
         public void StopAll()
@@ -144,7 +157,7 @@ namespace SourceGit.ViewModels
 
             Sessions.Clear();
             VisibleSlots.Clear();
-            ActiveTerminal = null;
+            ActiveSession = null;
             _preferredSlot = -1;
             OnPropertyChanged(nameof(GridRows));
             OnPropertyChanged(nameof(GridColumns));
@@ -155,6 +168,14 @@ namespace SourceGit.ViewModels
         public void Dispose()
         {
             StopAll();
+        }
+
+        private void AddSession(DevSpaceSession session, int preferredSlot)
+        {
+            Sessions.Add(session);
+            ActiveSession = session;
+            _preferredSlot = preferredSlot;
+            RebuildSlots();
         }
 
         private static string GetTerminalDisplayName(string command)
@@ -175,27 +196,27 @@ namespace SourceGit.ViewModels
         private void RebuildSlots()
         {
             var capacity = GridCapacity;
-            var slots = new DevSpaceTerminal[capacity];
+            var slots = new DevSpaceSession[capacity];
 
             if (capacity == 1)
             {
-                slots[0] = ActiveTerminal ?? (Sessions.Count > 0 ? Sessions[0] : null);
+                slots[0] = ActiveSession ?? (Sessions.Count > 0 ? Sessions[0] : null);
             }
             else
             {
                 var placeActiveInPreferredSlot =
-                    ActiveTerminal != null &&
+                    ActiveSession != null &&
                     _preferredSlot >= 0 &&
                     _preferredSlot < capacity &&
-                    Sessions.Contains(ActiveTerminal);
+                    Sessions.Contains(ActiveSession);
 
                 if (placeActiveInPreferredSlot)
-                    slots[_preferredSlot] = ActiveTerminal;
+                    slots[_preferredSlot] = ActiveSession;
 
                 var slotIndex = 0;
                 foreach (var session in Sessions)
                 {
-                    if (placeActiveInPreferredSlot && session == ActiveTerminal)
+                    if (placeActiveInPreferredSlot && session == ActiveSession)
                         continue;
 
                     while (slotIndex < capacity && slots[slotIndex] != null)
@@ -208,8 +229,8 @@ namespace SourceGit.ViewModels
                     slotIndex++;
                 }
 
-                if (ActiveTerminal != null && Array.IndexOf(slots, ActiveTerminal) < 0)
-                    slots[capacity - 1] = ActiveTerminal;
+                if (ActiveSession != null && Array.IndexOf(slots, ActiveSession) < 0)
+                    slots[capacity - 1] = ActiveSession;
             }
 
             VisibleSlots.Clear();
@@ -224,7 +245,7 @@ namespace SourceGit.ViewModels
         }
 
         private readonly string _workingDirectory;
-        private DevSpaceTerminal _activeTerminal;
+        private DevSpaceSession _activeSession;
         private Models.DevSpaceLayout _layout;
         private int _nextSessionNumber = 1;
         private int _preferredSlot = -1;

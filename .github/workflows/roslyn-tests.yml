@@ -1,0 +1,27 @@
+name: Roslyn DevSpace Tests
+
+on:
+  pull_request:
+    branches:
+      - fix/devspaces-per-tab-state
+    paths:
+      - 'src/DevSpaces/Roslyn/**'
+      - 'tests/SourceGit.Tests/**'
+      - 'SourceGit.slnx'
+      - '.github/workflows/roslyn-tests.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: Run Roslyn DevSpace tests
+        run: dotnet test tests/SourceGit.Tests/SourceGit.Tests.csproj -c Release

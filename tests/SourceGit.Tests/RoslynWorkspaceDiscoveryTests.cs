@@ -46,6 +46,16 @@ public sealed class RoslynWorkspaceDiscoveryTests
         Assert.Equal("Lib.csproj", System.IO.Path.GetFileName(candidates[1]));
     }
 
+    [Fact]
+    public void FindCandidates_returns_empty_for_missing_workspace_root()
+    {
+        var missingPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"missing-sourcegit-roslyn-{Guid.NewGuid():N}");
+
+        var candidates = RoslynWorkspaceDiscovery.FindCandidates(missingPath);
+
+        Assert.Empty(candidates);
+    }
+
     private sealed class TemporaryWorkspace : IDisposable
     {
         public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"sourcegit-roslyn-{Guid.NewGuid():N}");

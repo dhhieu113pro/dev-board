@@ -1,0 +1,41 @@
+name: MCP Verification
+on:
+  push:
+    branches: [feat/devboard-mcp-local-coding-tools]
+    paths:
+      - '.github/workflows/mcp-verify.yml'
+      - 'src/Mcp/**'
+      - 'tests/SourceGit.Tests/Mcp*.cs'
+      - 'README.md'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: MCP tests
+        run: dotnet test tests/SourceGit.Tests/SourceGit.Tests.csproj --filter "FullyQualifiedName~Mcp"
+      - name: Full tests
+        run: dotnet test tests/SourceGit.Tests/SourceGit.Tests.csproj
+      - name: Debug build
+        run: dotnet build src/SourceGit.csproj -c Debug
+      - name: Release build
+        run: dotnet build src/SourceGit.csproj -c Release -p:DisableAOT=true
+      - name: Compatibility and security checks
+        shell: bash
+        run: |
+          git diff --check master...HEAD
+          if git diff --name-only master...HEAD -- src/SourceGit.csproj .gitmodules | grep -q .; then
+            echo 'Unexpected runtime dependency file changes'
+            exit 1
+          fi
+          if git grep -n 'LocalCodingMcp' -- ':!docs/superpowers/*' ':!README.md'; then
+            echo 'Unexpected LocalCodingMcp runtime reference'
+            exit 1
+          fi

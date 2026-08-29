@@ -149,7 +149,14 @@ namespace SourceGit.ViewModels
         }
 
         public void OpenSession(DevSpaceTerminal terminal) => _owner.ActivateTerminal(terminal);
+        public void CloseSession(DevSpaceTerminal terminal) => _owner.CloseTerminal(terminal);
         public void OpenFiles() => _owner.ActivateFiles();
+        public void OpenWorkspaceFolder()
+        {
+            if (!string.IsNullOrWhiteSpace(WorkspacePath))
+                Native.OS.OpenInFileManager(WorkspacePath);
+        }
+
         public void OpenWorkingCopy()
         {
             if (_repository != null)

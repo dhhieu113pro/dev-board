@@ -174,7 +174,10 @@ namespace SourceGit.ViewModels
             return created;
         }
 
-        public DevSpaceTerminal CreateProfileTerminalAt(int preferredSlot, SourceGit.DevSpaces.DevSpaceTerminalProfile profile)
+        public DevSpaceTerminal CreateProfileTerminalAt(
+            int preferredSlot,
+            SourceGit.DevSpaces.DevSpaceTerminalProfile profile,
+            bool showProfileIcon = true)
         {
             SourceGit.DevSpaces.DevSpaceProfileSettings.ValidateProfile(profile);
             var settings = SourceGit.DevSpaces.DevSpaceProfileSettings.Instance;
@@ -185,7 +188,12 @@ namespace SourceGit.ViewModels
             else if (string.Equals(profile.Command, "agy", StringComparison.OrdinalIgnoreCase))
                 SourceGit.DevSpaces.AntigravityWorkspaceTrust.EnsureTrusted(workingDirectory);
 
-            return CreateTerminalAt(preferredSlot, settings.DefaultTerminal, profile.Name, workingDirectory, profile.Command);
+            return CreateTerminalAt(
+                preferredSlot,
+                settings.DefaultTerminal,
+                showProfileIcon ? profile.DisplayName : profile.Name,
+                workingDirectory,
+                profile.Command);
         }
 
         public DevSpaceTerminal CreateCopilotTerminalAt(int preferredSlot)

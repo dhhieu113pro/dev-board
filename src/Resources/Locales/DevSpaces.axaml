@@ -20,4 +20,14 @@
   <x:String x:Key="Text.DevSpaces.RecentActivity" xml:space="preserve">Recent Activity</x:String>
   <x:String x:Key="Text.DevSpaces.CloseAll" xml:space="preserve">Close All</x:String>
   <x:String x:Key="Text.DevSpaces.RoslynUnavailable" xml:space="preserve">Roslyn diagnostics are unavailable until the Roslyn DevSpace integration is present.</x:String>
+  <x:String x:Key="Text.DevSpaces.Branch" xml:space="preserve">Branch</x:String>
+  <x:String x:Key="Text.DevSpaces.BaseBranch" xml:space="preserve">Base</x:String>
+  <x:String x:Key="Text.DevSpaces.Changed" xml:space="preserve">Changed</x:String>
+  <x:String x:Key="Text.DevSpaces.Staged" xml:space="preserve">Staged</x:String>
+  <x:String x:Key="Text.DevSpaces.Unstaged" xml:space="preserve">Unstaged</x:String>
+  <x:String x:Key="Text.DevSpaces.Added" xml:space="preserve">Added</x:String>
+  <x:String x:Key="Text.DevSpaces.Modified" xml:space="preserve">Modified</x:String>
+  <x:String x:Key="Text.DevSpaces.Deleted" xml:space="preserve">Deleted</x:String>
+  <x:String x:Key="Text.DevSpaces.Renamed" xml:space="preserve">Renamed</x:String>
+  <x:String x:Key="Text.DevSpaces.WorkspaceHealth" xml:space="preserve">Workspace Health</x:String>
 </ResourceDictionary>

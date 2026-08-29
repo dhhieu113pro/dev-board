@@ -46,11 +46,15 @@ namespace SourceGit.Views
             if (_owner != null)
                 _owner.PropertyChanged += OnOwnerPropertyChanged;
 
+            UpdatePageVisibility();
             RebuildGrid();
         }
 
         private void OnOwnerPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
+            if (e.PropertyName == nameof(ViewModels.DevSpaces.IsFilesActive))
+                Dispatcher.UIThread.Post(UpdatePageVisibility);
+
             if (e.PropertyName == nameof(ViewModels.DevSpaces.VisibleSlots) ||
                 e.PropertyName == nameof(ViewModels.DevSpaces.GridRows) ||
                 e.PropertyName == nameof(ViewModels.DevSpaces.GridColumns) ||
@@ -101,6 +105,15 @@ namespace SourceGit.Views
             }
 
             RebuildGrid();
+        }
+
+        private void UpdatePageVisibility()
+        {
+            var showFiles = _owner?.IsFilesActive == true;
+            FilesView.IsVisible = showFiles;
+            FilesView.IsHitTestVisible = showFiles;
+            TerminalGrid.IsVisible = !showFiles;
+            TerminalGrid.IsHitTestVisible = !showFiles;
         }
 
         private void RebuildGrid()

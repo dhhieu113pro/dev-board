@@ -1,5 +1,7 @@
 using SourceGit.DevSpaces.Roslyn;
 
+using Xunit;
+
 namespace SourceGit.Tests;
 
 public sealed class RoslynWorkspaceDiscoveryTests

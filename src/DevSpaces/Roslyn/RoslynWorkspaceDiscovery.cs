@@ -38,20 +38,24 @@ namespace SourceGit.DevSpaces.Roslyn
 
             foreach (var file in files)
             {
-                var extension = Path.GetExtension(file);
-                var priority = extension.ToLowerInvariant() switch
-                {
-                    ".slnx" => 0,
-                    ".sln" => 1,
-                    ".csproj" => 2,
-                    _ => -1,
-                };
-
-                if (priority < 0)
+                var extension = Path.GetExtension(file).ToLowerInvariant();
+                if (extension is not ".slnx" and not ".sln" and not ".csproj")
                     continue;
 
                 var relative = Path.GetRelativePath(root, file);
                 var depth = relative.Count(x => x == Path.DirectorySeparatorChar || x == Path.AltDirectorySeparatorChar);
+                var isRoot = depth == 0;
+                var priority = extension switch
+                {
+                    ".slnx" when isRoot => 0,
+                    ".sln" when isRoot => 1,
+                    ".slnx" => 2,
+                    ".sln" => 3,
+                    ".csproj" when isRoot => 4,
+                    ".csproj" => 5,
+                    _ => 6,
+                };
+
                 candidates.Add(new Candidate(Path.GetFullPath(file), priority, depth));
             }
 

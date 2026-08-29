@@ -31,7 +31,7 @@ namespace DevBoard.Models
         public bool PushAllTags { get; set; } = false;
         public bool CreateAnnotatedTag { get; set; } = true;
         public bool PushToRemoteWhenCreateTag { get; set; } = true;
-        public bool PushToRemoteWhenDeleteTag { get; set; } = true;
+        public bool PushToRemoteWhenDeleteTag { get; set; } = false;
         public bool CheckoutBranchOnCreateBranch { get; set; } = true;
         public bool EnableSignOffForCommit { get; set; } = false;
         public bool NoVerifyOnCommit { get; set; } = false;

@@ -28,11 +28,28 @@ namespace SourceGit.ViewModels
 
         public AvaloniaList<DevSpaceGridSlot> VisibleSlots { get; } = [];
 
-        public bool IsFilesActive
+        public Models.DevSpacePage ActivePage
         {
-            get => _isFilesActive;
-            private set => SetProperty(ref _isFilesActive, value);
+            get => _activePage;
+            private set
+            {
+                if (!SetProperty(ref _activePage, value))
+                    return;
+
+                OnPropertyChanged(nameof(IsDashboardActive));
+                OnPropertyChanged(nameof(IsFilesActive));
+                OnPropertyChanged(nameof(IsTerminalsActive));
+                OnPropertyChanged(nameof(IsRoslynActive));
+            }
         }
+
+        public bool IsDashboardActive => ActivePage == Models.DevSpacePage.Dashboard;
+
+        public bool IsFilesActive => ActivePage == Models.DevSpacePage.Files;
+
+        public bool IsTerminalsActive => ActivePage == Models.DevSpacePage.Terminals;
+
+        public bool IsRoslynActive => ActivePage == Models.DevSpacePage.Roslyn;
 
         public DevSpaceTerminal ActiveTerminal
         {
@@ -97,9 +114,24 @@ namespace SourceGit.ViewModels
                 CreateTerminal();
         }
 
+        public void ActivateDashboard()
+        {
+            ActivePage = Models.DevSpacePage.Dashboard;
+        }
+
         public void ActivateFiles()
         {
-            IsFilesActive = true;
+            ActivePage = Models.DevSpacePage.Files;
+        }
+
+        public void ActivateTerminals()
+        {
+            ActivePage = Models.DevSpacePage.Terminals;
+        }
+
+        public void ActivateRoslyn()
+        {
+            ActivePage = Models.DevSpacePage.Roslyn;
         }
 
         public bool OpenFile(string relativePath)
@@ -151,7 +183,7 @@ namespace SourceGit.ViewModels
 
             Sessions.Add(created);
             ActiveTerminal = created;
-            IsFilesActive = false;
+            ActivateTerminals();
             _preferredSlot = preferredSlot;
             RebuildSlots();
             return created;
@@ -194,7 +226,7 @@ namespace SourceGit.ViewModels
                 return;
 
             ActiveTerminal = terminal;
-            IsFilesActive = false;
+            ActivateTerminals();
             RebuildSlots();
         }
 
@@ -284,7 +316,7 @@ namespace SourceGit.ViewModels
         private readonly string _workingDirectory;
         private DevSpaceTerminal _activeTerminal;
         private Models.DevSpaceLayout _layout;
-        private bool _isFilesActive;
+        private Models.DevSpacePage _activePage = Models.DevSpacePage.Dashboard;
         private int _nextSessionNumber = 1;
         private int _preferredSlot = -1;
     }

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text.Json;
 using SourceGit.Mcp.Services;
 using Xunit;
 
@@ -18,7 +19,7 @@ public sealed class McpFileServiceTests
             var service = new McpFileService(registry, new McpPathSandbox(), new McpSensitiveFileFilter());
             service.WriteFile(workspace.Id, "a.txt", "hello\nworld\n");
             Assert.Contains("hello", service.ReadFile(workspace.Id, "a.txt").ToString());
-            Assert.Contains("hello", service.SearchFiles(workspace.Id, "hello").ToString());
+            Assert.Contains("hello", JsonSerializer.Serialize(service.SearchFiles(workspace.Id, "hello")));
             service.ApplyPatch(workspace.Id, "a.txt", "@@ -1,2 +1,2 @@\n hello\n-world\n+devboard\n");
             Assert.Contains("devboard", service.ReadFile(workspace.Id, "a.txt").ToString());
             Assert.Throws<UnauthorizedAccessException>(() => service.WriteFile(workspace.Id, ".env", "secret"));

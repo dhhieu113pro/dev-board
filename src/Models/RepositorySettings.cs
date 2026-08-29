@@ -12,53 +12,14 @@ namespace DevBoard.Models
 {
     public class RepositorySettings
     {
-        public string DefaultRemote
-        {
-            get;
-            set;
-        } = string.Empty;
-
-        public int PreferredMergeMode
-        {
-            get;
-            set;
-        } = 0;
-
-        public string ConventionalTypesOverride
-        {
-            get;
-            set;
-        } = string.Empty;
-
-        public bool EnableRecursiveWhenAutoUpdatingSubmodules
-        {
-            get;
-            set;
-        } = true;
-
-        public bool AskBeforeAutoUpdatingSubmodules
-        {
-            get;
-            set;
-        } = false;
-
-        public string PreferredOpenAIService
-        {
-            get;
-            set;
-        } = "---";
-
-        public AvaloniaList<CommitTemplate> CommitTemplates
-        {
-            get;
-            set;
-        } = [];
-
-        public AvaloniaList<CustomAction> CustomActions
-        {
-            get;
-            set;
-        } = [];
+        public string DefaultRemote { get; set; } = string.Empty;
+        public int PreferredMergeMode { get; set; } = 0;
+        public string ConventionalTypesOverride { get; set; } = string.Empty;
+        public bool EnableRecursiveWhenAutoUpdatingSubmodules { get; set; } = true;
+        public bool AskBeforeAutoUpdatingSubmodules { get; set; } = false;
+        public string PreferredOpenAIService { get; set; } = "---";
+        public AvaloniaList<CommitTemplate> CommitTemplates { get; set; } = [];
+        public AvaloniaList<CustomAction> CustomActions { get; set; } = [];
 
         public static RepositorySettings Get(string gitCommonDir)
         {
@@ -67,7 +28,15 @@ namespace DevBoard.Models
             if (_cache.TryGetValue(fullpath, out var setting))
                 return setting;
 
-            if (!File.Exists(fullpath))
+            var loadPath = fullpath;
+            if (!File.Exists(loadPath))
+            {
+                var legacyPath = Path.Combine(gitCommonDir, "sourcegit.settings"); // legacy-migration
+                if (File.Exists(legacyPath))
+                    loadPath = legacyPath;
+            }
+
+            if (!File.Exists(loadPath))
             {
                 setting = new();
             }
@@ -75,7 +44,7 @@ namespace DevBoard.Models
             {
                 try
                 {
-                    using var stream = File.OpenRead(fullpath);
+                    using var stream = File.OpenRead(loadPath);
                     setting = JsonSerializer.Deserialize(stream, JsonCodeGen.Default.RepositorySettings);
                 }
                 catch
@@ -84,11 +53,10 @@ namespace DevBoard.Models
                 }
             }
 
-            // Serialize setting again to make sure there are no unnecessary whitespaces.
             Task.Run(() =>
             {
                 var formatted = JsonSerializer.Serialize(setting, JsonCodeGen.Default.RepositorySettings);
-                setting._orgHash = HashContent(formatted);
+                setting._orgHash = loadPath == fullpath ? HashContent(formatted) : string.Empty;
             });
 
             setting._file = fullpath;

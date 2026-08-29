@@ -119,8 +119,12 @@ namespace SourceGit.ViewModels
 
         public void EnsureFirstSession()
         {
-            if (Sessions.Count == 0)
-                CreateTerminal();
+            if (Sessions.Count != 0)
+                return;
+
+            var activePage = ActivePage;
+            CreateTerminal();
+            ActivePage = activePage;
         }
 
         public void ActivateDashboard() => ActivePage = Models.DevSpacePage.Dashboard;

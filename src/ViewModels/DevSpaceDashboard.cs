@@ -14,6 +14,11 @@ namespace SourceGit.ViewModels
         public string WorkspacePath { get; }
         public string WorkspaceName { get; }
 
+        public DevSpaceCapabilityState CopilotCapability { get; }
+        public DevSpaceCapabilityState CodexCapability { get; }
+        public DevSpaceCapabilityState AntigravityCapability { get; }
+        public DevSpaceCapabilityState RoslynCapability { get; } = DevSpaceCapabilityState.Unavailable;
+
         public string CurrentBranch
         {
             get => _currentBranch;
@@ -56,6 +61,9 @@ namespace SourceGit.ViewModels
             _repository = repository;
             WorkspacePath = workspacePath;
             WorkspaceName = GetWorkspaceName(workspacePath);
+            CopilotCapability = SourceGit.DevSpaces.DevSpaceToolHealth.CheckCommand("copilot");
+            CodexCapability = SourceGit.DevSpaces.DevSpaceToolHealth.CheckCommand("codex");
+            AntigravityCapability = SourceGit.DevSpaces.DevSpaceToolHealth.CheckCommand("agy");
             _owner.Sessions.CollectionChanged += OnSessionsChanged;
 
             if (_repository != null)

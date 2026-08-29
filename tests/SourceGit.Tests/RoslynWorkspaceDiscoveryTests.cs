@@ -18,6 +18,18 @@ public sealed class RoslynWorkspaceDiscoveryTests
     }
 
     [Fact]
+    public void FindCandidates_prefers_root_solution_over_nested_solution()
+    {
+        using var workspace = new TemporaryWorkspace();
+        workspace.CreateFile("Workspace.sln");
+        workspace.CreateFile("src/Nested.slnx");
+
+        var candidates = RoslynWorkspaceDiscovery.FindCandidates(workspace.Path);
+
+        Assert.Equal("Workspace.sln", System.IO.Path.GetFileName(candidates[0]));
+    }
+
+    [Fact]
     public void FindCandidates_ignores_generated_directories()
     {
         using var workspace = new TemporaryWorkspace();

@@ -99,7 +99,7 @@ namespace SourceGit.ViewModels
                 if (!_client.IsRunning)
                 {
                     State = DevSpaceRoslynState.Starting;
-                    await _client.StartAsync(cancellationToken).ConfigureAwait(false);
+                    await _client.StartAsync(cancellationToken);
                 }
 
                 State = DevSpaceRoslynState.Analyzing;
@@ -110,7 +110,7 @@ namespace SourceGit.ViewModels
                     {
                         ["path"] = SelectedWorkspace,
                     },
-                    cancellationToken).ConfigureAwait(false);
+                    cancellationToken);
 
                 var diagnostics = await _client.CallToolAsync(
                     "get-diagnostics",
@@ -119,7 +119,7 @@ namespace SourceGit.ViewModels
                         ["path"] = SelectedWorkspace,
                         ["parameters"] = new JsonObject(),
                     },
-                    cancellationToken).ConfigureAwait(false);
+                    cancellationToken);
 
                 Output = $"Environment\n{FormatToolResult(diagnose)}\n\nDiagnostics\n{FormatToolResult(diagnostics)}";
                 State = DevSpaceRoslynState.Completed;

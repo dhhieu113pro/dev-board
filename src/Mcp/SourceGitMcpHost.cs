@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -17,14 +18,19 @@ using ModelContextProtocol.AspNetCore;
 using ModelContextProtocol.Server;
 
 using SourceGit.DevSpaces.Terminal;
+using SourceGit.Mcp.Services;
+using SourceGit.Mcp.Tools;
 
 namespace SourceGit.Mcp
 {
     public sealed class SourceGitMcpHost : IAsyncDisposable
     {
-        public SourceGitMcpHost(DevSpaceTerminalRegistry registry)
+        public SourceGitMcpHost(
+            DevSpaceTerminalRegistry registry,
+            Func<IReadOnlyCollection<string>> knownRootsProvider = null)
         {
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+            _knownRootsProvider = knownRootsProvider ?? static () => Array.Empty<string>();
         }
 
         public bool IsRunning => _app != null;
@@ -118,10 +124,12 @@ namespace SourceGit.Mcp
 
                 builder.Services.AddSingleton(_registry);
                 builder.Services.AddSingleton(options);
+                builder.Services.AddSingleton(_ => new McpWorkspaceRegistry(_knownRootsProvider));
                 builder.Services
                     .AddMcpServer()
                     .WithHttpTransport(ConfigureTransport)
-                    .WithTools<SourceGitMcpTools>();
+                    .WithTools<SourceGitMcpTools>()
+                    .WithTools<McpWorkspaceTools>();
 
                 app = builder.Build();
                 app.Use(async (context, next) =>
@@ -234,6 +242,7 @@ namespace SourceGit.Mcp
         }
 
         private readonly DevSpaceTerminalRegistry _registry;
+        private readonly Func<IReadOnlyCollection<string>> _knownRootsProvider;
         private readonly SemaphoreSlim _gate = new(1, 1);
         private WebApplication _app;
     }

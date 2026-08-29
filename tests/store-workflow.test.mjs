@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const workflowUrl = new URL('../.github/workflows/store-msix.yml', import.meta.url);
+const ciWorkflowUrl = new URL('../.github/workflows/ci.yml', import.meta.url);
 
 test('Store workflow contains required build and submission contracts', async () => {
   const workflow = await readFile(workflowUrl, 'utf8');
@@ -27,4 +28,24 @@ test('Store build checkout includes the required AvaloniaEdit submodule', async 
   const workflow = await readFile(workflowUrl, 'utf8');
   const buildJob = workflow.split('  build-msix:')[1]?.split('  verify-store-packages:')[0] ?? '';
   assert.match(buildJob, /uses: actions\/checkout@v4\s+with:\s+submodules: (?:true|recursive)/m);
+});
+
+test('Store PR verification does not consume runners for ordinary source changes', async () => {
+  const workflow = await readFile(workflowUrl, 'utf8');
+  const triggerBlock = workflow.split('  pull_request:')[1]?.split('  workflow_dispatch:')[0] ?? '';
+  const buildJob = workflow.split('  build-msix:')[1]?.split('  verify-store-packages:')[0] ?? '';
+
+  assert.doesNotMatch(triggerBlock, /- 'src\/\*\*'/);
+  assert.doesNotMatch(triggerBlock, /- 'tests\/\*\*'/);
+  assert.doesNotMatch(buildJob, /dotnet test/);
+  assert.match(workflow, /concurrency:\s+group: store-msix-/m);
+  assert.match(workflow, /cancel-in-progress:/);
+  assert.match(buildJob, /timeout-minutes:/);
+});
+
+test('Continuous Integration targets the DevBoard master branch', async () => {
+  const workflow = await readFile(ciWorkflowUrl, 'utf8');
+  assert.match(workflow, /push:\s+branches: \[master\]/m);
+  assert.match(workflow, /pull_request:\s+branches: \[master\]/m);
+  assert.doesNotMatch(workflow, /branches: \[develop\]/);
 });

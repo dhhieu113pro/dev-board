@@ -151,6 +151,28 @@ namespace SourceGit.Tests
         }
 
         [Fact]
+        public void DashboardCanCloseSingleSessionThroughExistingLifecycle()
+        {
+            var root = CreateTempDirectory();
+            try
+            {
+                using var spaces = new ViewModels.DevSpaces(root, new FakeLauncher());
+                var first = spaces.Dashboard.StartDefaultTerminal();
+                var second = spaces.Dashboard.StartDefaultTerminal();
+
+                spaces.Dashboard.CloseSession(first);
+
+                Assert.Single(spaces.Sessions);
+                Assert.DoesNotContain(first, spaces.Sessions);
+                Assert.Same(second, spaces.ActiveTerminal);
+            }
+            finally
+            {
+                Directory.Delete(root, true);
+            }
+        }
+
+        [Fact]
         public void CloseAllDelegatesToExistingSessionLifecycle()
         {
             var root = CreateTempDirectory();

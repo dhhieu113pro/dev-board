@@ -30,4 +30,5 @@
   <x:String x:Key="Text.DevSpaces.Deleted" xml:space="preserve">Deleted</x:String>
   <x:String x:Key="Text.DevSpaces.Renamed" xml:space="preserve">Renamed</x:String>
   <x:String x:Key="Text.DevSpaces.WorkspaceHealth" xml:space="preserve">Workspace Health</x:String>
+  <x:String x:Key="Text.DevSpaces.WorkingCopy" xml:space="preserve">Working Copy</x:String>
 </ResourceDictionary>

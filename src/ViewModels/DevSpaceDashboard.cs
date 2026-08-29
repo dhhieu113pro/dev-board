@@ -19,6 +19,9 @@ namespace SourceGit.ViewModels
         public DevSpaceCapabilityState AntigravityCapability { get; }
         public DevSpaceCapabilityState RoslynCapability { get; } = DevSpaceCapabilityState.Unavailable;
 
+        public IReadOnlyList<SourceGit.DevSpaces.DevSpaceTerminalProfile> Profiles =>
+            SourceGit.DevSpaces.DevSpaceProfileSettings.Instance.Profiles;
+
         public string CurrentBranch
         {
             get => _currentBranch;
@@ -147,6 +150,12 @@ namespace SourceGit.ViewModels
 
         public void OpenSession(DevSpaceTerminal terminal) => _owner.ActivateTerminal(terminal);
         public void OpenFiles() => _owner.ActivateFiles();
+        public void OpenWorkingCopy()
+        {
+            if (_repository != null)
+                _repository.SelectedViewIndex = 1;
+        }
+
         public DevSpaceTerminal StartDefaultTerminal() => _owner.CreateTerminal();
         public DevSpaceTerminal StartProfile(SourceGit.DevSpaces.DevSpaceTerminalProfile profile) => _owner.CreateProfileTerminalAt(-1, profile);
         public DevSpaceTerminal StartAgent(SourceGit.DevSpaces.DevSpaceAgent agent) => _owner.CreateAgentTerminalAt(-1, agent);

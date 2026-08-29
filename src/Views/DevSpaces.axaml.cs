@@ -13,7 +13,7 @@ namespace SourceGit.Views
 {
     public partial class DevSpaces : UserControl, IDisposable
     {
-        private sealed record TerminalPaneHandle(Border Root, DevSpaceTerminal TerminalView);
+        private sealed record PaneHandle(Border Root, IDisposable View);
 
         public DevSpaces()
         {
@@ -54,44 +54,44 @@ namespace SourceGit.Views
             if (e.PropertyName == nameof(ViewModels.DevSpaces.VisibleSlots) ||
                 e.PropertyName == nameof(ViewModels.DevSpaces.GridRows) ||
                 e.PropertyName == nameof(ViewModels.DevSpaces.GridColumns) ||
-                e.PropertyName == nameof(ViewModels.DevSpaces.ActiveTerminal) ||
+                e.PropertyName == nameof(ViewModels.DevSpaces.ActiveSession) ||
                 e.PropertyName == nameof(ViewModels.DevSpaces.Layout))
             {
                 Dispatcher.UIThread.Post(RebuildGrid);
             }
         }
 
-        private void OnCreateTerminal(object sender, RoutedEventArgs e)
+        private void OnCreateSession(object sender, RoutedEventArgs e)
         {
             if (sender is Control control)
-                ShowTerminalPicker(control, -1);
+                ShowDevSpacePicker(control, -1);
 
             e.Handled = true;
         }
 
-        private void OnTerminalTabPressed(object sender, PointerPressedEventArgs e)
+        private void OnSessionTabPressed(object sender, PointerPressedEventArgs e)
         {
-            if (_owner != null && sender is Border { DataContext: ViewModels.DevSpaceTerminal session })
-                _owner.ActivateTerminal(session);
+            if (_owner != null && sender is Border { DataContext: ViewModels.DevSpaceSession session })
+                _owner.ActivateSession(session);
 
             e.Handled = true;
         }
 
-        private void OnCloseTerminal(object sender, RoutedEventArgs e)
+        private void OnCloseSession(object sender, RoutedEventArgs e)
         {
-            if (_owner != null && sender is Button { DataContext: ViewModels.DevSpaceTerminal session })
-                CloseTerminal(session);
+            if (_owner != null && sender is Button { DataContext: ViewModels.DevSpaceSession session })
+                CloseSession(session);
 
             e.Handled = true;
         }
 
-        private void CloseTerminal(ViewModels.DevSpaceTerminal session)
+        private void CloseSession(ViewModels.DevSpaceSession session)
         {
-            _owner?.CloseTerminal(session);
+            _owner?.CloseSession(session);
             if (_panes.Remove(session.Id, out var pane))
             {
                 TerminalGrid.Children.Remove(pane.Root);
-                pane.TerminalView.Dispose();
+                pane.View.Dispose();
             }
 
             RebuildGrid();
@@ -128,9 +128,9 @@ namespace SourceGit.Views
                 var row = slot.Index / _owner.GridColumns;
                 var column = slot.Index % _owner.GridColumns;
 
-                if (slot.Terminal != null)
+                if (slot.Session != null)
                 {
-                    var pane = GetOrCreatePane(slot.Terminal);
+                    var pane = GetOrCreatePane(slot.Session);
                     Grid.SetRow(pane, row);
                     Grid.SetColumn(pane, column);
                     pane.Opacity = 1;
@@ -148,15 +148,37 @@ namespace SourceGit.Views
             }
         }
 
-        private Border GetOrCreatePane(ViewModels.DevSpaceTerminal session)
+        private Border GetOrCreatePane(ViewModels.DevSpaceSession session)
         {
             if (_panes.TryGetValue(session.Id, out var cached))
                 return cached.Root;
 
-            var terminalView = new DevSpaceTerminal
+            Control sessionView;
+            IDisposable disposableView;
+
+            if (session is ViewModels.DevSpaceTerminal terminal)
             {
-                DataContext = session,
-            };
+                var terminalView = new DevSpaceTerminal
+                {
+                    DataContext = terminal,
+                };
+                terminalView.Start(_owner.Launcher);
+                sessionView = terminalView;
+                disposableView = terminalView;
+            }
+            else if (session is ViewModels.DevSpaceRoslyn roslyn)
+            {
+                var roslynView = new DevSpaceRoslyn
+                {
+                    DataContext = roslyn,
+                };
+                sessionView = roslynView;
+                disposableView = roslynView;
+            }
+            else
+            {
+                throw new NotSupportedException($"Unsupported DevSpace session type: {session.GetType().Name}");
+            }
 
             var title = new TextBlock
             {
@@ -176,10 +198,10 @@ namespace SourceGit.Views
             close.Classes.Add("icon_button");
             close.Click += (_, e) =>
             {
-                CloseTerminal(session);
+                CloseSession(session);
                 e.Handled = true;
             };
-            ToolTip.SetTip(close, App.Text("DevSpaces.CloseTerminal"));
+            ToolTip.SetTip(close, "Close DevSpace");
 
             var header = new Grid
             {
@@ -191,7 +213,7 @@ namespace SourceGit.Views
             header.Children.Add(close);
             header.PointerPressed += (_, e) =>
             {
-                _owner?.ActivateTerminal(session);
+                _owner?.ActivateSession(session);
                 e.Handled = true;
             };
 
@@ -200,8 +222,8 @@ namespace SourceGit.Views
                 RowDefinitions = new RowDefinitions("28,*"),
             };
             content.Children.Add(header);
-            Grid.SetRow(terminalView, 1);
-            content.Children.Add(terminalView);
+            Grid.SetRow(sessionView, 1);
+            content.Children.Add(sessionView);
 
             var root = new Border
             {
@@ -211,10 +233,9 @@ namespace SourceGit.Views
                 Child = content,
             };
 
-            var handle = new TerminalPaneHandle(root, terminalView);
+            var handle = new PaneHandle(root, disposableView);
             _panes.Add(session.Id, handle);
             TerminalGrid.Children.Add(root);
-            terminalView.Start(_owner.Launcher);
             return root;
         }
 
@@ -227,25 +248,27 @@ namespace SourceGit.Views
                 VerticalAlignment = VerticalAlignment.Stretch,
                 HorizontalContentAlignment = HorizontalAlignment.Center,
                 VerticalContentAlignment = VerticalAlignment.Center,
-                Content = App.Text("DevSpaces.NewTerminal"),
+                Content = "New DevSpace",
                 Tag = slotIndex,
             };
             button.Classes.Add("flat");
             button.Click += (_, e) =>
             {
-                ShowTerminalPicker(button, slotIndex);
+                ShowDevSpacePicker(button, slotIndex);
                 e.Handled = true;
             };
             return button;
         }
 
-        private void ShowTerminalPicker(Control target, int preferredSlot)
+        private void ShowDevSpacePicker(Control target, int preferredSlot)
         {
             if (_owner == null)
                 return;
 
             var flyout = new MenuFlyout();
             flyout.Items.Add(CreateTerminalMenuItem("Copilot", "copilot", "Copilot", preferredSlot));
+            flyout.Items.Add(CreateRoslynMenuItem(preferredSlot));
+            flyout.Items.Add(new Separator());
 
             if (OperatingSystem.IsWindows())
             {
@@ -261,6 +284,20 @@ namespace SourceGit.Views
             }
 
             flyout.ShowAt(target);
+        }
+
+        private MenuItem CreateRoslynMenuItem(int preferredSlot)
+        {
+            var item = new MenuItem
+            {
+                Header = "Roslyn Analysis",
+            };
+            item.Click += (_, e) =>
+            {
+                _owner?.CreateRoslynAt(preferredSlot);
+                e.Handled = true;
+            };
+            return item;
         }
 
         private MenuItem CreateTerminalMenuItem(string header, string command, string displayName, int preferredSlot)
@@ -308,14 +345,14 @@ namespace SourceGit.Views
         private void DisposePanes()
         {
             foreach (var pane in _panes.Values)
-                pane.TerminalView.Dispose();
+                pane.View.Dispose();
 
             _panes.Clear();
             _emptySlots.Clear();
             TerminalGrid.Children.Clear();
         }
 
-        private readonly Dictionary<Guid, TerminalPaneHandle> _panes = [];
+        private readonly Dictionary<Guid, PaneHandle> _panes = [];
         private readonly List<Button> _emptySlots = [];
         private ViewModels.DevSpaces _owner;
     }

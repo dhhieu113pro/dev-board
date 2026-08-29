@@ -80,7 +80,7 @@ namespace SourceGit.ViewModels
 
         public async Task AnalyzeAsync(CancellationToken cancellationToken = default)
         {
-            if (IsBusy)
+            if (IsBusy || _disposed)
                 return;
 
             if (string.IsNullOrWhiteSpace(SelectedWorkspace))
@@ -121,15 +121,18 @@ namespace SourceGit.ViewModels
                     },
                     cancellationToken);
 
+                if (_disposed)
+                    return;
+
                 Output = $"Environment\n{FormatToolResult(diagnose)}\n\nDiagnostics\n{FormatToolResult(diagnostics)}";
                 State = DevSpaceRoslynState.Completed;
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (!_disposed)
             {
                 State = DevSpaceRoslynState.Ready;
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (!_disposed)
             {
                 ErrorMessage = ex.Message;
                 State = DevSpaceRoslynState.Failed;
@@ -145,8 +148,7 @@ namespace SourceGit.ViewModels
             State = DevSpaceRoslynState.Stopping;
             var client = _client;
             _client = null;
-            if (client != null)
-                _ = client.DisposeAsync();
+            client?.Dispose();
         }
 
         private static string FormatToolResult(JsonNode result)

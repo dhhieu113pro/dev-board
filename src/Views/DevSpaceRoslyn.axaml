@@ -4,12 +4,13 @@
              x:Class="SourceGit.Views.DevSpaceRoslyn"
              x:DataType="vm:DevSpaceRoslyn">
   <Grid RowDefinitions="Auto,Auto,*" Margin="8">
-    <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+    <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
       <TextBlock Grid.Column="0"
                  VerticalAlignment="Center"
                  Text="Workspace"/>
       <ComboBox Grid.Column="1"
                 MinWidth="280"
+                Margin="8,0"
                 ItemsSource="{Binding WorkspaceCandidates}"
                 SelectedItem="{Binding SelectedWorkspace, Mode=TwoWay}"/>
       <Button Grid.Column="2"
@@ -19,9 +20,10 @@
               Content="Analyze Project"/>
     </Grid>
 
-    <Grid Grid.Row="1" Margin="0,8,0,8" ColumnDefinitions="Auto,*" ColumnSpacing="8">
+    <Grid Grid.Row="1" Margin="0,8" ColumnDefinitions="Auto,*">
       <TextBlock Grid.Column="0" FontWeight="SemiBold" Text="{Binding StatusText}"/>
       <TextBlock Grid.Column="1"
+                 Margin="8,0,0,0"
                  Foreground="{DynamicResource Brush.FG2}"
                  Text="{Binding ErrorMessage}"
                  TextWrapping="Wrap"/>
@@ -34,8 +36,7 @@
             Padding="8">
       <ScrollViewer HorizontalScrollBarVisibility="Auto"
                     VerticalScrollBarVisibility="Auto">
-        <TextBlock FontFamily="Cascadia Mono,Consolas,monospace"
-                   Text="{Binding Output}"
+        <TextBlock Text="{Binding Output}"
                    TextWrapping="NoWrap"/>
       </ScrollViewer>
     </Border>

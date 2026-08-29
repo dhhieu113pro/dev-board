@@ -41,6 +41,26 @@ namespace SourceGit.Tests
         }
 
         [Fact]
+        public void AutomaticFirstSessionKeepsDashboardAsLandingPage()
+        {
+            var root = CreateTempDirectory();
+            try
+            {
+                using var spaces = new ViewModels.DevSpaces(root, new FakeLauncher());
+
+                spaces.EnsureFirstSession();
+
+                Assert.Single(spaces.Sessions);
+                Assert.NotNull(spaces.ActiveTerminal);
+                Assert.Equal(DevSpacePage.Dashboard, spaces.ActivePage);
+            }
+            finally
+            {
+                Directory.Delete(root, true);
+            }
+        }
+
+        [Fact]
         public void OpenFileSelectsFilesWithoutChangingSessions()
         {
             var root = CreateTempDirectory();

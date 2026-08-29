@@ -1,12 +1,32 @@
 name: Continuous Integration
 on:
   push:
-    branches: [develop]
+    branches: [master]
   pull_request:
-    branches: [develop]
+    branches: [master]
   workflow_dispatch:
   workflow_call:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: Run tests
+        run: dotnet test tests/SourceGit.Tests/SourceGit.Tests.csproj --configuration Release
   build:
     name: Build
     uses: ./.github/workflows/build.yml
@@ -22,7 +42,7 @@ jobs:
         id: version
         run: echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
   package:
-    needs: [build, version]
+    needs: [test, build, version]
     name: Package
     uses: ./.github/workflows/package.yml
     with:

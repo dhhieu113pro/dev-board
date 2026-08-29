@@ -19,13 +19,13 @@
               </ItemsPanelTemplate>
             </ItemsControl.ItemsPanel>
             <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="vm:DevSpaceTerminal">
+              <DataTemplate x:DataType="vm:DevSpaceSession">
                 <Border Height="32"
                         Margin="2,2,0,2"
                         Padding="8,0,2,0"
                         CornerRadius="4"
                         Background="{DynamicResource Brush.Contents}"
-                        PointerPressed="OnTerminalTabPressed">
+                        PointerPressed="OnSessionTabPressed">
                   <Grid ColumnDefinitions="Auto,Auto">
                     <TextBlock Grid.Column="0"
                                VerticalAlignment="Center"
@@ -34,8 +34,8 @@
                             Classes="icon_button"
                             Width="24" Height="24"
                             Margin="4,0,0,0"
-                            Click="OnCloseTerminal"
-                            ToolTip.Tip="{DynamicResource Text.DevSpaces.CloseTerminal}">
+                            Click="OnCloseSession"
+                            ToolTip.Tip="Close DevSpace">
                       <Path Width="10" Height="10" Data="{StaticResource Icons.Clear}"/>
                     </Button>
                   </Grid>
@@ -59,8 +59,8 @@
                 Classes="icon_button"
                 Width="30" Height="30"
                 Margin="4,3,6,3"
-                Click="OnCreateTerminal"
-                ToolTip.Tip="{DynamicResource Text.DevSpaces.NewTerminal}">
+                Click="OnCreateSession"
+                ToolTip.Tip="New DevSpace">
           <Path Width="13" Height="13" Data="{StaticResource Icons.Plus}"/>
         </Button>
       </Grid>

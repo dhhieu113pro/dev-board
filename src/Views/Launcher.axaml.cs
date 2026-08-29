@@ -131,18 +131,15 @@ namespace SourceGit.Views
             if (DataContext is not ViewModels.Launcher vm)
                 return;
 
-            // Check for AltGr (which is detected as Ctrl+Alt)
             bool isAltGr = e.KeyModifiers.HasFlag(KeyModifiers.Control) &&
                            e.KeyModifiers.HasFlag(KeyModifiers.Alt);
 
-            // Skip hotkey processing if AltGr is pressed
             if (isAltGr)
             {
                 base.OnKeyDown(e);
                 return;
             }
 
-            // Register hotkeys for Windows/Linux (macOS has registered these keys in system menu bar)
             var isMacOS = OperatingSystem.IsMacOS();
             var cmdKey = isMacOS ? KeyModifiers.Meta : KeyModifiers.Control;
             if (!isMacOS)
@@ -168,7 +165,6 @@ namespace SourceGit.Views
                 }
             }
 
-            // Ctrl+` to open terminal. On macOS, Cmd+` is used to switch between windows
             if (e is { Key: Key.OemTilde, KeyModifiers: KeyModifiers.Control })
             {
                 if (vm.ActivePage.Data is ViewModels.Repository repo)
@@ -413,7 +409,13 @@ namespace SourceGit.Views
         private void OnOpenPagesCommandPalette(object sender, RoutedEventArgs e)
         {
             if (DataContext is ViewModels.Launcher vm)
-                vm.CommandPalette = new ViewModels.LauncherPagesCommandPalette(vm);
+            {
+                if (vm.ActivePage.Data is ViewModels.Repository repo)
+                    vm.CommandPalette = new ViewModels.RoslynSymbolCommandPalette(repo.FullPath);
+                else
+                    vm.CommandPalette = new ViewModels.LauncherPagesCommandPalette(vm);
+            }
+
             e.Handled = true;
         }
 
@@ -442,4 +444,3 @@ namespace SourceGit.Views
         private WindowState _lastWindowState = WindowState.Normal;
     }
 }
-

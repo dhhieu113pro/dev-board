@@ -340,7 +340,7 @@ namespace SourceGit.Views
         private MenuItem CreateProfileMenuItem(SourceGit.DevSpaces.DevSpaceTerminalProfile profile, int preferredSlot)
         {
             var path = string.IsNullOrWhiteSpace(profile.Path) ? "." : profile.Path;
-            var item = new MenuItem { Header = $"{profile.Name}  ·  {path}" };
+            var item = new MenuItem { Header = $"{profile.DisplayName}  ·  {path}" };
             item.Click += async (_, e) =>
             {
                 e.Handled = true;

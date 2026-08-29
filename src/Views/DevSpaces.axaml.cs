@@ -31,7 +31,6 @@ namespace SourceGit.Views
         {
             if (_owner != null)
                 _owner.PropertyChanged -= OnOwnerPropertyChanged;
-
             DisposePanes();
             _owner = null;
             DataContext = null;
@@ -42,24 +41,25 @@ namespace SourceGit.Views
             var next = DataContext as ViewModels.DevSpaces;
             if (ReferenceEquals(_owner, next))
                 return;
-
             if (_owner != null)
                 _owner.PropertyChanged -= OnOwnerPropertyChanged;
-
             DisposePanes();
             _owner = next;
-
             if (_owner != null)
                 _owner.PropertyChanged += OnOwnerPropertyChanged;
-
             UpdatePageVisibility();
             RebuildGrid();
         }
 
         private void OnOwnerPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(ViewModels.DevSpaces.IsFilesActive))
+            if (e.PropertyName == nameof(ViewModels.DevSpaces.ActivePage) ||
+                e.PropertyName == nameof(ViewModels.DevSpaces.IsDashboardActive) ||
+                e.PropertyName == nameof(ViewModels.DevSpaces.IsFilesActive) ||
+                e.PropertyName == nameof(ViewModels.DevSpaces.IsTerminalsActive))
+            {
                 Dispatcher.UIThread.Post(UpdatePageVisibility);
+            }
 
             if (e.PropertyName == nameof(ViewModels.DevSpaces.VisibleSlots) ||
                 e.PropertyName == nameof(ViewModels.DevSpaces.GridRows) ||
@@ -75,7 +75,12 @@ namespace SourceGit.Views
         {
             if (sender is Control control)
                 ShowTerminalPicker(control, -1);
+            e.Handled = true;
+        }
 
+        private void OnDashboardTabPressed(object sender, PointerPressedEventArgs e)
+        {
+            _owner?.ActivateDashboard();
             e.Handled = true;
         }
 
@@ -85,11 +90,16 @@ namespace SourceGit.Views
             e.Handled = true;
         }
 
+        private void OnTerminalsTabPressed(object sender, PointerPressedEventArgs e)
+        {
+            _owner?.ActivateTerminals();
+            e.Handled = true;
+        }
+
         private void OnTerminalTabPressed(object sender, PointerPressedEventArgs e)
         {
             if (_owner != null && sender is Border { DataContext: ViewModels.DevSpaceTerminal session })
                 _owner.ActivateTerminal(session);
-
             e.Handled = true;
         }
 
@@ -97,7 +107,6 @@ namespace SourceGit.Views
         {
             if (_owner != null && sender is Button { DataContext: ViewModels.DevSpaceTerminal session })
                 CloseTerminal(session);
-
             e.Handled = true;
         }
 
@@ -110,23 +119,30 @@ namespace SourceGit.Views
                 TerminalGrid.Children.Remove(pane.Root);
                 pane.TerminalView.Dispose();
             }
-
             RebuildGrid();
         }
 
         private void UpdatePageVisibility()
         {
+            var showDashboard = _owner?.IsDashboardActive == true;
             var showFiles = _owner?.IsFilesActive == true;
+            var showTerminals = _owner?.IsTerminalsActive == true;
+
+            DashboardView.IsVisible = showDashboard;
+            DashboardView.IsHitTestVisible = showDashboard;
             FilesView.IsVisible = showFiles;
             FilesView.IsHitTestVisible = showFiles;
-            TerminalGrid.IsVisible = !showFiles;
-            TerminalGrid.IsHitTestVisible = !showFiles;
+
+            // Keep the terminal tree measured and parented even when another internal page is active.
+            TerminalGrid.IsVisible = true;
+            TerminalGrid.Opacity = showTerminals ? 1 : 0;
+            TerminalGrid.IsHitTestVisible = showTerminals;
+            UpdateSurfaceVisibility();
         }
 
         private void RebuildGrid()
         {
             ClearEmptySlots();
-
             if (_owner == null)
             {
                 TerminalGrid.RowDefinitions = new RowDefinitions("*");
@@ -154,7 +170,6 @@ namespace SourceGit.Views
             {
                 var row = slot.Index / _owner.GridColumns;
                 var column = slot.Index % _owner.GridColumns;
-
                 if (slot.Terminal != null)
                 {
                     var pane = GetOrCreatePane(slot.Terminal);
@@ -173,7 +188,6 @@ namespace SourceGit.Views
                     _emptySlots.Add(empty);
                 }
             }
-
             UpdateSurfaceVisibility();
         }
 
@@ -181,10 +195,8 @@ namespace SourceGit.Views
         {
             foreach (var pane in _panes.Values)
                 pane.TerminalView.SetPageActive(false);
-
-            if (!_pageActive || _owner == null)
+            if (!_pageActive || _owner?.IsTerminalsActive != true)
                 return;
-
             foreach (var slot in _owner.VisibleSlots)
             {
                 if (slot.Terminal != null && _panes.TryGetValue(slot.Terminal.Id, out var pane))
@@ -197,18 +209,13 @@ namespace SourceGit.Views
             if (_panes.TryGetValue(session.Id, out var cached))
                 return cached.Root;
 
-            var terminalView = new DevSpaceTerminal
-            {
-                DataContext = session,
-            };
-
+            var terminalView = new DevSpaceTerminal { DataContext = session };
             var title = new TextBlock
             {
                 Text = session.Title,
                 Margin = new Thickness(8, 0, 4, 0),
                 VerticalAlignment = VerticalAlignment.Center,
             };
-
             var close = new Button
             {
                 Width = 24,
@@ -218,31 +225,16 @@ namespace SourceGit.Views
                 DataContext = session,
             };
             close.Classes.Add("icon_button");
-            close.Click += (_, e) =>
-            {
-                CloseTerminal(session);
-                e.Handled = true;
-            };
+            close.Click += (_, e) => { CloseTerminal(session); e.Handled = true; };
             ToolTip.SetTip(close, App.Text("DevSpaces.CloseTerminal"));
 
-            var header = new Grid
-            {
-                Height = 28,
-                ColumnDefinitions = new ColumnDefinitions("*,Auto"),
-            };
+            var header = new Grid { Height = 28, ColumnDefinitions = new ColumnDefinitions("*,Auto") };
             header.Children.Add(title);
             Grid.SetColumn(close, 1);
             header.Children.Add(close);
-            header.PointerPressed += (_, e) =>
-            {
-                _owner?.ActivateTerminal(session);
-                e.Handled = true;
-            };
+            header.PointerPressed += (_, e) => { _owner?.ActivateTerminal(session); e.Handled = true; };
 
-            var content = new Grid
-            {
-                RowDefinitions = new RowDefinitions("28,*"),
-            };
+            var content = new Grid { RowDefinitions = new RowDefinitions("28,*") };
             content.Children.Add(header);
             Grid.SetRow(terminalView, 1);
             content.Children.Add(terminalView);
@@ -255,8 +247,7 @@ namespace SourceGit.Views
                 Child = content,
             };
 
-            var handle = new TerminalPaneHandle(root, terminalView);
-            _panes.Add(session.Id, handle);
+            _panes.Add(session.Id, new TerminalPaneHandle(root, terminalView));
             terminalView.Start(_owner.Launcher);
             TerminalGrid.Children.Add(root);
             return root;
@@ -275,11 +266,7 @@ namespace SourceGit.Views
                 Tag = slotIndex,
             };
             button.Classes.Add("flat");
-            button.Click += (_, e) =>
-            {
-                ShowTerminalPicker(button, slotIndex);
-                e.Handled = true;
-            };
+            button.Click += (_, e) => { ShowTerminalPicker(button, slotIndex); e.Handled = true; };
             return button;
         }
 
@@ -290,7 +277,6 @@ namespace SourceGit.Views
 
             var settings = SourceGit.DevSpaces.DevSpaceProfileSettings.Instance;
             var flyout = new MenuFlyout();
-
             var defaultName = SourceGit.DevSpaces.DevSpaceProfileSettings.GetTerminalDisplayName(settings.DefaultTerminal);
             flyout.Items.Add(CreateTerminalMenuItem($"New {defaultName}", settings.DefaultTerminal, defaultName, preferredSlot));
 
@@ -305,15 +291,11 @@ namespace SourceGit.Views
             }
 
             flyout.Items.Add(new Separator());
-
             var terminals = new MenuItem { Header = "Terminal" };
             foreach (var choice in SourceGit.DevSpaces.DevSpaceProfileSettings.SupportedTerminals)
             {
-                terminals.Items.Add(CreateTerminalMenuItem(
-                    choice.Name,
-                    choice.Value,
-                    SourceGit.DevSpaces.DevSpaceProfileSettings.GetTerminalDisplayName(choice.Value),
-                    preferredSlot));
+                terminals.Items.Add(CreateTerminalMenuItem(choice.Name, choice.Value,
+                    SourceGit.DevSpaces.DevSpaceProfileSettings.GetTerminalDisplayName(choice.Value), preferredSlot));
             }
             flyout.Items.Add(terminals);
 
@@ -325,52 +307,24 @@ namespace SourceGit.Views
                     await new DevSpaceProfileManager().ShowDialog(owner);
             };
             flyout.Items.Add(manage);
-
             flyout.ShowAt(target);
         }
 
         private MenuItem CreateAgentMenuItem(SourceGit.DevSpaces.DevSpaceAgent agent, int preferredSlot)
         {
             var item = new MenuItem { Header = agent.Name };
-            item.Click += (_, e) =>
-            {
-                if (string.Equals(agent.Command, "copilot", StringComparison.OrdinalIgnoreCase))
-                {
-                    _owner?.CreateCopilotTerminalAt(preferredSlot);
-                }
-                else if (_owner != null)
-                {
-                    _owner.CreateProfileTerminalAt(
-                        preferredSlot,
-                        new SourceGit.DevSpaces.DevSpaceTerminalProfile
-                        {
-                            Name = agent.Name,
-                            Path = ".",
-                            Command = agent.Command,
-                        });
-                }
-
-                e.Handled = true;
-            };
+            item.Click += (_, e) => { _owner?.CreateAgentTerminalAt(preferredSlot, agent); e.Handled = true; };
             return item;
         }
 
-        private MenuItem CreateProfileMenuItem(
-            SourceGit.DevSpaces.DevSpaceTerminalProfile profile,
-            int preferredSlot)
+        private MenuItem CreateProfileMenuItem(SourceGit.DevSpaces.DevSpaceTerminalProfile profile, int preferredSlot)
         {
             var path = string.IsNullOrWhiteSpace(profile.Path) ? "." : profile.Path;
-            var item = new MenuItem
-            {
-                Header = $"{profile.Name}  ·  {path}",
-            };
+            var item = new MenuItem { Header = $"{profile.Name}  ·  {path}" };
             item.Click += async (_, e) =>
             {
                 e.Handled = true;
-                try
-                {
-                    _owner?.CreateProfileTerminalAt(preferredSlot, profile);
-                }
+                try { _owner?.CreateProfileTerminalAt(preferredSlot, profile); }
                 catch (Exception ex)
                 {
                     if (TopLevel.GetTopLevel(this) is Window owner)
@@ -382,43 +336,29 @@ namespace SourceGit.Views
 
         private MenuItem CreateTerminalMenuItem(string header, string terminal, string displayName, int preferredSlot)
         {
-            var item = new MenuItem
-            {
-                Header = header,
-            };
-            item.Click += (_, e) =>
-            {
-                _owner?.CreateTerminalAt(preferredSlot, terminal, displayName);
-                e.Handled = true;
-            };
+            var item = new MenuItem { Header = header };
+            item.Click += (_, e) => { _owner?.CreateTerminalAt(preferredSlot, terminal, displayName); e.Handled = true; };
             return item;
         }
 
-        private static RowDefinitions CreateRowDefinitions(int count)
+        private static RowDefinitions CreateRowDefinitions(int count) => count switch
         {
-            return count switch
-            {
-                <= 1 => new RowDefinitions("*"),
-                2 => new RowDefinitions("*,*"),
-                _ => new RowDefinitions("*,*,*"),
-            };
-        }
+            <= 1 => new RowDefinitions("*"),
+            2 => new RowDefinitions("*,*"),
+            _ => new RowDefinitions("*,*,*"),
+        };
 
-        private static ColumnDefinitions CreateColumnDefinitions(int count)
+        private static ColumnDefinitions CreateColumnDefinitions(int count) => count switch
         {
-            return count switch
-            {
-                <= 1 => new ColumnDefinitions("*"),
-                2 => new ColumnDefinitions("*,*"),
-                _ => new ColumnDefinitions("*,*,*"),
-            };
-        }
+            <= 1 => new ColumnDefinitions("*"),
+            2 => new ColumnDefinitions("*,*"),
+            _ => new ColumnDefinitions("*,*,*"),
+        };
 
         private void ClearEmptySlots()
         {
             foreach (var empty in _emptySlots)
                 TerminalGrid.Children.Remove(empty);
-
             _emptySlots.Clear();
         }
 
@@ -429,7 +369,6 @@ namespace SourceGit.Views
                 pane.TerminalView.SetPageActive(false);
                 pane.TerminalView.Dispose();
             }
-
             _panes.Clear();
             _emptySlots.Clear();
             TerminalGrid.Children.Clear();

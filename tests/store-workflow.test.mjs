@@ -22,3 +22,9 @@ test('Store workflow contains required build and submission contracts', async ()
   assert.match(workflow, /DevBoard_\$\{\{ needs\.preflight\.outputs\.version \}\}_x64\.msix/);
   assert.match(workflow, /DevBoard_\$\{\{ needs\.preflight\.outputs\.version \}\}_arm64\.msix/);
 });
+
+test('Store build checkout includes the required AvaloniaEdit submodule', async () => {
+  const workflow = await readFile(workflowUrl, 'utf8');
+  const buildJob = workflow.split('  build-msix:')[1]?.split('  verify-store-packages:')[0] ?? '';
+  assert.match(buildJob, /uses: actions\/checkout@v4\s+with:\s+submodules: (?:true|recursive)/m);
+});

@@ -156,9 +156,12 @@ namespace SourceGit.ViewModels
         public DevSpaceTerminal CreateTerminalAt(int preferredSlot, string terminal, string displayName, string workingDirectory, string startupCommand)
         {
             var settings = SourceGit.DevSpaces.DevSpaceProfileSettings.Instance;
-            if (string.IsNullOrWhiteSpace(terminal)) terminal = settings.DefaultTerminal;
-            if (string.IsNullOrWhiteSpace(displayName)) displayName = SourceGit.DevSpaces.DevSpaceProfileSettings.GetTerminalDisplayName(terminal);
-            if (string.IsNullOrWhiteSpace(workingDirectory)) workingDirectory = _workingDirectory;
+            if (string.IsNullOrWhiteSpace(terminal))
+                terminal = settings.DefaultTerminal;
+            if (string.IsNullOrWhiteSpace(displayName))
+                displayName = SourceGit.DevSpaces.DevSpaceProfileSettings.GetTerminalDisplayName(terminal);
+            if (string.IsNullOrWhiteSpace(workingDirectory))
+                workingDirectory = _workingDirectory;
 
             var number = _nextSessionNumber++;
             var created = new DevSpaceTerminal($"{displayName} {number}", terminal, workingDirectory, startupCommand);
@@ -197,7 +200,8 @@ namespace SourceGit.ViewModels
 
         public void ActivateTerminal(DevSpaceTerminal terminal)
         {
-            if (terminal == null || !Sessions.Contains(terminal)) return;
+            if (terminal == null || !Sessions.Contains(terminal))
+                return;
             ActiveTerminal = terminal;
             ActivateTerminals();
             RebuildSlots();
@@ -205,7 +209,8 @@ namespace SourceGit.ViewModels
 
         public void CloseTerminal(DevSpaceTerminal terminal)
         {
-            if (terminal == null || !Sessions.Remove(terminal)) return;
+            if (terminal == null || !Sessions.Remove(terminal))
+                return;
             Dashboard.AddActivity(DevSpaceActivityKind.SessionClosed, $"{terminal.Title} closed");
             terminal.Dispose();
             if (ActiveTerminal == terminal)
@@ -215,7 +220,8 @@ namespace SourceGit.ViewModels
 
         public void StopAll()
         {
-            for (var i = Sessions.Count - 1; i >= 0; i--) Sessions[i].Dispose();
+            for (var i = Sessions.Count - 1; i >= 0; i--)
+                Sessions[i].Dispose();
             Sessions.Clear();
             VisibleSlots.Clear();
             ActiveTerminal = null;
@@ -253,19 +259,25 @@ namespace SourceGit.ViewModels
             else
             {
                 var placeActiveInPreferredSlot = ActiveTerminal != null && _preferredSlot >= 0 && _preferredSlot < capacity && Sessions.Contains(ActiveTerminal);
-                if (placeActiveInPreferredSlot) slots[_preferredSlot] = ActiveTerminal;
+                if (placeActiveInPreferredSlot)
+                    slots[_preferredSlot] = ActiveTerminal;
                 var slotIndex = 0;
                 foreach (var session in Sessions)
                 {
-                    if (placeActiveInPreferredSlot && session == ActiveTerminal) continue;
-                    while (slotIndex < capacity && slots[slotIndex] != null) slotIndex++;
-                    if (slotIndex >= capacity) break;
+                    if (placeActiveInPreferredSlot && session == ActiveTerminal)
+                        continue;
+                    while (slotIndex < capacity && slots[slotIndex] != null)
+                        slotIndex++;
+                    if (slotIndex >= capacity)
+                        break;
                     slots[slotIndex++] = session;
                 }
-                if (ActiveTerminal != null && Array.IndexOf(slots, ActiveTerminal) < 0) slots[capacity - 1] = ActiveTerminal;
+                if (ActiveTerminal != null && Array.IndexOf(slots, ActiveTerminal) < 0)
+                    slots[capacity - 1] = ActiveTerminal;
             }
             VisibleSlots.Clear();
-            for (var i = 0; i < capacity; i++) VisibleSlots.Add(new DevSpaceGridSlot(i, slots[i]));
+            for (var i = 0; i < capacity; i++)
+                VisibleSlots.Add(new DevSpaceGridSlot(i, slots[i]));
             _preferredSlot = -1;
             NotifyLayoutChanged();
         }

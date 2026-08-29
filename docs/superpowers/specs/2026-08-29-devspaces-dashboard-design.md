@@ -35,6 +35,8 @@ Current DevSpaces already has the important ownership boundary required by the d
 
 Dashboard state must follow the same repository-path-scoped lifetime. Switching to another worktree tab shows that worktree's dashboard, sessions, counts, and activity without resetting the previous tab.
 
+Dashboard also needs read access to the owning `ViewModels.Repository` for branch, upstream, and working-copy state. `DevSpaceRegistry` already owns both the path-keyed entry and current repository instance, so it should pass/update that repository context rather than introducing a separate repository lookup or new global registry.
+
 ## Navigation
 
 DevSpaces gets a small internal page selector with these logical pages:
@@ -49,6 +51,12 @@ Dashboard is the default first page when opening DevSpaces for a repository/work
 The existing terminal session tabs remain part of the Terminals page. The current `+` terminal/session launcher remains available there and may also be exposed from Dashboard Quick Start.
 
 Do not add additional top-level repository navigation items for Dashboard, Files, Terminals, or Roslyn. They remain children of the existing DevSpaces repository item.
+
+### Existing first-session behavior
+
+V1 preserves the existing DevSpaces behavior where selecting DevSpaces calls `EnsureFirstSession()` when no terminal session exists. Therefore opening the Dashboard for a brand-new DevSpace may already show one automatically-created default terminal in Active Spaces.
+
+Dashboard changes the landing surface, not the existing session-start contract. Removing automatic first-session creation can be considered separately later.
 
 ## V1 dashboard layout
 
@@ -232,7 +240,7 @@ Terminals
 Roslyn
 ```
 
-Roslyn may remain unavailable/hidden when the integration is not present.
+Roslyn remains hidden/unavailable when the integration is not present for the current build/workspace.
 
 ### `ViewModels.DevSpaces`
 
@@ -244,11 +252,14 @@ Add or expose:
 - `Dashboard` child view model;
 - commands/methods to activate Dashboard, Files, Terminals, and Roslyn;
 - helpers to activate a terminal from Dashboard;
+- repository-context update support from `DevSpaceRegistry`;
 - existing terminal and Files lifecycle remains unchanged.
 
 The current `IsFilesActive` boolean should be migrated to page-derived state rather than layering several additional booleans as more DevSpace pages are added.
 
 Compatibility properties may remain temporarily if needed by existing bindings, but the source of truth becomes `ActivePage`.
+
+`DevSpaces` may continue to be initially constructed from `repository.FullPath`, but it must also receive the current `ViewModels.Repository` reference, either through an updated constructor or a narrow `UpdateRepositoryContext(repository)` method. This is required because the path alone cannot provide live current-branch, upstream, and working-copy state. The repository reference is read context; it does not change the path-keyed ownership rule.
 
 ### `ViewModels.DevSpaceDashboard`
 
@@ -258,7 +269,7 @@ Responsibilities:
 
 - expose workspace summary values for binding;
 - project current terminal sessions into dashboard rows without owning their lifecycle;
-- expose Git status summary from existing repository state/providers;
+- expose Git status summary from the owning repository/existing providers;
 - expose Roslyn status from the existing Roslyn model/provider;
 - own the small in-memory Recent Activity list;
 - execute navigation/quick-start commands by delegating back to DevSpaces/existing services;
@@ -285,7 +296,7 @@ Use SourceGit's existing dynamic theme resources, typography, icons, spacing, an
 Repository/worktree tab
         |
         v
-DevSpaceRegistry[path]
+DevSpaceRegistry[path] ------ current Repository context
         |
         v
 ViewModels.DevSpaces
@@ -394,15 +405,17 @@ Add unit coverage around view-model/state logic rather than pixel-level UI.
 Required V1 tests:
 
 1. Dashboard is the default DevSpace internal page for a new workspace.
-2. Switching Dashboard -> Files -> Terminals preserves terminal sessions.
-3. Activating a dashboard session selects the same existing terminal instance.
-4. Quick Start delegates to the existing launcher/profile/agent path.
-5. Git summary aggregation produces correct status counts.
-6. Dashboard state is isolated across different repository/worktree paths.
-7. Recent Activity caps its entries and remains per-worktree.
-8. Dashboard disposal removes event subscriptions and does not double-dispose terminal sessions.
-9. Missing optional agent/Roslyn capability produces a non-fatal health state.
-10. Legacy DevSpaces layout preference/session behavior remains unchanged.
+2. Existing `EnsureFirstSession()` behavior still creates only one default session when entering a brand-new DevSpace through Dashboard.
+3. Switching Dashboard -> Files -> Terminals preserves terminal sessions.
+4. Activating a dashboard session selects the same existing terminal instance.
+5. Quick Start delegates to the existing launcher/profile/agent path.
+6. Git summary aggregation produces correct status counts from existing repository state.
+7. Dashboard state is isolated across different repository/worktree paths.
+8. Updating repository context for an existing path-keyed registry entry does not recreate or dispose its sessions.
+9. Recent Activity caps its entries and remains per-worktree.
+10. Dashboard disposal removes event subscriptions and does not double-dispose terminal sessions.
+11. Missing optional agent/Roslyn capability produces a non-fatal health state.
+12. Legacy DevSpaces layout preference/session behavior remains unchanged.
 
 CI remains the normal SourceGit build/test/format matrix. Manual acceptance should additionally verify responsive dashboard layout and that terminal TUI state is unchanged after Dashboard <-> Terminals <-> Files navigation.
 
@@ -411,6 +424,7 @@ CI remains the normal SourceGit build/test/format matrix. Manual acceptance shou
 V1 is complete when:
 
 - selecting DevSpaces opens Dashboard by default;
+- existing automatic first-session behavior remains intact;
 - the workspace header identifies the correct active repository/worktree and branch;
 - Active Spaces accurately reflects the sessions already owned by that worktree;
 - clicking a session opens the exact existing terminal without restart;
@@ -447,7 +461,7 @@ The first implementation should favor a small set of focused types:
 - `ViewModels.DevSpaceDashboard`
 - small immutable dashboard row/summary models where useful
 - `Views.DevSpaceDashboard.axaml` + code-behind only for UI interactions that cannot be expressed cleanly through bindings
-- targeted changes to `ViewModels.DevSpaces` and `Views.DevSpaces`
+- targeted changes to `DevSpaceRegistry`, `ViewModels.DevSpaces`, and `Views.DevSpaces`
 - localization resources
 - unit tests
 

@@ -1,0 +1,82 @@
+using System.Linq;
+using System.Text.Json;
+
+using SourceGit.DevSpaces;
+using Xunit;
+
+namespace SourceGit.Tests;
+
+public sealed class DevSpaceTerminalProfileIconTests
+{
+    [Fact]
+    public void AnimalIconChoicesContainTwentyUniqueIcons()
+    {
+        var choices = DevSpaceProfileSettings.ProfileIcons;
+
+        Assert.Equal(20, choices.Count);
+        Assert.Equal(20, choices.Select(x => x.Icon).Distinct().Count());
+        Assert.All(choices, x =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(x.Icon));
+            Assert.False(string.IsNullOrWhiteSpace(x.Name));
+        });
+    }
+
+    [Fact]
+    public void NewProfileUsesDefaultAnimalIcon()
+    {
+        var profile = new DevSpaceTerminalProfile { Name = "Backend" };
+
+        Assert.Equal(DevSpaceProfileSettings.DefaultProfileIcon, profile.Icon);
+        Assert.Equal($"{DevSpaceProfileSettings.DefaultProfileIcon} Backend", profile.DisplayName);
+    }
+
+    [Fact]
+    public void ClonePreservesAnimalIcon()
+    {
+        var profile = new DevSpaceTerminalProfile
+        {
+            Name = "Backend",
+            Icon = "🦊",
+        };
+
+        var clone = profile.Clone(createNewId: true);
+
+        Assert.Equal("🦊", clone.Icon);
+        Assert.Equal("🦊 Backend", clone.DisplayName);
+        Assert.NotEqual(profile.Id, clone.Id);
+    }
+
+    [Fact]
+    public void ValidateProfileFallsBackForUnknownIcon()
+    {
+        var profile = new DevSpaceTerminalProfile
+        {
+            Name = "Backend",
+            Icon = "not-an-animal",
+        };
+
+        DevSpaceProfileSettings.ValidateProfile(profile);
+
+        Assert.Equal(DevSpaceProfileSettings.DefaultProfileIcon, profile.Icon);
+    }
+
+    [Fact]
+    public void OldJsonWithoutIconUsesDefaultAnimalIcon()
+    {
+        const string json = """
+            {
+              "Id": "profile-1",
+              "Name": "Backend",
+              "Path": ".",
+              "Command": "dotnet watch"
+            }
+            """;
+
+        var profile = JsonSerializer.Deserialize<DevSpaceTerminalProfile>(json);
+
+        Assert.NotNull(profile);
+        Assert.Equal(DevSpaceProfileSettings.DefaultProfileIcon, profile.Icon);
+        Assert.Equal($"{DevSpaceProfileSettings.DefaultProfileIcon} Backend", profile.DisplayName);
+    }
+}

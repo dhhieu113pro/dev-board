@@ -83,7 +83,7 @@ namespace SourceGit.ViewModels
                     expanded.Add(node.RelativePath);
             }
 
-            var paths = new HashSet<string>(tracked ?? [], StringComparer.Ordinal);
+            var paths = new HashSet<string>((tracked ?? []).Select(NormalizePath), StringComparer.Ordinal);
             foreach (var change in changes)
             {
                 if (!string.IsNullOrEmpty(change.OriginalPath) && change.StateIsRename())

@@ -8,12 +8,26 @@ namespace SourceGit.ViewModels
 {
     public class AddWorktree : Popup
     {
+        public string WorktreeName
+        {
+            get => _worktreeName;
+            set
+            {
+                if (SetProperty(ref _worktreeName, value) && !_isPathManuallyEdited)
+                    SetSuggestedPath(value);
+            }
+        }
+
         [Required(ErrorMessage = "Worktree path is required!")]
         [CustomValidation(typeof(AddWorktree), nameof(ValidateWorktreePath))]
         public string Path
         {
             get => _path;
-            set => SetProperty(ref _path, value, true);
+            set
+            {
+                if (SetProperty(ref _path, value, true) && !_isUpdatingSuggestedPath)
+                    _isPathManuallyEdited = !string.IsNullOrWhiteSpace(value);
+            }
         }
 
         public bool CreateNewBranch
@@ -24,9 +38,14 @@ namespace SourceGit.ViewModels
                 if (SetProperty(ref _createNewBranch, value, true))
                 {
                     if (value)
+                    {
                         SelectedBranch = null;
+                        AutoFillNewBranchNameFromTracking();
+                    }
                     else
+                    {
                         SelectedBranch = LocalBranches.Count > 0 ? LocalBranches[0] : null;
+                    }
                 }
             }
         }
@@ -46,7 +65,11 @@ namespace SourceGit.ViewModels
         public string NewBranchName
         {
             get => _newBranchName;
-            set => SetProperty(ref _newBranchName, value);
+            set
+            {
+                if (SetProperty(ref _newBranchName, value) && !_isUpdatingSuggestedBranchName)
+                    _isBranchNameManuallyEdited = !string.IsNullOrWhiteSpace(value);
+            }
         }
 
         public bool SetTrackingBranch
@@ -55,7 +78,10 @@ namespace SourceGit.ViewModels
             set
             {
                 if (SetProperty(ref _setTrackingBranch, value))
+                {
                     AutoSelectTrackingBranch();
+                    AutoFillNewBranchNameFromTracking();
+                }
             }
         }
 
@@ -68,7 +94,17 @@ namespace SourceGit.ViewModels
         public Models.Branch SelectedTrackingBranch
         {
             get => _selectedTrackingBranch;
-            set => SetProperty(ref _selectedTrackingBranch, value);
+            set
+            {
+                if (SetProperty(ref _selectedTrackingBranch, value))
+                    AutoFillNewBranchNameFromTracking();
+            }
+        }
+
+        public bool OpenInNewTab
+        {
+            get => _openInNewTab;
+            set => SetProperty(ref _openInNewTab, value);
         }
 
         public AddWorktree(Repository repo)
@@ -117,7 +153,6 @@ namespace SourceGit.ViewModels
 
         public override async Task<bool> Sure()
         {
-            using var lockWatcher = _repo.LockWatcher();
             ProgressDescription = "Adding worktree ...";
 
             var branchName = GetBranchName(false);
@@ -126,11 +161,23 @@ namespace SourceGit.ViewModels
 
             Use(log);
 
-            var succ = await new Commands.Worktree(_repo.FullPath)
-                .Use(log)
-                .AddAsync(_path, branchName, _createNewBranch, tracking);
+            bool succ;
+            using (_repo.LockWatcher())
+            {
+                succ = await new Commands.Worktree(_repo.FullPath)
+                    .Use(log)
+                    .AddAsync(_path, branchName, _createNewBranch, tracking);
+            }
 
             log.Complete();
+            if (succ && _openInNewTab)
+            {
+                var fullPath = System.IO.Path.IsPathRooted(_path)
+                    ? System.IO.Path.GetFullPath(_path)
+                    : System.IO.Path.GetFullPath(System.IO.Path.Combine(_repo.FullPath, _path));
+                App.GetLauncher()?.OpenRepositoryInTab(fullPath, null);
+            }
+
             return succ;
         }
 
@@ -154,6 +201,22 @@ namespace SourceGit.ViewModels
             SelectedTrackingBranch = RemoteBranches[0];
         }
 
+        private void AutoFillNewBranchNameFromTracking()
+        {
+            if (!_createNewBranch || !_setTrackingBranch || _selectedTrackingBranch == null || _isBranchNameManuallyEdited)
+                return;
+
+            _isUpdatingSuggestedBranchName = true;
+            try
+            {
+                NewBranchName = _selectedTrackingBranch.Name;
+            }
+            finally
+            {
+                _isUpdatingSuggestedBranchName = false;
+            }
+        }
+
         private string GetBranchName(bool fallback)
         {
             do
@@ -173,12 +236,31 @@ namespace SourceGit.ViewModels
             return fallback ? System.IO.Path.GetFileName(_path.TrimEnd('/', '\\')) : string.Empty;
         }
 
+        private void SetSuggestedPath(string name)
+        {
+            _isUpdatingSuggestedPath = true;
+            try
+            {
+                Path = string.IsNullOrWhiteSpace(name) ? string.Empty : System.IO.Path.Combine("..", name.Trim());
+            }
+            finally
+            {
+                _isUpdatingSuggestedPath = false;
+            }
+        }
+
         private Repository _repo = null;
+        private string _worktreeName = string.Empty;
         private string _path = string.Empty;
+        private bool _isPathManuallyEdited = false;
+        private bool _isUpdatingSuggestedPath = false;
         private bool _createNewBranch = true;
         private Models.Branch _selectedBranch = null;
         private string _newBranchName = string.Empty;
+        private bool _isBranchNameManuallyEdited = false;
+        private bool _isUpdatingSuggestedBranchName = false;
         private bool _setTrackingBranch = false;
         private Models.Branch _selectedTrackingBranch = null;
+        private bool _openInNewTab = true;
     }
 }

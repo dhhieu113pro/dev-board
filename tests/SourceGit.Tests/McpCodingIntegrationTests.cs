@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text.Json;
 using System.Threading.Tasks;
 using SourceGit.Mcp.Services;
 using Xunit;
@@ -29,7 +30,7 @@ public sealed class McpCodingIntegrationTests
 
             Assert.Contains("MCP", files.ReadFile(workspace.Id, "README.md").ToString());
             files.WriteFile(workspace.Id, "src.txt", "one\ntwo\n");
-            Assert.Contains("one", files.SearchFiles(workspace.Id, "one").ToString());
+            Assert.Contains("one", JsonSerializer.Serialize(files.SearchFiles(workspace.Id, "one")));
             files.ApplyPatch(workspace.Id, "src.txt", "@@ -1,2 +1,2 @@\n-one\n+ONE\n two\n");
             Assert.Contains("ONE", files.ReadFile(workspace.Id, "src.txt").ToString());
             Assert.Equal(0, (await git.StatusAsync(workspace.Id)).ExitCode);

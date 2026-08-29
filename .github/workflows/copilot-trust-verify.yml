@@ -17,5 +17,7 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
-      - name: Run Copilot workspace trust tests
-        run: dotnet test tests/SourceGit.Tests/SourceGit.Tests.csproj -c Release --filter CopilotWorkspaceTrustTests
+      - name: Run SourceGit tests
+        run: dotnet test tests/SourceGit.Tests/SourceGit.Tests.csproj -c Release
+      - name: Verify formatting
+        run: dotnet format src/SourceGit.csproj --verify-no-changes

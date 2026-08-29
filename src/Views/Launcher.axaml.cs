@@ -101,8 +101,11 @@ namespace SourceGit.Views
             }
             else if (change.Property == IsActiveProperty)
             {
-                if (!IsActive && DataContext is ViewModels.Launcher { CommandPalette: { } } vm)
+                if (!IsActive && DataContext is ViewModels.Launcher vm)
+                {
                     vm.CommandPalette = null;
+                    vm.CloseGoToFile();
+                }
             }
 
             if (OperatingSystem.IsMacOS() && WindowState != WindowState.FullScreen)
@@ -131,20 +134,45 @@ namespace SourceGit.Views
             if (DataContext is not ViewModels.Launcher vm)
                 return;
 
-            // Check for AltGr (which is detected as Ctrl+Alt)
             bool isAltGr = e.KeyModifiers.HasFlag(KeyModifiers.Control) &&
                            e.KeyModifiers.HasFlag(KeyModifiers.Alt);
 
-            // Skip hotkey processing if AltGr is pressed
             if (isAltGr)
             {
                 base.OnKeyDown(e);
                 return;
             }
 
-            // Register hotkeys for Windows/Linux (macOS has registered these keys in system menu bar)
             var isMacOS = OperatingSystem.IsMacOS();
             var cmdKey = isMacOS ? KeyModifiers.Meta : KeyModifiers.Control;
+
+            if (vm.GoToFileSearch != null)
+            {
+                switch (e.Key)
+                {
+                    case Key.Escape:
+                        vm.CloseGoToFile();
+                        e.Handled = true;
+                        return;
+                    case Key.Down:
+                        vm.GoToFileSearch.MoveSelection(1);
+                        e.Handled = true;
+                        return;
+                    case Key.Up:
+                        vm.GoToFileSearch.MoveSelection(-1);
+                        e.Handled = true;
+                        return;
+                    case Key.Enter:
+                        if (vm.GoToFileSearch.OpenSelected())
+                            vm.CloseGoToFile();
+                        e.Handled = true;
+                        return;
+                }
+
+                base.OnKeyDown(e);
+                return;
+            }
+
             if (!isMacOS)
             {
                 if (e is { KeyModifiers: KeyModifiers.Control, Key: Key.OemComma })
@@ -168,7 +196,6 @@ namespace SourceGit.Views
                 }
             }
 
-            // Ctrl+` to open terminal. On macOS, Cmd+` is used to switch between windows
             if (e is { Key: Key.OemTilde, KeyModifiers: KeyModifiers.Control })
             {
                 if (vm.ActivePage.Data is ViewModels.Repository repo)
@@ -224,6 +251,14 @@ namespace SourceGit.Views
                         vm.AddNewTab();
 
                     ViewModels.Welcome.Instance.OpenLocalRepository();
+                    e.Handled = true;
+                    return;
+                }
+
+                if (e.Key == Key.P && e.KeyModifiers == cmdKey && vm.ActivePage.Data is ViewModels.Repository activeRepo)
+                {
+                    vm.CommandPalette = null;
+                    vm.OpenGoToFile(activeRepo);
                     e.Handled = true;
                     return;
                 }
@@ -356,6 +391,7 @@ namespace SourceGit.Views
             {
                 if (launcher.CommandPalette != null)
                     launcher.CommandPalette = null;
+                launcher.CloseGoToFile();
 
                 var pref = ViewModels.Preferences.Instance;
                 var menu = new ContextMenu();
@@ -413,7 +449,10 @@ namespace SourceGit.Views
         private void OnOpenPagesCommandPalette(object sender, RoutedEventArgs e)
         {
             if (DataContext is ViewModels.Launcher vm)
+            {
+                vm.CloseGoToFile();
                 vm.CommandPalette = new ViewModels.LauncherPagesCommandPalette(vm);
+            }
             e.Handled = true;
         }
 
@@ -421,6 +460,13 @@ namespace SourceGit.Views
         {
             if (e.Source == sender && DataContext is ViewModels.Launcher vm)
                 vm.CommandPalette = null;
+            e.Handled = true;
+        }
+
+        private void OnCloseGoToFile(object sender, PointerPressedEventArgs e)
+        {
+            if (e.Source == sender && DataContext is ViewModels.Launcher vm)
+                vm.CloseGoToFile();
             e.Handled = true;
         }
 
@@ -442,4 +488,3 @@ namespace SourceGit.Views
         private WindowState _lastWindowState = WindowState.Normal;
     }
 }
-

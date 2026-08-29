@@ -118,7 +118,7 @@
                        TextWrapping="NoWrap"
                        HorizontalScrollBarVisibility="Auto"
                        VerticalScrollBarVisibility="Auto"
-                       FontFamily="monospace"
+                       FontFamily="{DynamicResource Fonts.Monospace}"
                        Text="{Binding Content}"/>
             </Grid>
           </DataTemplate>

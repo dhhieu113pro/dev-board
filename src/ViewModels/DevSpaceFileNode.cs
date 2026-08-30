@@ -14,6 +14,23 @@ namespace DevBoard.ViewModels
         public Thickness Indent => new(Depth * 16, 0, 0, 0);
         public List<DevSpaceFileNode> Children { get; } = [];
 
+        public DevSpaceFileIconKind IconKind => DevSpaceFileIconResolver.Resolve(Name, IsDirectory, Depth);
+        public bool IsFolderIcon => IconKind == DevSpaceFileIconKind.Folder;
+        public bool IsRootFolderIcon => IconKind == DevSpaceFileIconKind.RootFolder;
+        public bool IsWebRootIcon => IconKind == DevSpaceFileIconKind.WebRoot;
+        public bool IsJsonIcon => IconKind == DevSpaceFileIconKind.Json;
+        public bool IsCSharpIcon => IconKind == DevSpaceFileIconKind.CSharp;
+        public bool IsCSharpProjectIcon => IconKind == DevSpaceFileIconKind.CSharpProject;
+        public bool IsSolutionIcon => IconKind == DevSpaceFileIconKind.Solution;
+        public bool IsConfigIcon => IconKind == DevSpaceFileIconKind.Config;
+        public bool IsXmlIcon => IconKind == DevSpaceFileIconKind.Xml;
+        public bool IsMarkdownIcon => IconKind == DevSpaceFileIconKind.Markdown;
+        public bool IsImageIcon => IconKind == DevSpaceFileIconKind.Image;
+        public bool IsJavaScriptIcon => IconKind == DevSpaceFileIconKind.JavaScript;
+        public bool IsTypeScriptIcon => IconKind == DevSpaceFileIconKind.TypeScript;
+        public bool IsCssIcon => IconKind == DevSpaceFileIconKind.Css;
+        public bool IsGenericFileIcon => IconKind == DevSpaceFileIconKind.File;
+
         public Models.Change Change
         {
             get => _change;

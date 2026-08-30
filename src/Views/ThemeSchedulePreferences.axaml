@@ -5,8 +5,7 @@
     <ComboBox x:Name="ModePicker"
               MinHeight="28"
               Padding="8,0"
-              HorizontalAlignment="Stretch"
-              SelectionChanged="OnModeChanged">
+              HorizontalAlignment="Stretch">
       <ComboBoxItem Content="System"/>
       <ComboBoxItem Content="Light"/>
       <ComboBoxItem Content="Dark"/>
@@ -18,15 +17,9 @@
           ColumnDefinitions="Auto,120,12,Auto,120"
           IsVisible="False">
       <TextBlock Grid.Column="0" Text="Light starts" VerticalAlignment="Center" Margin="0,0,8,0"/>
-      <TimePicker x:Name="LightTimePicker"
-                  Grid.Column="1"
-                  MinHeight="28"
-                  SelectedTimeChanged="OnCustomTimeChanged"/>
+      <TimePicker x:Name="LightTimePicker" Grid.Column="1" MinHeight="28"/>
       <TextBlock Grid.Column="3" Text="Dark starts" VerticalAlignment="Center" Margin="0,0,8,0"/>
-      <TimePicker x:Name="DarkTimePicker"
-                  Grid.Column="4"
-                  MinHeight="28"
-                  SelectedTimeChanged="OnCustomTimeChanged"/>
+      <TimePicker x:Name="DarkTimePicker" Grid.Column="4" MinHeight="28"/>
     </Grid>
 
     <StackPanel x:Name="SunsetPanel" Spacing="4" IsVisible="False">
@@ -38,8 +31,7 @@
                        Maximum="90"
                        Increment="0.01"
                        FormatString="0.####"
-                       MinHeight="28"
-                       ValueChanged="OnCoordinatesChanged"/>
+                       MinHeight="28"/>
         <TextBlock Grid.Column="3" Text="Longitude" VerticalAlignment="Center" Margin="0,0,8,0"/>
         <NumericUpDown x:Name="LongitudeInput"
                        Grid.Column="4"
@@ -47,14 +39,12 @@
                        Maximum="180"
                        Increment="0.01"
                        FormatString="0.####"
-                       MinHeight="28"
-                       ValueChanged="OnCoordinatesChanged"/>
+                       MinHeight="28"/>
         <Button x:Name="DetectLocationButton"
                 Grid.Column="6"
                 Height="28"
                 Padding="10,0"
-                Content="Detect location"
-                Click="OnDetectLocation"/>
+                Content="Detect location"/>
       </Grid>
       <TextBlock x:Name="LocationStatus"
                  FontSize="11"

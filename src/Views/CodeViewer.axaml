@@ -1,0 +1,12 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:AvalonEdit="using:AvaloniaEdit"
+             x:Class="DevBoard.Views.CodeViewer">
+  <AvalonEdit:TextEditor x:Name="Editor"
+                         FontFamily="{DynamicResource Fonts.Monospace}"
+                         FontSize="14"
+                         FontWeight="Normal"
+                         HorizontalScrollBarVisibility="Auto"
+                         VerticalScrollBarVisibility="Auto"
+                         LineNumbersMargin="8,0,12,0"/>
+</UserControl>

@@ -102,7 +102,7 @@ namespace DevBoard.DevSpaces
                         .ToImmutableArray();
                     var diagnostics = analyzers.IsDefaultOrEmpty
                         ? compilation.GetDiagnostics(cancellationToken)
-                        : await compilation.WithAnalyzers(analyzers, cancellationToken: cancellationToken)
+                        : await compilation.WithAnalyzers(analyzers, options: null, cancellationToken: cancellationToken)
                             .GetAllDiagnosticsAsync(cancellationToken);
 
                     foreach (var diagnostic in diagnostics)

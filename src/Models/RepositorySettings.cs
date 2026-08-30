@@ -18,6 +18,12 @@ namespace DevBoard.Models
             set;
         } = string.Empty;
 
+        public Guid GitHubAccountId
+        {
+            get;
+            set;
+        } = Guid.Empty;
+
         public int PreferredMergeMode
         {
             get;
@@ -84,7 +90,6 @@ namespace DevBoard.Models
                 }
             }
 
-            // Serialize setting again to make sure there are no unnecessary whitespaces.
             Task.Run(() =>
             {
                 var formatted = JsonSerializer.Serialize(setting, JsonCodeGen.Default.RepositorySettings);
@@ -112,7 +117,6 @@ namespace DevBoard.Models
             }
             catch
             {
-                // Ignore save errors
             }
         }
 

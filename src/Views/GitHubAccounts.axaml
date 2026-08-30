@@ -1,0 +1,106 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DevBoard.ViewModels"
+             xmlns:m="using:DevBoard.Models"
+             x:Class="DevBoard.Views.GitHubAccounts"
+             x:DataType="vm:GitHubAccountsViewModel">
+  <Grid Margin="8" RowDefinitions="Auto,*,Auto" MinWidth="640" MinHeight="360">
+    <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="0,0,0,8">
+      <Button Grid.Column="0" Content="Add GitHub account" Command="{Binding BeginAddCommand}"/>
+      <TextBlock Grid.Column="1"
+                 Margin="12,0,0,0"
+                 VerticalAlignment="Center"
+                 Foreground="{DynamicResource Brush.FG2}"
+                 Text="Bind PAT or SSH credentials to repositories without interactive background prompts."/>
+    </Grid>
+
+    <Grid Grid.Row="1" RowDefinitions="*,Auto">
+      <Border Grid.Row="0" BorderBrush="{DynamicResource Brush.Border1}" BorderThickness="1" CornerRadius="4">
+        <ListBox ItemsSource="{Binding Accounts}" SelectedItem="{Binding SelectedAccount, Mode=TwoWay}">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="m:GitHubAccount">
+              <Grid Margin="12,8" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                <StackPanel Grid.Column="0">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Classes="bold" Text="{Binding DisplayName}"/>
+                    <TextBlock Text="(default)" IsVisible="{Binding IsDefault}" Foreground="{DynamicResource Brush.Accent}"/>
+                  </StackPanel>
+                  <TextBlock FontSize="12" Foreground="{DynamicResource Brush.FG2}" Text="@{Binding Username}"/>
+                </StackPanel>
+                <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding AuthType}"/>
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Border>
+
+      <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,8,0,0">
+        <Button Content="Edit" Command="{Binding BeginEditCommand}" CommandParameter="{Binding SelectedAccount}"/>
+        <Button Content="Set default" Command="{Binding SetAsDefaultCommand}" CommandParameter="{Binding SelectedAccount}"/>
+        <Button Content="Delete" Command="{Binding DeleteAccountCommand}" CommandParameter="{Binding SelectedAccount}"/>
+      </StackPanel>
+
+      <StackPanel Grid.Row="0"
+                  IsVisible="{Binding ShowEmptyState}"
+                  VerticalAlignment="Center"
+                  HorizontalAlignment="Center"
+                  Spacing="12">
+        <Path Width="42" Height="42" Data="{StaticResource Icons.Remotes}" Fill="{DynamicResource Brush.FG2}"/>
+        <TextBlock Text="No GitHub authentication accounts configured" Foreground="{DynamicResource Brush.FG2}"/>
+        <Button Content="Add account" Command="{Binding BeginAddCommand}"/>
+      </StackPanel>
+    </Grid>
+
+    <Border Grid.Row="2"
+            IsVisible="{Binding IsEditing}"
+            Margin="0,16,0,0"
+            Padding="12"
+            BorderBrush="{DynamicResource Brush.Border1}"
+            BorderThickness="1"
+            CornerRadius="4">
+      <StackPanel Spacing="10">
+        <TextBlock Classes="bold" FontSize="15" Text="{Binding EditingTitle}"/>
+
+        <Grid ColumnDefinitions="100,*" RowDefinitions="32,32,32,32,32" ColumnSpacing="12">
+          <TextBlock Grid.Row="0" Grid.Column="0" Text="Name" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+          <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding EditingAccount.Name, Mode=TwoWay}"/>
+
+          <TextBlock Grid.Row="1" Grid.Column="0" Text="Username" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+          <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding EditingAccount.Username, Mode=TwoWay}"/>
+
+          <TextBlock Grid.Row="2" Grid.Column="0" Text="Email" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+          <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding EditingAccount.Email, Mode=TwoWay}"/>
+
+          <TextBlock Grid.Row="3" Grid.Column="0" Text="Authentication" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+          <ComboBox Grid.Row="3" Grid.Column="1" SelectedIndex="{Binding EditingAuthTypeIndex, Mode=TwoWay}">
+            <ComboBoxItem Content="Personal access token"/>
+            <ComboBoxItem Content="SSH private key"/>
+          </ComboBox>
+
+          <TextBlock Grid.Row="4" Grid.Column="0" Text="Credential" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+          <Grid Grid.Row="4" Grid.Column="1">
+            <TextBox Text="{Binding NewToken, Mode=TwoWay}"
+                     PasswordChar="•"
+                     Watermark="Leave blank to keep the saved token"
+                     IsVisible="{Binding IsEditingPat}"/>
+            <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding IsEditingSsh}">
+              <TextBox Grid.Column="0" Text="{Binding EditingAccount.SSHKeyPath, Mode=TwoWay}" Watermark="SSH private key path"/>
+              <Button Grid.Column="1" Margin="8,0,0,0" Click="BrowseSSHKey" Content="Browse..."/>
+            </Grid>
+          </Grid>
+        </Grid>
+
+        <Grid ColumnDefinitions="Auto,*,Auto">
+          <Button Grid.Column="0" Content="Test connection" Command="{Binding TestConnectionCommand}" IsEnabled="{Binding !IsTesting}"/>
+          <TextBlock Grid.Column="1" Margin="12,0" VerticalAlignment="Center" Text="{Binding TestResult}" Foreground="{DynamicResource Brush.FG2}"/>
+          <ProgressBar Grid.Column="2" Width="20" IsIndeterminate="True" IsVisible="{Binding IsTesting}"/>
+        </Grid>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+          <Button Content="Cancel" Command="{Binding CancelEditCommand}"/>
+          <Button Content="Save" Command="{Binding SaveEditCommand}"/>
+        </StackPanel>
+      </StackPanel>
+    </Border>
+  </Grid>
+</UserControl>

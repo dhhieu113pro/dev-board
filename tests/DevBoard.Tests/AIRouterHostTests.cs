@@ -23,7 +23,7 @@ public class AIRouterHostTests
                 ApiKey = "test-key",
             });
 
-        var routes = app.DataSources
+        var routes = ((IEndpointRouteBuilder)app).DataSources
             .SelectMany(source => source.Endpoints)
             .OfType<RouteEndpoint>()
             .Select(endpoint => endpoint.RoutePattern.RawText)

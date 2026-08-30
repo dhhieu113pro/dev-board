@@ -1,5 +1,8 @@
+using System.Linq;
+
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using Avalonia.VisualTree;
 using DevBoard.DevSpaces;
 using DevBoard.Views;
 using Xunit;
@@ -16,25 +19,21 @@ public sealed class DevSpaceDashboardProfileDisplayTests
             Name = "UpTime UI",
             Icon = "🦄",
         };
-        var view = new DevSpaceDashboard();
+        var view = new DevSpaceDashboard
+        {
+            DataContext = new ProfileDisplayTestDataContext(profile),
+        };
+        var window = new Window { Content = view };
+        window.Show();
 
-        var profileButton = FindProfileButton(view, profile);
+        var profileButton = view.GetVisualDescendants()
+            .OfType<Button>()
+            .Single(x => ReferenceEquals(x.DataContext, profile));
 
         Assert.Equal("🦄 UpTime UI", profileButton.Content);
-    }
+        Assert.Equal(1.0, profileButton.Opacity);
 
-    private static Button FindProfileButton(DevSpaceDashboard view, DevSpaceTerminalProfile profile)
-    {
-        view.DataContext = new ProfileDisplayTestDataContext(profile);
-        view.ApplyTemplate();
-
-        foreach (var control in view.GetVisualDescendants())
-        {
-            if (control is Button { DataContext: DevSpaceTerminalProfile })
-                return (Button)control;
-        }
-
-        throw new Xunit.Sdk.XunitException("Dashboard profile Quick Start button was not rendered.");
+        window.Close();
     }
 
     private sealed class ProfileDisplayTestDataContext

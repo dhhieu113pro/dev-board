@@ -132,6 +132,7 @@ src/ViewModels/DeleteTag.cs
 src/ViewModels/DevSpaceAIRouter.cs
 src/ViewModels/DevSpaceDashboard.cs
 src/ViewModels/DevSpaceDashboardModels.cs
+src/ViewModels/DevSpaceFileIconResolver.cs
 src/ViewModels/DevSpaceFileNode.cs
 src/ViewModels/DevSpaceFiles.cs
 src/ViewModels/DevSpaceTerminal.cs

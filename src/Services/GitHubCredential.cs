@@ -1,12 +1,138 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace DevBoard.Services
 {
     public static partial class GitHubCredential
     {
+        public static Models.GitHubAccount FindForRepository(string repoPath)
+        {
+            if (string.IsNullOrWhiteSpace(repoPath) || !Directory.Exists(repoPath))
+                return null;
+
+            try
+            {
+                var gitDir = new Commands.QueryGitDir(repoPath).GetResult();
+                if (string.IsNullOrWhiteSpace(gitDir))
+                    return null;
+
+                var settings = Models.RepositorySettings.Get(gitDir);
+                if (settings.GitHubAccountId == Guid.Empty)
+                    return null;
+
+                var account = GitHubAccountStore.Instance.Get(settings.GitHubAccountId);
+                if (account != null)
+                    return account;
+
+                // Do not leave a repository permanently pointing at a removed account.
+                settings.GitHubAccountId = Guid.Empty;
+                settings.Save();
+            }
+            catch
+            {
+            }
+
+            return null;
+        }
+
+        public static bool BindRepository(string repoPath, Models.GitHubAccount account)
+        {
+            if (string.IsNullOrWhiteSpace(repoPath) || !Directory.Exists(repoPath))
+                return false;
+
+            try
+            {
+                var gitDir = new Commands.QueryGitDir(repoPath).GetResult();
+                if (string.IsNullOrWhiteSpace(gitDir))
+                    return false;
+
+                var settings = Models.RepositorySettings.Get(gitDir);
+                var accountId = account?.Id ?? Guid.Empty;
+                if (settings.GitHubAccountId == accountId)
+                    return true;
+
+                settings.GitHubAccountId = accountId;
+                settings.Save();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public static async Task<Models.GitHubAccount> DetectForRepositoryAsync(string repoPath)
+        {
+            var accounts = GitHubAccountStore.Instance.Accounts;
+            if (accounts.Count == 0 || string.IsNullOrWhiteSpace(repoPath))
+                return null;
+
+            var bound = FindForRepository(repoPath);
+            if (bound != null)
+                return bound;
+
+            try
+            {
+                var remotes = await new Commands.QueryRemotes(repoPath).GetResultAsync().ConfigureAwait(false);
+                var selected = SelectAccountForRemotes(remotes.Select(x => x.URL), accounts);
+                if (selected != null)
+                {
+                    BindRepository(repoPath, selected);
+                    return selected;
+                }
+
+                // SSH aliases may not expose github.com in the URL. If an SSH remote exists
+                // and exactly one valid SSH account is configured, the choice is deterministic.
+                if (remotes.Any(x => IsSshRemote(x.URL)))
+                {
+                    var sshAccounts = accounts
+                        .Where(x => x.HasValidCredentials && x.AuthType == Models.GitHubAuthType.SSHKey)
+                        .Take(2)
+                        .ToList();
+                    if (sshAccounts.Count == 1)
+                    {
+                        BindRepository(repoPath, sshAccounts[0]);
+                        return sshAccounts[0];
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Backfills deterministic bindings from local repository metadata/remotes only.
+        /// It intentionally does not scan credential stores or call GitHub.
+        /// </summary>
+        public static async Task WarmupRepositoryBindingsAsync(IEnumerable<ViewModels.RepositoryNode> nodes)
+        {
+            if (nodes == null || GitHubAccountStore.Instance.Accounts.Count == 0)
+                return;
+
+            foreach (var node in nodes)
+            {
+                if (node == null)
+                    continue;
+
+                if (node.IsRepository)
+                {
+                    if (Directory.Exists(node.Id))
+                        await DetectForRepositoryAsync(node.Id).ConfigureAwait(false);
+                }
+                else if (node.SubNodes.Count > 0)
+                {
+                    await WarmupRepositoryBindingsAsync(node.SubNodes).ConfigureAwait(false);
+                }
+            }
+        }
+
         public static string ExtractGitHubOwner(string url)
         {
             if (string.IsNullOrWhiteSpace(url))

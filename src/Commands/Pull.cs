@@ -26,7 +26,13 @@ namespace DevBoard.Commands
 
         public async Task<bool> RunAsync()
         {
-            SSHKey = await new Config(WorkingDirectory).GetAsync($"remote.{_remote}.sshkey").ConfigureAwait(false);
+            var configuredKey = await new Config(WorkingDirectory).GetAsync($"remote.{_remote}.sshkey").ConfigureAwait(false);
+            if (!string.IsNullOrEmpty(configuredKey))
+                SSHKey = configuredKey;
+
+            if (!await PrepareRepositoryCredentialAsync().ConfigureAwait(false))
+                return false;
+
             return await ExecAsync().ConfigureAwait(false);
         }
 

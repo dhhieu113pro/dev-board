@@ -1,0 +1,20 @@
+name: DevSpaces Sidebar Verify
+
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+  navigation-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: Run DevSpaces navigation test
+        run: dotnet test tests/DevBoard.Tests/DevBoard.Tests.csproj -c Release --filter FullyQualifiedName~DevSpacesNavigationTests

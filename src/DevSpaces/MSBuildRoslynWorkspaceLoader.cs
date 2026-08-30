@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 
 using Microsoft.Build.Locator;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.MSBuild;
 
@@ -97,13 +98,17 @@ namespace DevBoard.DevSpaces
                     if (compilation == null)
                         continue;
 
-                    var compilerOptions = compilation.Options.SpecificDiagnosticOptions
-                        .SetItems(UnusedCompilerDiagnostics.Select(id =>
-                            new KeyValuePair<string, ReportDiagnostic>(id, ReportDiagnostic.Warn)));
-                    compilation = compilation.WithOptions(
-                        compilation.Options
-                            .WithGeneralDiagnosticOption(ReportDiagnostic.Default)
-                            .WithSpecificDiagnosticOptions(compilerOptions));
+                    if (compilation is CSharpCompilation csharpCompilation)
+                    {
+                        var compilerOptions = csharpCompilation.Options.SpecificDiagnosticOptions
+                            .SetItems(UnusedCompilerDiagnostics.Select(id =>
+                                new KeyValuePair<string, ReportDiagnostic>(id, ReportDiagnostic.Warn)));
+                        compilation = csharpCompilation.WithOptions(
+                            csharpCompilation.Options
+                                .WithGeneralDiagnosticOption(ReportDiagnostic.Default)
+                                .WithWarningLevel(4)
+                                .WithSpecificDiagnosticOptions(compilerOptions));
+                    }
 
                     var diagnostics = new List<Diagnostic>(compilation.GetDiagnostics(cancellationToken));
                     var analyzers = project.AnalyzerReferences

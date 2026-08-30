@@ -1,0 +1,1 @@
+Roslyn implementation verification is pending GitHub Actions on the pull request. The implementation environment cannot run local `dotnet` commands, so build/test/AOT status must be taken from CI rather than inferred from source changes.

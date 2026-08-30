@@ -11,7 +11,13 @@
             BorderBrush="{DynamicResource Brush.Border2}">
       <Grid ColumnDefinitions="*,Auto">
         <StackPanel Spacing="6">
-          <TextBlock FontSize="16" FontWeight="SemiBold" Text="AI Router"/>
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <TextBlock VerticalAlignment="Center" FontSize="16" FontWeight="SemiBold" Text="AI Router"/>
+            <ToggleSwitch VerticalAlignment="Center"
+                          IsChecked="{Binding IsEnabled, Mode=TwoWay}"
+                          OnContent="On"
+                          OffContent="Off"/>
+          </StackPanel>
           <StackPanel Orientation="Horizontal" Spacing="8">
             <TextBlock VerticalAlignment="Center" Foreground="{DynamicResource Brush.FG2}" Text="Port"/>
             <NumericUpDown Width="150"

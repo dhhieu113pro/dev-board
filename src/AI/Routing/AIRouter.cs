@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
@@ -66,8 +67,6 @@ public sealed class AIRouter
                 $"Unknown AI provider '{selection.ProviderId}'.");
         }
 
-        // Explicit provider/model requests are intentionally strict. A model-specific
-        // failure must be returned as-is rather than silently changing the requested model.
         if (!selection.TryAllModels)
         {
             var provider = candidates[0];
@@ -78,9 +77,6 @@ public sealed class AIRouter
         }
 
         AIRouterResult last = null;
-
-        // Match AI Studio's provider ordering semantics: priority is already applied by
-        // the host, fallback providers are tried first, then round-robin providers.
         var fallbackProviders = candidates
             .Where(provider => !string.Equals(provider.Mode, "roundrobin", StringComparison.OrdinalIgnoreCase))
             .ToArray();
@@ -150,9 +146,6 @@ public sealed class AIRouter
         AIRouterResult last = null;
         foreach (var model in modelsToTry)
         {
-            // In all/provider-only mode a 400 such as "Model is unavailable" is a
-            // model-level failure, not a reason to abandon the provider. AI Studio
-            // exhausts the provider's model candidates before moving on.
             var result = await provider.SendAsync(request with { Model = model }, cancellationToken);
             if (result.Success)
                 return result;
@@ -184,8 +177,6 @@ public sealed class AIRouter
         }
         catch (HttpRequestException)
         {
-            // Fall through to the configured default/provider id, matching AI Studio's
-            // best-effort live discovery behavior.
         }
 
         if (!string.IsNullOrWhiteSpace(provider.DefaultModel) &&

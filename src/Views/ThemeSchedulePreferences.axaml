@@ -44,12 +44,12 @@
                 Grid.Column="6"
                 Height="28"
                 Padding="10,0"
-                Content="Detect location"/>
+                Content="Detect approximate location"/>
       </Grid>
       <TextBlock x:Name="LocationStatus"
                  FontSize="11"
                  Foreground="{DynamicResource Brush.FG2}"
-                 Text="Sunset uses these coordinates. If unavailable, DevBoard follows the system theme."/>
+                 Text="Enter coordinates manually, or use opt-in approximate IP location. Without coordinates, DevBoard follows the system theme."/>
     </StackPanel>
   </StackPanel>
 </UserControl>

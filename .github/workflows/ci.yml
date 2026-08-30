@@ -31,6 +31,20 @@ jobs:
           dotnet-version: 10.0.x
       - name: Run focused regression tests
         run: dotnet test tests/DevBoard.Tests/DevBoard.Tests.csproj -c Release --filter "FullyQualifiedName~GitAuthenticationTests|FullyQualifiedName~GitHubAccountBindingTests|FullyQualifiedName~AIRouterToggleTests|FullyQualifiedName~AIRouterTests|FullyQualifiedName~AIRouterProviderDiagnosticTests|FullyQualifiedName~OpenAICompatibleProviderTests|FullyQualifiedName~PullRequestRemoteTests|FullyQualifiedName~PullRequestCommitRangeTests|FullyQualifiedName~RoslynUiResponsivenessTests|FullyQualifiedName~RoslynManualInitializationTests"
+  devspace-dashboard-tests:
+    name: DevSpace dashboard regression tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: Run dashboard regression tests
+        run: dotnet test tests/DevBoard.Tests/DevBoard.Tests.csproj -c Release --filter "FullyQualifiedName~DevSpaceDashboardProfileDisplayTests"
   build:
     name: Build
     uses: ./.github/workflows/build.yml

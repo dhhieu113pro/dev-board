@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -31,14 +32,10 @@ public static class AIRouterProviderDiagnostic
         foreach (var header in settings.ExtraHeaders)
             httpClient.DefaultRequestHeaders.TryAddWithoutValidation(header.Key, header.Value);
 
-        var provider = new OpenAICompatibleProvider(
-            settings.Id,
-            settings.BaseUrl,
-            apiKey ?? string.Empty,
-            httpClient,
-            settings.DefaultModel);
+        var provider = CreateProvider(settings, apiKey ?? string.Empty, httpClient);
+        var router = new AIRouter([provider]);
 
-        var chat = await TestEndpointAsync(provider, "Chat Completions", new AIRouterRequest(
+        var chat = await TestEndpointAsync(router, "Chat Completions", new AIRouterRequest(
             "all",
             "{\"model\":\"all\",\"messages\":[{\"role\":\"user\",\"content\":\"Reply with OK.\"}],\"max_tokens\":1,\"stream\":false}",
             ChatCompletionsPath), cancellationToken);
@@ -74,15 +71,55 @@ public static class AIRouterProviderDiagnostic
         return string.Join("; ", summaries);
     }
 
+    private static IAIProvider CreateProvider(
+        AIRouterProviderSettings settings,
+        string apiKey,
+        HttpClient httpClient)
+    {
+        // Treat DefaultModel as configured static metadata for diagnostics so an existing
+        // provider health check remains one request when no explicit model list was saved.
+        // The embedded host still performs live /models discovery when both are absent.
+        IReadOnlyList<string> models = settings.Models.Count > 0
+            ? settings.Models
+            : !string.IsNullOrWhiteSpace(settings.DefaultModel)
+                ? [settings.DefaultModel]
+                : [];
+
+        var deepSeekCompatible =
+            string.Equals(settings.Id, "opencode", StringComparison.OrdinalIgnoreCase) ||
+            settings.Id.StartsWith("deepseek", StringComparison.OrdinalIgnoreCase) ||
+            settings.BaseUrl.Contains("deepseek", StringComparison.OrdinalIgnoreCase);
+
+        return deepSeekCompatible
+            ? new DeepSeekCompatibleProvider(
+                settings.Id,
+                settings.BaseUrl,
+                apiKey,
+                httpClient,
+                settings.DefaultModel,
+                models,
+                settings.Mode,
+                settings.PassthroughModels)
+            : new OpenAICompatibleProvider(
+                settings.Id,
+                settings.BaseUrl,
+                apiKey,
+                httpClient,
+                settings.DefaultModel,
+                models,
+                settings.Mode,
+                settings.PassthroughModels);
+    }
+
     private static async Task<AIRouterEndpointTestResult> TestEndpointAsync(
-        OpenAICompatibleProvider provider,
+        AIRouter router,
         string name,
         AIRouterRequest request,
         CancellationToken cancellationToken)
     {
         try
         {
-            var result = await provider.SendAsync(request, cancellationToken);
+            var result = await router.RouteAsync(request, cancellationToken);
             return new AIRouterEndpointTestResult(name, request.Path, result.Success, result.StatusCode, result.Error);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)

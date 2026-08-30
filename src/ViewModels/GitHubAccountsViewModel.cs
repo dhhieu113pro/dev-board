@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -40,6 +41,12 @@ namespace DevBoard.ViewModels
         [ObservableProperty]
         private bool _isTesting;
 
+        [ObservableProperty]
+        private bool _isImportingGitHubCli;
+
+        [ObservableProperty]
+        private string _importResult = string.Empty;
+
         public bool ShowEmptyState => Accounts.Count == 0 && !IsEditing;
 
         public string EditingTitle
@@ -49,20 +56,32 @@ namespace DevBoard.ViewModels
 
         public int EditingAuthTypeIndex
         {
-            get => EditingAccount?.AuthType == Models.GitHubAuthType.SSHKey ? 1 : 0;
+            get => EditingAccount?.AuthType switch
+            {
+                Models.GitHubAuthType.GitHubCli => 0,
+                Models.GitHubAuthType.PersonalAccessToken => 1,
+                Models.GitHubAuthType.SSHKey => 2,
+                _ => 0,
+            };
             set
             {
                 if (EditingAccount == null)
                     return;
-                EditingAccount.AuthType = value == 1
-                    ? Models.GitHubAuthType.SSHKey
-                    : Models.GitHubAuthType.PersonalAccessToken;
+
+                EditingAccount.AuthType = value switch
+                {
+                    1 => Models.GitHubAuthType.PersonalAccessToken,
+                    2 => Models.GitHubAuthType.SSHKey,
+                    _ => Models.GitHubAuthType.GitHubCli,
+                };
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(IsEditingGitHubCli));
                 OnPropertyChanged(nameof(IsEditingPat));
                 OnPropertyChanged(nameof(IsEditingSsh));
             }
         }
 
+        public bool IsEditingGitHubCli => EditingAccount?.AuthType == Models.GitHubAuthType.GitHubCli;
         public bool IsEditingPat => EditingAccount?.AuthType == Models.GitHubAuthType.PersonalAccessToken;
         public bool IsEditingSsh => EditingAccount?.AuthType == Models.GitHubAuthType.SSHKey;
 
@@ -71,13 +90,79 @@ namespace DevBoard.ViewModels
         {
             EditingAccount = new Models.GitHubAccount
             {
-                AuthType = Models.GitHubAuthType.PersonalAccessToken,
+                AuthType = Models.GitHubAuthType.GitHubCli,
                 IsDefault = Accounts.Count == 0,
             };
             NewToken = string.Empty;
             TestResult = string.Empty;
             IsEditing = true;
             NotifyEditorState();
+        }
+
+        [RelayCommand]
+        private async Task ImportGitHubCliAccountsAsync()
+        {
+            if (IsImportingGitHubCli)
+                return;
+
+            IsImportingGitHubCli = true;
+            ImportResult = "Reading GitHub CLI accounts...";
+            try
+            {
+                var discovered = await Services.GitHubCliCredential.DiscoverAccountsAsync().ConfigureAwait(true);
+                if (discovered.Count == 0)
+                {
+                    ImportResult = "No stored GitHub CLI accounts found";
+                    return;
+                }
+
+                var store = Services.GitHubAccountStore.Instance;
+                Models.GitHubAccount activeCandidate = null;
+                Guid? firstImportedId = null;
+                var imported = 0;
+
+                foreach (var cliAccount in discovered)
+                {
+                    var existing = store.Accounts.FirstOrDefault(account =>
+                        account.AuthType == Models.GitHubAuthType.GitHubCli &&
+                        string.Equals(account.Host, cliAccount.Host, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(account.Username, cliAccount.Username, StringComparison.OrdinalIgnoreCase));
+
+                    if (existing == null)
+                    {
+                        existing = new Models.GitHubAccount
+                        {
+                            Name = cliAccount.Username,
+                            Username = cliAccount.Username,
+                            Host = cliAccount.Host,
+                            AuthType = Models.GitHubAuthType.GitHubCli,
+                        };
+                        store.AddOrUpdate(existing);
+                        imported++;
+                        firstImportedId ??= existing.Id;
+                    }
+
+                    if (cliAccount.IsActive &&
+                        (activeCandidate == null || string.Equals(cliAccount.Host, "github.com", StringComparison.OrdinalIgnoreCase)))
+                        activeCandidate = existing;
+                }
+
+                if (Accounts.Count == 0 && activeCandidate != null)
+                    store.SetDefault(activeCandidate);
+
+                RefreshAccounts(firstImportedId ?? activeCandidate?.Id);
+                ImportResult = imported == 0
+                    ? $"GitHub CLI accounts already imported ({discovered.Count})"
+                    : $"Imported {imported} GitHub CLI account{(imported == 1 ? string.Empty : "s")}";
+            }
+            catch (Exception ex)
+            {
+                ImportResult = $"✗ {ex.Message}";
+            }
+            finally
+            {
+                IsImportingGitHubCli = false;
+            }
         }
 
         [RelayCommand]
@@ -92,6 +177,7 @@ namespace DevBoard.ViewModels
                 Name = account.Name,
                 Username = account.Username,
                 Email = account.Email,
+                Host = account.Host,
                 AuthType = account.AuthType,
                 SSHKeyPath = account.SSHKeyPath,
                 IsDefault = account.IsDefault,
@@ -130,7 +216,21 @@ namespace DevBoard.ViewModels
             var store = Services.GitHubAccountStore.Instance;
             var existing = store.Get(EditingAccount.Id);
 
-            if (EditingAccount.AuthType == Models.GitHubAuthType.PersonalAccessToken)
+            if (EditingAccount.AuthType == Models.GitHubAuthType.GitHubCli)
+            {
+                if (string.IsNullOrWhiteSpace(EditingAccount.Username))
+                {
+                    TestResult = "Username is required";
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(EditingAccount.Host))
+                {
+                    TestResult = "GitHub host is required";
+                    return;
+                }
+            }
+            else if (EditingAccount.AuthType == Models.GitHubAuthType.PersonalAccessToken)
             {
                 if (string.IsNullOrWhiteSpace(EditingAccount.Username))
                 {
@@ -158,6 +258,7 @@ namespace DevBoard.ViewModels
                 existing.Name = EditingAccount.Name;
                 existing.Username = EditingAccount.Username;
                 existing.Email = EditingAccount.Email;
+                existing.Host = string.IsNullOrWhiteSpace(EditingAccount.Host) ? "github.com" : EditingAccount.Host.Trim();
                 existing.AuthType = EditingAccount.AuthType;
                 existing.SSHKeyPath = EditingAccount.SSHKeyPath;
                 existing.AvatarUrl = EditingAccount.AvatarUrl;
@@ -165,7 +266,7 @@ namespace DevBoard.ViewModels
 
                 if (existing.AuthType == Models.GitHubAuthType.PersonalAccessToken && !string.IsNullOrWhiteSpace(NewToken))
                     existing.Token = NewToken;
-                else if (previousAuthType == Models.GitHubAuthType.PersonalAccessToken && existing.AuthType == Models.GitHubAuthType.SSHKey)
+                else if (previousAuthType == Models.GitHubAuthType.PersonalAccessToken && existing.AuthType != Models.GitHubAuthType.PersonalAccessToken)
                     existing.DeleteCredentials();
 
                 store.AddOrUpdate(existing);
@@ -174,6 +275,7 @@ namespace DevBoard.ViewModels
             }
             else
             {
+                EditingAccount.Host = string.IsNullOrWhiteSpace(EditingAccount.Host) ? "github.com" : EditingAccount.Host.Trim();
                 if (EditingAccount.AuthType == Models.GitHubAuthType.PersonalAccessToken)
                     EditingAccount.Token = NewToken;
                 store.AddOrUpdate(EditingAccount);
@@ -216,10 +318,18 @@ namespace DevBoard.ViewModels
             TestResult = "Testing...";
             try
             {
-                if (EditingAccount.AuthType == Models.GitHubAuthType.SSHKey)
-                    await TestSshConnectionAsync();
-                else
-                    await TestTokenConnectionAsync();
+                switch (EditingAccount.AuthType)
+                {
+                    case Models.GitHubAuthType.SSHKey:
+                        await TestSshConnectionAsync();
+                        break;
+                    case Models.GitHubAuthType.GitHubCli:
+                        await TestGitHubCliConnectionAsync();
+                        break;
+                    default:
+                        await TestTokenConnectionAsync();
+                        break;
+                }
             }
             catch (Exception ex)
             {
@@ -254,9 +364,24 @@ namespace DevBoard.ViewModels
         {
             OnPropertyChanged(nameof(EditingTitle));
             OnPropertyChanged(nameof(EditingAuthTypeIndex));
+            OnPropertyChanged(nameof(IsEditingGitHubCli));
             OnPropertyChanged(nameof(IsEditingPat));
             OnPropertyChanged(nameof(IsEditingSsh));
             OnPropertyChanged(nameof(ShowEmptyState));
+        }
+
+        private async Task TestGitHubCliConnectionAsync()
+        {
+            if (string.IsNullOrWhiteSpace(EditingAccount.Username) || string.IsNullOrWhiteSpace(EditingAccount.Host))
+            {
+                TestResult = "Username and GitHub host are required";
+                return;
+            }
+
+            var token = await Services.GitHubCliCredential.GetTokenAsync(
+                EditingAccount.Host,
+                EditingAccount.Username);
+            await TestTokenAgainstGitHubAsync(token, EditingAccount.Host);
         }
 
         private async Task TestTokenConnectionAsync()
@@ -271,10 +396,20 @@ namespace DevBoard.ViewModels
                 return;
             }
 
+            await TestTokenAgainstGitHubAsync(token, EditingAccount.Host);
+        }
+
+        private async Task TestTokenAgainstGitHubAsync(string token, string host)
+        {
+            var normalizedHost = string.IsNullOrWhiteSpace(host) ? "github.com" : host.Trim();
+            var apiUrl = string.Equals(normalizedHost, "github.com", StringComparison.OrdinalIgnoreCase)
+                ? "https://api.github.com/user"
+                : $"https://{normalizedHost}/api/v3/user";
+
             using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
             http.DefaultRequestHeaders.UserAgent.ParseAdd("DevBoard");
             http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            using var response = await http.GetAsync("https://api.github.com/user");
+            using var response = await http.GetAsync(apiUrl);
             if (!response.IsSuccessStatusCode)
             {
                 TestResult = $"✗ Failed: {(int)response.StatusCode} {response.ReasonPhrase}";
@@ -284,7 +419,9 @@ namespace DevBoard.ViewModels
             var json = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(json);
             EditingAccount.Username = doc.RootElement.GetProperty("login").GetString() ?? EditingAccount.Username;
-            EditingAccount.AvatarUrl = doc.RootElement.GetProperty("avatar_url").GetString() ?? string.Empty;
+            EditingAccount.AvatarUrl = doc.RootElement.TryGetProperty("avatar_url", out var avatar)
+                ? avatar.GetString() ?? string.Empty
+                : string.Empty;
             TestResult = $"✓ Connected as @{EditingAccount.Username}";
         }
 

@@ -101,7 +101,9 @@ namespace DevBoard.DevSpaces
                         .SetItems(UnusedCompilerDiagnostics.Select(id =>
                             new KeyValuePair<string, ReportDiagnostic>(id, ReportDiagnostic.Warn)));
                     compilation = compilation.WithOptions(
-                        compilation.Options.WithSpecificDiagnosticOptions(compilerOptions));
+                        compilation.Options
+                            .WithGeneralDiagnosticOption(ReportDiagnostic.Default)
+                            .WithSpecificDiagnosticOptions(compilerOptions));
 
                     var diagnostics = new List<Diagnostic>(compilation.GetDiagnostics(cancellationToken));
                     var analyzers = project.AnalyzerReferences

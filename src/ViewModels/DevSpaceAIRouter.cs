@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Threading.Tasks;
 
 using Avalonia.Collections;
@@ -192,35 +191,18 @@ namespace DevBoard.ViewModels
 
         public async Task TestSelectedAsync()
         {
-            var provider = SelectedProvider;
-            if (provider == null)
+            if (SelectedProvider == null)
                 return;
 
-            provider.Validate();
+            await SaveAndRebindAsync();
+            var provider = SelectedProvider;
             StatusText = "Testing…";
 
             try
             {
                 using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(Math.Min(provider.TimeoutSeconds, 30)) };
-                var baseUrl = provider.BaseUrl.TrimEnd('/');
-                var url = baseUrl.EndsWith("/v1", StringComparison.OrdinalIgnoreCase)
-                    ? baseUrl + "/models"
-                    : baseUrl + "/v1/models";
-                using var request = new HttpRequestMessage(HttpMethod.Get, url);
-
-                var apiKey = provider.ApiKey;
-                if (string.IsNullOrWhiteSpace(apiKey) && !string.IsNullOrWhiteSpace(provider.ApiKeyEnvironment))
-                    apiKey = Environment.GetEnvironmentVariable(provider.ApiKeyEnvironment);
-                if (!string.IsNullOrWhiteSpace(apiKey))
-                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-
-                foreach (var header in provider.ExtraHeaders)
-                    request.Headers.TryAddWithoutValidation(header.Key, header.Value);
-
-                using var response = await client.SendAsync(request);
-                StatusText = response.IsSuccessStatusCode
-                    ? "Healthy"
-                    : $"Unavailable ({(int)response.StatusCode})";
+                var results = await AIRouterProviderDiagnostic.TestAsync(provider, client);
+                StatusText = AIRouterProviderDiagnostic.FormatSummary(results, provider.Id);
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
             {

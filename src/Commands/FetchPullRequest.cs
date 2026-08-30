@@ -11,7 +11,7 @@ namespace DevBoard.Commands
             WorkingDirectory = repo;
             Context = repo;
             RaiseError = false;
-            Args = $"fetch --progress --verbose {remote} {remoteRef}:{localRef}";
+            Args = $"fetch --progress --verbose {remote} +{remoteRef}:{localRef}";
 
             var account = FindBoundGitHubAccount();
             if (account?.AuthType == Models.GitHubAuthType.PersonalAccessToken)

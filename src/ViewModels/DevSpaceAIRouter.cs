@@ -53,6 +53,7 @@ namespace DevBoard.ViewModels
                 Providers.Add(provider.Clone());
 
             SelectedProvider = Providers.FirstOrDefault();
+            _ = EnsureRouterStartedAsync();
         }
 
         public AIRouterProviderSettings AddProvider()
@@ -121,6 +122,13 @@ namespace DevBoard.ViewModels
             settings.Providers = Providers.Select(x => x.Clone()).ToList();
             settings.Save();
             OnPropertyChanged(nameof(Endpoint));
+            StatusText = SelectedProvider?.IsActive == false ? "Disabled" : "Saved";
+        }
+
+        public async Task SaveAndRebindAsync()
+        {
+            Save();
+            await AIRouterHostService.Instance.ApplyAsync(AIRouterSettings.Instance, Port, forceRestart: true);
             StatusText = SelectedProvider?.IsActive == false ? "Disabled" : "Saved";
         }
 
@@ -200,6 +208,18 @@ namespace DevBoard.ViewModels
         {
             if (port is < 1 or > 65535)
                 throw new ArgumentOutOfRangeException(nameof(port), "AI Router port must be between 1 and 65535.");
+        }
+
+        private async Task EnsureRouterStartedAsync()
+        {
+            try
+            {
+                await AIRouterHostService.Instance.ApplyAsync(AIRouterSettings.Instance, Port);
+            }
+            catch (Exception ex)
+            {
+                StatusText = $"Unavailable: {ex.Message}";
+            }
         }
 
         private void EnsureUniqueId(AIRouterProviderSettings provider)

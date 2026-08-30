@@ -97,7 +97,7 @@ namespace DevBoard.Tests
             var second = service.InitializeAsync();
 
             Assert.Same(first, second);
-            await loader.WaitUntilCalledAsync();
+            await loader.Started;
             Assert.Equal(1, loader.CallCount);
             loader.Complete(new FakeLoadedWorkspace(1));
             await Task.WhenAll(first, second);
@@ -152,17 +152,16 @@ namespace DevBoard.Tests
         private sealed class BlockingFakeLoader : IRoslynWorkspaceLoader
         {
             private readonly TaskCompletionSource<IRoslynLoadedWorkspace> _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
-            private readonly TaskCompletionSource _called = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
             public int CallCount { get; private set; }
+            public Task Started => _started.Task;
 
             public Task<IRoslynLoadedWorkspace> LoadAsync(string workspacePath, CancellationToken cancellationToken)
             {
                 CallCount++;
-                _called.TrySetResult();
+                _started.TrySetResult();
                 return _completion.Task;
             }
-
-            public Task WaitUntilCalledAsync() => _called.Task;
 
             public void Complete(IRoslynLoadedWorkspace workspace) => _completion.TrySetResult(workspace);
         }

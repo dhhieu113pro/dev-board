@@ -31,6 +31,7 @@ namespace DevBoard.Commands
         public EditorType Editor { get; set; } = EditorType.CoreEditor;
         public string SSHKey { get; set; } = string.Empty;
         public string Args { get; set; } = string.Empty;
+        public bool NonInteractiveAuthentication { get; set; } = false;
 
         // Only used in `ExecAsync` mode.
         public CancellationToken CancellationToken { get; set; } = CancellationToken.None;
@@ -171,17 +172,32 @@ namespace DevBoard.Commands
                 start.StandardErrorEncoding = Encoding.UTF8;
             }
 
-            // Force using this app as SSH askpass program
             var selfExecFile = Environment.ProcessPath;
-            start.Environment.Add("SSH_ASKPASS", selfExecFile); // Can not use parameter here, because it invoked by SSH with `exec`
-            start.Environment.Add("SSH_ASKPASS_REQUIRE", "prefer");
-            start.Environment.Add("SOURCEGIT_LAUNCH_AS_ASKPASS", "TRUE");
-            if (!OperatingSystem.IsLinux())
-                start.Environment.Add("DISPLAY", "required");
+            if (NonInteractiveAuthentication)
+            {
+                start.Environment["GIT_TERMINAL_PROMPT"] = "0";
 
-            // If an SSH private key was provided, sets the environment.
-            if (!start.Environment.ContainsKey("GIT_SSH_COMMAND") && !string.IsNullOrEmpty(SSHKey))
-                start.Environment.Add("GIT_SSH_COMMAND", $"ssh -i '{SSHKey}' -o AddKeysToAgent=yes");
+                if (!start.Environment.ContainsKey("GIT_SSH_COMMAND"))
+                {
+                    var normalizedKey = SSHKey?.Replace('\\', '/');
+                    start.Environment["GIT_SSH_COMMAND"] = string.IsNullOrEmpty(normalizedKey)
+                        ? "ssh -o BatchMode=yes"
+                        : $"ssh -i '{normalizedKey}' -o BatchMode=yes";
+                }
+            }
+            else
+            {
+                // Force using this app as SSH askpass program for interactive commands.
+                start.Environment.Add("SSH_ASKPASS", selfExecFile); // Can not use parameter here, because it invoked by SSH with `exec`
+                start.Environment.Add("SSH_ASKPASS_REQUIRE", "prefer");
+                start.Environment.Add("SOURCEGIT_LAUNCH_AS_ASKPASS", "TRUE");
+                if (!OperatingSystem.IsLinux())
+                    start.Environment.Add("DISPLAY", "required");
+
+                // If an SSH private key was provided, sets the environment.
+                if (!start.Environment.ContainsKey("GIT_SSH_COMMAND") && !string.IsNullOrEmpty(SSHKey))
+                    start.Environment.Add("GIT_SSH_COMMAND", $"ssh -i '{SSHKey}' -o AddKeysToAgent=yes");
+            }
 
             // Force using en_US.UTF-8 locale
             if (OperatingSystem.IsLinux())
@@ -191,10 +207,10 @@ namespace DevBoard.Commands
             }
 
             var builder = new StringBuilder(2048);
-            builder
-                .Append("--no-pager -c core.quotepath=off -c credential.helper=")
-                .Append(Native.OS.CredentialHelper)
-                .Append(' ');
+            builder.Append("--no-pager -c core.quotepath=off -c credential.helper=");
+            if (!NonInteractiveAuthentication)
+                builder.Append(Native.OS.CredentialHelper);
+            builder.Append(' ');
 
             switch (Editor)
             {

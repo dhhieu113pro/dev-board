@@ -8,7 +8,7 @@ namespace DevBoard.Views
         public GoToFileSearch()
         {
             InitializeComponent();
-            AttachedToVisualTree += (_, _) => Dispatcher.UIThread.Post(() => SearchBox.Focus());
+            Loaded += (_, _) => Dispatcher.UIThread.Post(() => SearchBox.Focus());
         }
     }
 }

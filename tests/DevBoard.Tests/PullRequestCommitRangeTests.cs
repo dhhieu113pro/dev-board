@@ -29,8 +29,8 @@ public class PullRequestCommitRangeTests
     {
         var commits = new List<Commit>
         {
-            CommitWithParents("a"),
-            CommitWithParents("b", "c")
+            CommitWithParents("aaaaaaaa"),
+            CommitWithParents("bbbbbbbb", "cccccccc")
         };
 
         Assert.True(PullRequestCommitRange.ContainsMergeCommit(commits));
@@ -41,8 +41,8 @@ public class PullRequestCommitRangeTests
     {
         var commits = new List<Commit>
         {
-            CommitWithParents("a"),
-            CommitWithParents("b")
+            CommitWithParents("aaaaaaaa"),
+            CommitWithParents("bbbbbbbb")
         };
 
         Assert.False(PullRequestCommitRange.ContainsMergeCommit(commits));

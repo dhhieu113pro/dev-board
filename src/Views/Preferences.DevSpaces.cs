@@ -19,7 +19,7 @@ namespace DevBoard.Views
             var item = new TabItem
             {
                 Tag = DevSpacesTabTag,
-                Header = App.Text("DevSpaces"),
+                Header = App.Text("Dev"),
                 Content = new DevSpacesPreferences
                 {
                     DataContext = ViewModels.Preferences.Instance,

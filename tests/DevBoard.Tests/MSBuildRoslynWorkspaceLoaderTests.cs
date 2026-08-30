@@ -46,13 +46,13 @@ namespace DevBoard.Tests
                     projectPath,
                     "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework><OutputType>Library</OutputType></PropertyGroup></Project>");
                 var sourcePath = Path.Combine(root, "Example.cs");
-                File.WriteAllText(sourcePath, "class Example { void Run() { int unused = 42; } }");
+                File.WriteAllText(sourcePath, "class Example { void Run() { int unused; } }");
 
                 using var loaded = await new MSBuildRoslynWorkspaceLoader().LoadAsync(projectPath, CancellationToken.None);
                 var items = await loaded.FindUnusedCodeAsync(CancellationToken.None);
 
                 var item = Assert.Single(items, x => x.Kind == RoslynUnusedCodeKind.Variable && x.Symbol == "unused");
-                Assert.Contains(item.DiagnosticId, new[] { "CS0219", "IDE0059" });
+                Assert.Equal("CS0168", item.DiagnosticId);
                 Assert.Equal(sourcePath, item.FilePath);
                 Assert.Equal(1, item.Line);
             }

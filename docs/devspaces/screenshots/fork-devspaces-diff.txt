@@ -63,6 +63,8 @@ src/Models/Null.cs
 src/Models/NumericSort.cs
 src/Models/Object.cs
 src/Models/PatchGenerator.cs
+src/Models/PullRequestCommitRange.cs
+src/Models/PullRequestRemote.cs
 src/Models/Remote.cs
 src/Models/RepositorySettings.cs
 src/Models/RepositoryStatus.cs
@@ -191,6 +193,7 @@ src/ViewModels/Preferences.cs
 src/ViewModels/PruneRemote.cs
 src/ViewModels/PruneWorktrees.cs
 src/ViewModels/Pull.cs
+src/ViewModels/PullRequestCherryPickPage.cs
 src/ViewModels/Push.cs
 src/ViewModels/PushRevision.cs
 src/ViewModels/PushTag.cs
@@ -489,6 +492,8 @@ src/Views/PruneWorktrees.axaml
 src/Views/PruneWorktrees.axaml.cs
 src/Views/Pull.axaml
 src/Views/Pull.axaml.cs
+src/Views/PullRequestCherryPickPage.axaml
+src/Views/PullRequestCherryPickPage.axaml.cs
 src/Views/Push.axaml
 src/Views/Push.axaml.cs
 src/Views/PushRevision.axaml
@@ -505,6 +510,7 @@ src/Views/RemoveWorktree.axaml
 src/Views/RemoveWorktree.axaml.cs
 src/Views/RenameBranch.axaml
 src/Views/RenameBranch.axaml.cs
+src/Views/Repository.PullRequests.cs
 src/Views/Repository.axaml
 src/Views/Repository.axaml.cs
 src/Views/RepositoryCommandPalette.axaml

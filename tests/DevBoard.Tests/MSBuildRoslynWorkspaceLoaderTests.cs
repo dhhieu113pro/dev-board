@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -49,6 +50,22 @@ namespace DevBoard.Tests
                 File.WriteAllText(sourcePath, "class Example { private int unused; }");
 
                 using var loaded = await new MSBuildRoslynWorkspaceLoader().LoadAsync(projectPath, CancellationToken.None);
+                var concrete = Assert.IsType<MSBuildRoslynWorkspaceLoader.LoadedWorkspace>(loaded);
+                var project = Assert.Single(concrete.Solution.Projects);
+                var documentPaths = project.Documents
+                    .Select(x => x.FilePath ?? "<null>")
+                    .ToArray();
+                Assert.True(
+                    documentPaths.Any(x => string.Equals(x, sourcePath, StringComparison.OrdinalIgnoreCase)),
+                    $"Expected source document '{sourcePath}'. Loaded documents: {string.Join(", ", documentPaths)}");
+
+                var compilation = await project.GetCompilationAsync(CancellationToken.None);
+                Assert.NotNull(compilation);
+                var syntaxTreePaths = compilation.SyntaxTrees.Select(x => x.FilePath ?? "<null>").ToArray();
+                Assert.True(
+                    syntaxTreePaths.Any(x => string.Equals(x, sourcePath, StringComparison.OrdinalIgnoreCase)),
+                    $"Expected syntax tree '{sourcePath}'. Compilation trees: {string.Join(", ", syntaxTreePaths)}");
+
                 var items = await loaded.FindUnusedCodeAsync(CancellationToken.None);
 
                 var item = Assert.Single(items, x => x.Kind == RoslynUnusedCodeKind.Member && x.Symbol == "unused");

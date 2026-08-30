@@ -1,7 +1,3 @@
-using System;
-
-using DevBoard.ViewModels;
-
 using Xunit;
 
 namespace DevBoard.Tests
@@ -11,7 +7,7 @@ namespace DevBoard.Tests
         [Fact]
         public void DevSpaces_ExposesDedicatedRoslynAnalyticsPageModel()
         {
-            var property = typeof(DevSpaces).GetProperty("RoslynAnalytics");
+            var property = typeof(DevBoard.ViewModels.DevSpaces).GetProperty("RoslynAnalytics");
 
             Assert.NotNull(property);
             Assert.Equal("DevSpaceRoslynAnalytics", property!.PropertyType.Name);

@@ -25,7 +25,39 @@ namespace DevBoard.ViewModels
         DevSpaceTerminal Terminal,
         string Title,
         DevSpaceTerminalState State,
-        string WorkingDirectory);
+        string WorkingDirectory)
+    {
+        public string Icon => ResolveProfileIcon(Title);
+        public string DisplayTitle => StripProfileIcon(Title, Icon);
+        public bool HasIcon => !string.IsNullOrWhiteSpace(Icon);
+
+        private static string ResolveProfileIcon(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title))
+                return string.Empty;
+
+            foreach (var profile in DevBoard.DevSpaces.DevSpaceProfileSettings.Instance.Profiles)
+            {
+                var icon = DevBoard.DevSpaces.DevSpaceProfileSettings.NormalizeProfileIcon(profile.Icon);
+                var prefix = $"{icon} {profile.Name} ";
+                if (title.StartsWith(prefix, StringComparison.Ordinal))
+                    return icon;
+            }
+
+            return string.Empty;
+        }
+
+        private static string StripProfileIcon(string title, string icon)
+        {
+            if (string.IsNullOrWhiteSpace(icon))
+                return title ?? string.Empty;
+
+            var prefix = $"{icon} ";
+            return title != null && title.StartsWith(prefix, StringComparison.Ordinal)
+                ? title[prefix.Length..]
+                : title ?? string.Empty;
+        }
+    }
 
     public sealed record DevSpaceGitSummary(
         int Total,

@@ -31,14 +31,50 @@ namespace DevBoard.Tests
             Assert.Equal(1, loaded.AnalysisCallCount);
         }
 
+        [Fact]
+        public async Task RefreshUnusedCodeAsync_ReloadsWorkspaceBeforeAnalyzing()
+        {
+            using var dir = new TempDirectory();
+            File.WriteAllText(Path.Combine(dir.Path, "workspace.csproj"), "<Project />");
+            var firstItem = new RoslynUnusedCodeItem(
+                "Demo", RoslynUnusedCodeKind.Member, "OldUnused", "IDE0051",
+                "Old unused member", Path.Combine(dir.Path, "Demo.cs"), 5, 3);
+            var refreshedItem = new RoslynUnusedCodeItem(
+                "Demo", RoslynUnusedCodeKind.Variable, "newUnused", "CS0168",
+                "New unused variable", Path.Combine(dir.Path, "Demo.cs"), 9, 7);
+            var firstWorkspace = new FakeLoadedWorkspace(firstItem);
+            var refreshedWorkspace = new FakeLoadedWorkspace(refreshedItem);
+            var loader = new FakeLoader(firstWorkspace, refreshedWorkspace);
+            using var service = new RoslynDevSpaceService(dir.Path, loader);
+
+            await service.InitializeAsync();
+            await service.RefreshUnusedCodeAsync();
+
+            Assert.Equal(2, loader.CallCount);
+            Assert.True(firstWorkspace.IsDisposed);
+            Assert.Equal(1, firstWorkspace.AnalysisCallCount);
+            Assert.Equal(1, refreshedWorkspace.AnalysisCallCount);
+            Assert.Same(refreshedItem, Assert.Single(service.UnusedCode));
+        }
+
         private sealed class FakeLoader : IRoslynWorkspaceLoader
         {
-            private readonly IRoslynLoadedWorkspace _workspace;
+            private readonly Queue<IRoslynLoadedWorkspace> _workspaces = new();
+            public int CallCount { get; private set; }
 
-            public FakeLoader(IRoslynLoadedWorkspace workspace) => _workspace = workspace;
+            public FakeLoader(params IRoslynLoadedWorkspace[] workspaces)
+            {
+                foreach (var workspace in workspaces)
+                    _workspaces.Enqueue(workspace);
+            }
 
-            public Task<IRoslynLoadedWorkspace> LoadAsync(string workspacePath, CancellationToken cancellationToken) =>
-                Task.FromResult(_workspace);
+            public Task<IRoslynLoadedWorkspace> LoadAsync(string workspacePath, CancellationToken cancellationToken)
+            {
+                CallCount++;
+                if (_workspaces.Count == 0)
+                    throw new InvalidOperationException("No fake Roslyn workspace remains.");
+                return Task.FromResult(_workspaces.Dequeue());
+            }
         }
 
         private sealed class FakeLoadedWorkspace : IRoslynLoadedWorkspace
@@ -46,6 +82,7 @@ namespace DevBoard.Tests
             private readonly IReadOnlyList<RoslynUnusedCodeItem> _items;
             public int ProjectCount => 1;
             public int AnalysisCallCount { get; private set; }
+            public bool IsDisposed { get; private set; }
 
             public FakeLoadedWorkspace(params RoslynUnusedCodeItem[] items) => _items = items;
 
@@ -55,9 +92,7 @@ namespace DevBoard.Tests
                 return Task.FromResult(_items);
             }
 
-            public void Dispose()
-            {
-            }
+            public void Dispose() => IsDisposed = true;
         }
 
         private sealed class TempDirectory : IDisposable

@@ -13,6 +13,7 @@ namespace DevBoard.ViewModels
     public sealed class DevSpaceFiles : ObservableObject
     {
         public AvaloniaList<DevSpaceFileNode> VisibleItems { get; } = [];
+        public AvaloniaList<DevSpaceFileNode> FolderChildren { get; } = [];
 
         internal Task InitialRefreshTask { get; }
 
@@ -35,9 +36,18 @@ namespace DevBoard.ViewModels
                     return;
 
                 _selectedPath = value?.RelativePath ?? string.Empty;
-                if (value == null || value.IsDirectory)
+                FolderChildren.Clear();
+                if (value == null)
                 {
                     DetailContext = null;
+                    return;
+                }
+
+                if (value.IsDirectory)
+                {
+                    DetailContext = null;
+                    foreach (var child in GetFolderChildren(value))
+                        FolderChildren.Add(child);
                     return;
                 }
 
@@ -121,18 +131,54 @@ namespace DevBoard.ViewModels
             RebuildVisibleItems();
         }
 
-        public void ClearFilter()
+        public void SelectFolder(DevSpaceFileNode node)
         {
-            Filter = string.Empty;
+            if (node == null || !node.IsDirectory)
+                return;
+
+            SelectedNode = node;
+            ToggleExpanded(node);
         }
+
+        public void OpenFolderChild(DevSpaceFileNode node)
+        {
+            if (node == null)
+                return;
+
+            if (!node.IsDirectory)
+            {
+                SelectedNode = node;
+                return;
+            }
+
+            SelectedNode = node;
+            if (!node.IsExpanded)
+                ToggleExpanded(node);
+        }
+
+        public static IReadOnlyList<DevSpaceFileNode> GetFolderChildren(DevSpaceFileNode folder)
+        {
+            if (folder == null || !folder.IsDirectory)
+                return Array.Empty<DevSpaceFileNode>();
+
+            return folder.Children
+                .OrderByDescending(x => x.IsDirectory)
+                .ThenBy(x => x.Name, Comparer<string>.Create(Models.NumericSort.Compare))
+                .ToArray();
+        }
+
+        public static void ToggleFolderSelection(DevSpaceFileNode folder)
+        {
+            if (folder != null && folder.IsDirectory)
+                folder.IsExpanded = !folder.IsExpanded;
+        }
+
+        public void ClearFilter() => Filter = string.Empty;
 
         public IReadOnlyList<string> GetSearchableFilePaths()
         {
-            return _nodesByPath.Values
-                .Where(x => !x.IsDirectory)
-                .Select(x => x.RelativePath)
-                .OrderBy(x => x, Comparer<string>.Create(Models.NumericSort.Compare))
-                .ToArray();
+            return _nodesByPath.Values.Where(x => !x.IsDirectory).Select(x => x.RelativePath)
+                .OrderBy(x => x, Comparer<string>.Create(Models.NumericSort.Compare)).ToArray();
         }
 
         public bool OpenFile(string relativePath)
@@ -140,21 +186,15 @@ namespace DevBoard.ViewModels
             var normalized = NormalizePath(relativePath);
             if (!_nodesByPath.TryGetValue(normalized, out var node) || node.IsDirectory)
                 return false;
-
             Filter = string.Empty;
-
             var current = normalized;
             while (true)
             {
                 var slash = current.LastIndexOf('/');
-                if (slash <= 0)
-                    break;
-
+                if (slash <= 0) break;
                 current = current[..slash];
-                if (_nodesByPath.TryGetValue(current, out var parent) && parent.IsDirectory)
-                    parent.IsExpanded = true;
+                if (_nodesByPath.TryGetValue(current, out var parent) && parent.IsDirectory) parent.IsExpanded = true;
             }
-
             RebuildVisibleItems();
             SelectedNode = node;
             return true;
@@ -165,17 +205,12 @@ namespace DevBoard.ViewModels
             if (node.Change != null)
             {
                 var previous = DetailContext as DiffContext;
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                    DetailContext = new DiffContext(_workingDirectory, new Models.DiffOption(node.Change), previous));
+                await Dispatcher.UIThread.InvokeAsync(() => DetailContext = new DiffContext(_workingDirectory, new Models.DiffOption(node.Change), previous));
                 return;
             }
-
             var absolutePath = Path.Combine(_workingDirectory, node.RelativePath.Replace('/', Path.DirectorySeparatorChar));
             var preview = await Task.Run(() => LoadWorkspaceFile(node.RelativePath, absolutePath)).ConfigureAwait(false);
-
-            if (!string.Equals(_selectedPath, node.RelativePath, StringComparison.Ordinal))
-                return;
-
+            if (!string.Equals(_selectedPath, node.RelativePath, StringComparison.Ordinal)) return;
             await Dispatcher.UIThread.InvokeAsync(() => DetailContext = preview);
         }
 
@@ -184,40 +219,25 @@ namespace DevBoard.ViewModels
             try
             {
                 var info = new FileInfo(absolutePath);
-                if (!info.Exists)
-                    return new DevSpaceWorkspaceFile(relativePath, string.Empty, "File no longer exists in the workspace.");
-                if (info.Length > MaxPreviewBytes)
-                    return new DevSpaceWorkspaceFile(relativePath, string.Empty, "File is too large to preview.");
-
+                if (!info.Exists) return new DevSpaceWorkspaceFile(relativePath, string.Empty, "File no longer exists in the workspace.");
+                if (info.Length > MaxPreviewBytes) return new DevSpaceWorkspaceFile(relativePath, string.Empty, "File is too large to preview.");
                 using (var stream = File.OpenRead(absolutePath))
                 {
-                    var sampleSize = (int)Math.Min(8192, stream.Length);
-                    var sample = new byte[sampleSize];
+                    var sample = new byte[(int)Math.Min(8192, stream.Length)];
                     var read = stream.Read(sample, 0, sample.Length);
-                    for (var i = 0; i < read; i++)
-                    {
-                        if (sample[i] == 0)
-                            return new DevSpaceWorkspaceFile(relativePath, string.Empty, "Binary file preview is not available here.");
-                    }
+                    for (var i = 0; i < read; i++) if (sample[i] == 0) return new DevSpaceWorkspaceFile(relativePath, string.Empty, "Binary file preview is not available here.");
                 }
-
                 return new DevSpaceWorkspaceFile(relativePath, File.ReadAllText(absolutePath));
             }
-            catch (Exception ex)
-            {
-                return new DevSpaceWorkspaceFile(relativePath, string.Empty, ex.Message);
-            }
+            catch (Exception ex) { return new DevSpaceWorkspaceFile(relativePath, string.Empty, ex.Message); }
         }
 
         private void RebuildVisibleItems()
         {
             VisibleItems.Clear();
-            if (_roots.Count == 0)
-                return;
-
+            if (_roots.Count == 0) return;
             var hasFilter = !string.IsNullOrWhiteSpace(_filter);
-            foreach (var root in _roots)
-                AppendVisible(root, hasFilter);
+            foreach (var root in _roots) AppendVisible(root, hasFilter);
         }
 
         private bool AppendVisible(DevSpaceFileNode node, bool hasFilter)
@@ -225,65 +245,35 @@ namespace DevBoard.ViewModels
             if (!hasFilter)
             {
                 VisibleItems.Add(node);
-                if (node.IsDirectory && node.IsExpanded)
-                {
-                    foreach (var child in node.Children)
-                        AppendVisible(child, false);
-                }
-
+                if (node.IsDirectory && node.IsExpanded) foreach (var child in node.Children) AppendVisible(child, false);
                 return true;
             }
-
             var childMatches = new List<DevSpaceFileNode>();
-            foreach (var child in node.Children)
-            {
-                if (MatchesFilter(child))
-                    childMatches.Add(child);
-            }
-
+            foreach (var child in node.Children) if (MatchesFilter(child)) childMatches.Add(child);
             var matches = PathMatches(node.RelativePath, _filter) || childMatches.Count > 0;
-            if (!matches)
-                return false;
-
+            if (!matches) return false;
             VisibleItems.Add(node);
-            foreach (var child in childMatches)
-                AppendVisible(child, true);
+            foreach (var child in childMatches) AppendVisible(child, true);
             return true;
         }
 
         private bool MatchesFilter(DevSpaceFileNode node)
         {
-            if (PathMatches(node.RelativePath, _filter))
-                return true;
-
-            foreach (var child in node.Children)
-            {
-                if (MatchesFilter(child))
-                    return true;
-            }
-
+            if (PathMatches(node.RelativePath, _filter)) return true;
+            foreach (var child in node.Children) if (MatchesFilter(child)) return true;
             return false;
         }
 
-        private static bool PathMatches(string path, string filter)
-        {
-            return path.Contains(filter, StringComparison.OrdinalIgnoreCase);
-        }
+        private static bool PathMatches(string path, string filter) => path.Contains(filter, StringComparison.OrdinalIgnoreCase);
 
-        private static (List<DevSpaceFileNode> Roots, Dictionary<string, DevSpaceFileNode> NodesByPath) BuildTree(
-            HashSet<string> paths,
-            List<Models.Change> changes,
-            HashSet<string> expanded)
+        private static (List<DevSpaceFileNode> Roots, Dictionary<string, DevSpaceFileNode> NodesByPath) BuildTree(HashSet<string> paths, List<Models.Change> changes, HashSet<string> expanded)
         {
             var roots = new List<DevSpaceFileNode>();
             var nodes = new Dictionary<string, DevSpaceFileNode>(StringComparer.Ordinal);
-
             foreach (var rawPath in paths)
             {
                 var path = NormalizePath(rawPath);
-                if (string.IsNullOrWhiteSpace(path) || path.StartsWith(".git/", StringComparison.Ordinal) || path == ".git")
-                    continue;
-
+                if (string.IsNullOrWhiteSpace(path) || path.StartsWith(".git/", StringComparison.Ordinal) || path == ".git") continue;
                 var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
                 var currentPath = string.Empty;
                 DevSpaceFileNode parent = null;
@@ -293,53 +283,29 @@ namespace DevBoard.ViewModels
                     if (!nodes.TryGetValue(currentPath, out var node))
                     {
                         var isDirectory = i < segments.Length - 1;
-                        node = new DevSpaceFileNode(segments[i], currentPath, isDirectory, i)
-                        {
-                            IsExpanded = isDirectory && expanded.Contains(currentPath),
-                        };
+                        node = new DevSpaceFileNode(segments[i], currentPath, isDirectory, i) { IsExpanded = isDirectory && expanded.Contains(currentPath) };
                         nodes.Add(currentPath, node);
-
-                        if (parent == null)
-                            roots.Add(node);
-                        else
-                            parent.Children.Add(node);
+                        if (parent == null) roots.Add(node); else parent.Children.Add(node);
                     }
-
                     parent = node;
                 }
             }
-
             foreach (var change in changes)
             {
                 var path = NormalizePath(change.Path);
-                if (nodes.TryGetValue(path, out var node))
-                    node.Change = change;
+                if (nodes.TryGetValue(path, out var node)) node.Change = change;
             }
-
             SortNodes(roots);
             return (roots, nodes);
         }
 
         private static void SortNodes(List<DevSpaceFileNode> nodes)
         {
-            nodes.Sort((left, right) =>
-            {
-                if (left.IsDirectory != right.IsDirectory)
-                    return left.IsDirectory ? -1 : 1;
-                return Models.NumericSort.Compare(left.Name, right.Name);
-            });
-
-            foreach (var node in nodes)
-            {
-                if (node.Children.Count > 0)
-                    SortNodes(node.Children);
-            }
+            nodes.Sort((left, right) => left.IsDirectory != right.IsDirectory ? (left.IsDirectory ? -1 : 1) : Models.NumericSort.Compare(left.Name, right.Name));
+            foreach (var node in nodes) if (node.Children.Count > 0) SortNodes(node.Children);
         }
 
-        private static string NormalizePath(string path)
-        {
-            return (path ?? string.Empty).Replace('\\', '/').TrimStart('/');
-        }
+        private static string NormalizePath(string path) => (path ?? string.Empty).Replace('\\', '/').TrimStart('/');
 
         private const long MaxPreviewBytes = 1024 * 1024;
         private readonly string _workingDirectory;
@@ -355,9 +321,6 @@ namespace DevBoard.ViewModels
 
     internal static class DevSpaceChangeExtensions
     {
-        public static bool StateIsRename(this Models.Change change)
-        {
-            return change.Index == Models.ChangeState.Renamed || change.WorkTree == Models.ChangeState.Renamed;
-        }
+        public static bool StateIsRename(this Models.Change change) => change.Index == Models.ChangeState.Renamed || change.WorkTree == Models.ChangeState.Renamed;
     }
 }

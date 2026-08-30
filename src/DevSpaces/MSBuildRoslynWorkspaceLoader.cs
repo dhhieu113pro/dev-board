@@ -12,6 +12,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.MSBuild;
+using Microsoft.CodeAnalysis.Text;
 
 namespace DevBoard.DevSpaces
 {
@@ -46,6 +47,7 @@ namespace DevBoard.DevSpaces
                     throw new InvalidOperationException($"Unsupported Roslyn workspace type '{extension}'.");
                 }
 
+                solution = await EnsureCSharpSourcesLoadedAsync(solution, cancellationToken);
                 return new LoadedWorkspace(workspace, solution);
             }
             catch (OperationCanceledException)
@@ -57,6 +59,61 @@ namespace DevBoard.DevSpaces
             {
                 workspace.Dispose();
                 throw new InvalidOperationException($"Roslyn could not load '{Path.GetFileName(workspacePath)}': {ex.Message}", ex);
+            }
+        }
+
+        private static async Task<Solution> EnsureCSharpSourcesLoadedAsync(
+            Solution solution,
+            CancellationToken cancellationToken)
+        {
+            foreach (var projectId in solution.ProjectIds.ToArray())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var project = solution.GetProject(projectId);
+                if (project == null ||
+                    project.Language != LanguageNames.CSharp ||
+                    project.Documents.Any() ||
+                    string.IsNullOrWhiteSpace(project.FilePath))
+                {
+                    continue;
+                }
+
+                var projectDirectory = Path.GetDirectoryName(project.FilePath);
+                if (string.IsNullOrWhiteSpace(projectDirectory) || !Directory.Exists(projectDirectory))
+                    continue;
+
+                foreach (var sourcePath in EnumerateCSharpSources(projectDirectory))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var text = await File.ReadAllTextAsync(sourcePath, cancellationToken);
+                    solution = solution.AddDocument(
+                        DocumentId.CreateNewId(projectId),
+                        Path.GetFileName(sourcePath),
+                        SourceText.From(text),
+                        filePath: sourcePath);
+                }
+            }
+
+            return solution;
+        }
+
+        private static IEnumerable<string> EnumerateCSharpSources(string root)
+        {
+            var pending = new Stack<string>();
+            pending.Push(root);
+
+            while (pending.Count > 0)
+            {
+                var directory = pending.Pop();
+                foreach (var file in Directory.EnumerateFiles(directory, "*.cs", SearchOption.TopDirectoryOnly))
+                    yield return file;
+
+                foreach (var child in Directory.EnumerateDirectories(directory)
+                    .Where(x => !IgnoredSourceDirectories.Contains(Path.GetFileName(x)))
+                    .OrderByDescending(x => x, StringComparer.Ordinal))
+                {
+                    pending.Push(child);
+                }
             }
         }
 
@@ -260,6 +317,17 @@ namespace DevBoard.DevSpaces
             private static readonly ImmutableArray<string> UnusedCompilerDiagnostics =
                 ImmutableArray.Create("CS0168", "CS0169", "CS0219", "CS0414");
         }
+
+        private static readonly HashSet<string> IgnoredSourceDirectories = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".git",
+            "bin",
+            "obj",
+            "node_modules",
+            ".vs",
+            ".idea",
+            ".vscode",
+        };
 
         private static readonly object RegistrationGate = new();
     }

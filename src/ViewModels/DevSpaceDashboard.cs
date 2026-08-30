@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 
 using Avalonia.Collections;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -17,7 +18,27 @@ namespace DevBoard.ViewModels
         public DevSpaceCapabilityState CopilotCapability { get; }
         public DevSpaceCapabilityState CodexCapability { get; }
         public DevSpaceCapabilityState AntigravityCapability { get; }
-        public DevSpaceCapabilityState RoslynCapability { get; } = DevSpaceCapabilityState.Unavailable;
+
+        public DevBoard.DevSpaces.RoslynDevSpaceState RoslynState => _roslynService.State;
+        public string RoslynFailureReason => _roslynService.FailureReason;
+        public bool IsRoslynInitializing => RoslynState == DevBoard.DevSpaces.RoslynDevSpaceState.Initializing;
+        public bool CanInitializeRoslyn => RoslynState == DevBoard.DevSpaces.RoslynDevSpaceState.Unavailable || RoslynState == DevBoard.DevSpaces.RoslynDevSpaceState.Failed;
+        public string RoslynActionText => RoslynState == DevBoard.DevSpaces.RoslynDevSpaceState.Failed ? "Retry" : "Initialize";
+        public string RoslynStatusText => RoslynState switch
+        {
+            DevBoard.DevSpaces.RoslynDevSpaceState.Initializing => "Initializing…",
+            DevBoard.DevSpaces.RoslynDevSpaceState.Available => "Available",
+            DevBoard.DevSpaces.RoslynDevSpaceState.Failed => "Failed",
+            _ => "Unavailable",
+        };
+        public string RoslynSummaryText => RoslynState switch
+        {
+            DevBoard.DevSpaces.RoslynDevSpaceState.Initializing => "Roslyn is loading this workspace…",
+            DevBoard.DevSpaces.RoslynDevSpaceState.Available => "Roslyn is available for this DevSpace.",
+            DevBoard.DevSpaces.RoslynDevSpaceState.Failed when !string.IsNullOrWhiteSpace(RoslynFailureReason) => RoslynFailureReason,
+            DevBoard.DevSpaces.RoslynDevSpaceState.Failed => "Roslyn initialization failed. Use Retry in Workspace Health.",
+            _ => "Roslyn is not initialized. Use Initialize in Workspace Health when you need diagnostics or code intelligence.",
+        };
 
         public IReadOnlyList<DevBoard.DevSpaces.DevSpaceTerminalProfile> Profiles =>
             DevBoard.DevSpaces.DevSpaceProfileSettings.Instance.Profiles;
@@ -58,7 +79,11 @@ namespace DevBoard.ViewModels
             .Select(x => new DevSpaceDashboardSessionRow(x, x.Title, x.State, x.WorkingDirectory))
             .ToArray();
 
-        public DevSpaceDashboard(DevSpaces owner, string workspacePath, Repository repository = null)
+        public DevSpaceDashboard(
+            DevSpaces owner,
+            string workspacePath,
+            Repository repository = null,
+            DevBoard.DevSpaces.IRoslynWorkspaceLoader roslynLoader = null)
         {
             _owner = owner;
             _repository = repository;
@@ -67,6 +92,10 @@ namespace DevBoard.ViewModels
             CopilotCapability = DevBoard.DevSpaces.DevSpaceToolHealth.CheckCommand("copilot");
             CodexCapability = DevBoard.DevSpaces.DevSpaceToolHealth.CheckCommand("codex");
             AntigravityCapability = DevBoard.DevSpaces.DevSpaceToolHealth.CheckCommand("agy");
+            _roslynService = new DevBoard.DevSpaces.RoslynDevSpaceService(
+                workspacePath,
+                roslynLoader ?? new DevBoard.DevSpaces.MSBuildRoslynWorkspaceLoader());
+            _roslynService.PropertyChanged += OnRoslynPropertyChanged;
             _owner.Sessions.CollectionChanged += OnSessionsChanged;
 
             if (_repository != null)
@@ -148,6 +177,8 @@ namespace DevBoard.ViewModels
                 Activity.RemoveAt(Activity.Count - 1);
         }
 
+        public Task InitializeRoslynAsync() => _roslynService.InitializeAsync();
+
         public void OpenSession(DevSpaceTerminal terminal) => _owner.ActivateTerminal(terminal);
         public void CloseSession(DevSpaceTerminal terminal) => _owner.CloseTerminal(terminal);
         public void OpenFiles() => _owner.ActivateFiles();
@@ -170,6 +201,8 @@ namespace DevBoard.ViewModels
 
         public void Dispose()
         {
+            _roslynService.PropertyChanged -= OnRoslynPropertyChanged;
+            _roslynService.Dispose();
             _owner.Sessions.CollectionChanged -= OnSessionsChanged;
             if (_repository != null)
             {
@@ -181,6 +214,24 @@ namespace DevBoard.ViewModels
 
         private void OnSessionsChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) =>
             OnPropertyChanged(nameof(Sessions));
+
+        private void OnRoslynPropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(DevBoard.DevSpaces.RoslynDevSpaceService.State))
+            {
+                OnPropertyChanged(nameof(RoslynState));
+                OnPropertyChanged(nameof(RoslynStatusText));
+                OnPropertyChanged(nameof(IsRoslynInitializing));
+                OnPropertyChanged(nameof(CanInitializeRoslyn));
+                OnPropertyChanged(nameof(RoslynActionText));
+                OnPropertyChanged(nameof(RoslynSummaryText));
+            }
+            else if (e.PropertyName == nameof(DevBoard.DevSpaces.RoslynDevSpaceService.FailureReason))
+            {
+                OnPropertyChanged(nameof(RoslynFailureReason));
+                OnPropertyChanged(nameof(RoslynSummaryText));
+            }
+        }
 
         private void OnRepositoryPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
@@ -218,6 +269,7 @@ namespace DevBoard.ViewModels
 
         private readonly DevSpaces _owner;
         private readonly Repository _repository;
+        private readonly DevBoard.DevSpaces.RoslynDevSpaceService _roslynService;
         private string _currentBranch = string.Empty;
         private string _baseBranch = string.Empty;
         private int _aheadCount;

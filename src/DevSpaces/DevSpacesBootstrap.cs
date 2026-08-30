@@ -193,13 +193,23 @@ namespace DevBoard.DevSpaces
                     _ => DevSpacesNavigationIndex,
                 };
 
-                if (_repository.SelectedViewIndex != index)
+                if (_repository.SelectedViewIndex == index)
+                    return;
+
+                _syncingNavigationSelection = true;
+                try
+                {
                     _repository.SelectedViewIndex = index;
+                }
+                finally
+                {
+                    _syncingNavigationSelection = false;
+                }
             }
 
             private void OnPageSwitcherSelectionChanged(object sender, SelectionChangedEventArgs e)
             {
-                if (!ViewModels.Preferences.Instance.EnableDevSpaces)
+                if (_syncingNavigationSelection || !ViewModels.Preferences.Instance.EnableDevSpaces)
                     return;
 
                 var selectedIndex = _pageSwitcher.SelectedIndex;
@@ -431,6 +441,7 @@ namespace DevBoard.DevSpaces
             private readonly TextBlock _navigationBadgeLabel;
             private readonly Border _host;
             private ViewModels.DevSpaces _spaces;
+            private bool _syncingNavigationSelection;
         }
 
         private static readonly ConditionalWeakTable<Views.Repository, RepositoryIntegration> _repositoryViews = new();

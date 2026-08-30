@@ -97,6 +97,12 @@ namespace DevBoard.DevSpaces
                     if (compilation == null)
                         continue;
 
+                    var compilerOptions = compilation.Options.SpecificDiagnosticOptions
+                        .SetItems(UnusedCompilerDiagnostics.Select(id =>
+                            new KeyValuePair<string, ReportDiagnostic>(id, ReportDiagnostic.Warn)));
+                    compilation = compilation.WithOptions(
+                        compilation.Options.WithSpecificDiagnosticOptions(compilerOptions));
+
                     var diagnostics = new List<Diagnostic>(compilation.GetDiagnostics(cancellationToken));
                     var analyzers = project.AnalyzerReferences
                         .SelectMany(x => x.GetAnalyzers(project.Language))
@@ -169,6 +175,9 @@ namespace DevBoard.DevSpaces
                         return false;
                 }
             }
+
+            private static readonly ImmutableArray<string> UnusedCompilerDiagnostics =
+                ImmutableArray.Create("CS0168", "CS0169", "CS0219", "CS0414");
         }
 
         private static readonly object RegistrationGate = new();

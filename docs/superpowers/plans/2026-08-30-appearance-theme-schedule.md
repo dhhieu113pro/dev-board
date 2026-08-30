@@ -4,7 +4,7 @@
 
 **Goal:** Add System, Light, Dark, Sunset, and Custom time appearance modes that persist and switch DevBoard's theme without restart.
 
-**Architecture:** Keep the existing `Preferences.Theme` persistence surface for backward compatibility and add schedule-specific preferences. Put time/solar decision logic in a small model that is deterministic and unit-testable, while `App` owns the Avalonia timer that reapplies the resolved theme at boundaries. Sunset mode uses stored coordinates and falls back to the system theme when coordinates are unavailable.
+**Architecture:** Keep the existing `Preferences.Theme` behavior untouched for backward compatibility and layer scheduling on top with focused additive files. `ThemeSchedule` contains deterministic custom-time and solar calculations, `ThemeScheduleSettings` persists scheduling values beside the existing preference JSON, and `ThemeScheduleController` resolves/applies the effective Avalonia theme. A small Appearance control is injected into the existing theme row so the large upstream Preferences XAML/model files do not need invasive edits.
 
 **Tech Stack:** .NET 10, Avalonia 11.3, xUnit.
 
@@ -12,11 +12,11 @@
 
 ## Global Constraints
 
-- Existing saved `Theme = "Default"` must continue to behave as System.
+- Existing saved `Theme = "Default"` continues to behave as System.
 - Theme changes apply immediately without app restart.
-- Custom schedules must handle overnight ranges.
-- Sunset mode falls back to System when coordinates cannot be resolved.
-- No network dependency is required to apply a saved schedule.
+- Custom schedules handle overnight ranges.
+- Sunset mode falls back to System when coordinates are unavailable or solar boundaries cannot be calculated.
+- Saved sunset coordinates are sufficient for normal operation; network access is only used when the user explicitly requests approximate location detection.
 
 ---
 
@@ -30,41 +30,45 @@
 - Produces: `ThemeSchedule.Resolve(...)` returning `System`, `Light`, or `Dark`.
 - Produces: `ThemeSchedule.GetSunriseSunset(...)` for local solar boundaries.
 
-- [ ] Write failing tests for custom time boundaries, overnight ranges, legacy Default/System, sunset resolution, and missing-coordinate fallback.
-- [ ] Run CI and confirm the tests fail because `ThemeSchedule` does not exist.
-- [ ] Add the minimal resolver and solar calculation.
-- [ ] Run CI and confirm the resolver tests pass.
+- [x] Define tests for manual/system modes, custom boundaries, overnight ranges, sunset calculation, and missing-coordinate fallback.
+- [x] Add the minimal resolver and local solar calculation.
+- [ ] Verify the final resolver tests in repository CI.
 
 ### Task 2: Persist and apply schedule settings
 
 **Files:**
-- Modify: `src/ViewModels/Preferences.cs`
-- Modify: `src/App.axaml.cs`
+- Create: `src/Models/ThemeScheduleSettings.cs`
+- Create: `src/ThemeScheduleController.cs`
+- Create: `src/App.ThemeSchedule.cs`
 
 **Interfaces:**
 - Consumes: `ThemeSchedule.Resolve(...)`.
-- Produces persisted `ThemeScheduleLightTime`, `ThemeScheduleDarkTime`, `ThemeScheduleLatitude`, and `ThemeScheduleLongitude` preferences.
+- Produces: persisted mode, light start, dark start, latitude, and longitude values in `theme-schedule.config`.
 
-- [ ] Add persistence tests where practical through the resolver-facing properties.
-- [ ] Reapply theme whenever schedule settings change.
-- [ ] Add a lightweight dispatcher timer to update at time boundaries and after resume/time jumps.
-- [ ] Preserve `Default` as an alias for `System`.
+- [x] Preserve existing `Default` as an alias for System.
+- [x] Persist schedule settings independently of the existing Preferences JSON schema.
+- [x] Reapply the resolved theme while DevBoard is running so custom/sunset boundaries, resume, and clock/timezone changes do not require restart.
+- [x] Keep existing theme override application in the resolution path.
 
 ### Task 3: Appearance UI
 
 **Files:**
-- Modify: `src/Views/Preferences.axaml`
+- Create: `src/Views/ThemeSchedulePreferences.axaml`
+- Create: `src/Views/ThemeSchedulePreferences.axaml.cs`
+- Create: `src/Views/ThemeSchedulePreferencesInjector.cs`
 
 **Interfaces:**
-- Consumes the persisted schedule properties from `Preferences`.
+- Consumes the persisted schedule settings through `ThemeScheduleController`.
 
-- [ ] Replace the old ThemeVariant-only selector with System, Light, Dark, Sunset, and Custom time modes.
-- [ ] Show Light/Dark start inputs only for Custom time.
-- [ ] Show latitude/longitude inputs only for Sunset.
-- [ ] Keep existing font/theme override controls unchanged below the new schedule controls.
+- [x] Replace the visible theme selector in Appearance with System, Light, Dark, Sunset / sunrise, and Custom time choices while retaining the existing selector underneath for compatibility.
+- [x] Show Light/Dark start inputs only for Custom time.
+- [x] Show latitude/longitude inputs only for Sunset.
+- [x] Provide explicit opt-in approximate location detection and manual coordinate entry.
+- [x] Keep existing font/theme override controls unchanged below the theme row.
 
 ### Task 4: Verification and PR
 
-- [ ] Run repository CI/build/test workflows.
-- [ ] Review the final diff for backward compatibility and XAML binding correctness.
-- [ ] Open a PR against `master` with test evidence and known fallback behavior.
+- [x] Open PR #65 against `master` so GitHub Actions exercises the branch.
+- [ ] Run the final repository CI/build/test workflows to completion.
+- [ ] Review the final diff for backward compatibility, runtime lifecycle, and XAML correctness.
+- [ ] Update the PR description with final verification evidence.

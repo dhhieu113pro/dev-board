@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Reflection;
+using System.Text.Json;
 
 using DevBoard.Mcp;
 using Xunit;
@@ -38,6 +39,19 @@ public class DevBoardMcpPreferencesTests
     }
 
     [Fact]
+    public void EnsureAuthToken_generates_once_without_rotating_existing_token()
+    {
+        var settings = new DevBoardMcpSettings();
+
+        settings.EnsureAuthToken();
+        var generated = settings.AuthToken;
+        settings.EnsureAuthToken();
+
+        Assert.False(string.IsNullOrWhiteSpace(generated));
+        Assert.Equal(generated, settings.AuthToken);
+    }
+
+    [Fact]
     public void RegenerateAuthToken_replaces_existing_token()
     {
         var settings = new DevBoardMcpSettings();
@@ -48,6 +62,64 @@ public class DevBoardMcpPreferencesTests
 
         Assert.NotEqual(first, settings.AuthToken);
         Assert.True(settings.AuthToken.Length >= 32);
+    }
+
+    [Fact]
+    public void McpClientConfiguration_contains_sse_endpoint_and_bearer_token()
+    {
+        var settings = new DevBoardMcpSettings
+        {
+            Port = 54321,
+            AuthToken = "devboard-token",
+        };
+
+        using var document = JsonDocument.Parse(settings.McpClientConfiguration);
+        var server = document.RootElement
+            .GetProperty("mcpServers")
+            .GetProperty("devboard");
+
+        Assert.Equal("sse", server.GetProperty("type").GetString());
+        Assert.Equal("http://127.0.0.1:54321/sse", server.GetProperty("url").GetString());
+        Assert.Equal(
+            "Bearer devboard-token",
+            server.GetProperty("headers").GetProperty("Authorization").GetString());
+    }
+
+    [Fact]
+    public void McpClientConfiguration_tracks_runtime_endpoint_and_token_changes()
+    {
+        var settings = new DevBoardMcpSettings
+        {
+            Port = 0,
+            AuthToken = "first-token",
+        };
+        var changes = 0;
+        settings.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(DevBoardMcpSettings.McpClientConfiguration))
+                changes++;
+        };
+
+        settings.UpdateRuntimeState(true, "http://127.0.0.1:54321/sse", string.Empty);
+        settings.AuthToken = "second-token";
+
+        Assert.Contains("http://127.0.0.1:54321/sse", settings.McpClientConfiguration);
+        Assert.Contains("Bearer second-token", settings.McpClientConfiguration);
+        Assert.Equal(2, changes);
+    }
+
+    [Fact]
+    public void Enabling_mcp_refreshes_client_configuration_after_generating_token()
+    {
+        var settings = new DevBoardMcpSettings();
+        var configurationChanged = false;
+        settings.PropertyChanged += (_, e) =>
+            configurationChanged |= e.PropertyName == nameof(DevBoardMcpSettings.McpClientConfiguration);
+
+        settings.Enabled = true;
+
+        Assert.True(configurationChanged);
+        Assert.Contains($"Bearer {settings.AuthToken}", settings.McpClientConfiguration);
     }
 
     [Fact]
@@ -117,6 +189,7 @@ public class DevBoardMcpPreferencesTests
     [InlineData(nameof(DevBoardMcpSettings.AuthToken), true)]
     [InlineData(nameof(DevBoardMcpSettings.Endpoint), false)]
     [InlineData("DisplayEndpoint", false)]
+    [InlineData(nameof(DevBoardMcpSettings.McpClientConfiguration), false)]
     [InlineData(nameof(DevBoardMcpSettings.RuntimeStatus), false)]
     [InlineData(nameof(DevBoardMcpSettings.RuntimeEndpoint), false)]
     [InlineData(nameof(DevBoardMcpSettings.RuntimeError), false)]

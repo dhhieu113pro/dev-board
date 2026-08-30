@@ -30,6 +30,7 @@ namespace DevBoard.Mcp
                 {
                     _authToken = GenerateToken();
                     OnPropertyChanged(nameof(AuthToken));
+                    OnPropertyChanged(nameof(McpClientConfiguration));
                 }
 
                 if (SetProperty(ref _enabled, value))
@@ -46,6 +47,7 @@ namespace DevBoard.Mcp
                 {
                     OnPropertyChanged(nameof(Endpoint));
                     OnPropertyChanged(nameof(DisplayEndpoint));
+                    OnPropertyChanged(nameof(McpClientConfiguration));
                     Save();
                 }
             }
@@ -67,7 +69,10 @@ namespace DevBoard.Mcp
             set
             {
                 if (SetProperty(ref _authToken, value ?? string.Empty))
+                {
+                    OnPropertyChanged(nameof(McpClientConfiguration));
                     Save();
+                }
             }
         }
 
@@ -76,6 +81,24 @@ namespace DevBoard.Mcp
         public string DisplayEndpoint => _runtimeRunning && !string.IsNullOrWhiteSpace(_runtimeEndpoint)
             ? _runtimeEndpoint
             : Endpoint;
+
+        public string McpClientConfiguration => JsonSerializer.Serialize(
+            new
+            {
+                mcpServers = new
+                {
+                    devboard = new
+                    {
+                        type = "sse",
+                        url = DisplayEndpoint,
+                        headers = new
+                        {
+                            Authorization = $"Bearer {AuthToken}",
+                        },
+                    },
+                },
+            },
+            new JsonSerializerOptions { WriteIndented = true });
 
         public string RuntimeStatus => _runtimeRunning
             ? "Running"
@@ -88,6 +111,12 @@ namespace DevBoard.Mcp
         public void RegenerateAuthToken()
         {
             AuthToken = GenerateToken();
+        }
+
+        public void EnsureAuthToken()
+        {
+            if (string.IsNullOrWhiteSpace(AuthToken))
+                AuthToken = GenerateToken();
         }
 
         public void UpdateRuntimeState(bool running, string endpoint, string error)
@@ -106,7 +135,10 @@ namespace DevBoard.Mcp
             if (!string.Equals(oldEndpoint, _runtimeEndpoint, StringComparison.Ordinal))
                 OnPropertyChanged(nameof(RuntimeEndpoint));
             if (!string.Equals(oldDisplayEndpoint, DisplayEndpoint, StringComparison.Ordinal))
+            {
                 OnPropertyChanged(nameof(DisplayEndpoint));
+                OnPropertyChanged(nameof(McpClientConfiguration));
+            }
             if (!string.Equals(oldError, _runtimeError, StringComparison.Ordinal))
                 OnPropertyChanged(nameof(RuntimeError));
         }

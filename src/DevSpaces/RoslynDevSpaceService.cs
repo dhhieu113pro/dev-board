@@ -141,7 +141,9 @@ namespace DevBoard.DevSpaces
             IRoslynLoadedWorkspace refreshed = null;
             try
             {
-                refreshed = await _loader.LoadAsync(workspacePath, cancellationToken);
+                refreshed = await Task.Run(
+                    () => _loader.LoadAsync(workspacePath, cancellationToken),
+                    cancellationToken);
                 if (refreshed == null)
                     throw new InvalidOperationException("Roslyn did not return a loaded workspace.");
                 if (refreshed.ProjectCount <= 0)
@@ -161,7 +163,10 @@ namespace DevBoard.DevSpaces
                 }
 
                 previous?.Dispose();
-                UnusedCode = await refreshed.FindUnusedCodeAsync(cancellationToken);
+                var unusedCode = await Task.Run(
+                    () => refreshed.FindUnusedCodeAsync(cancellationToken),
+                    cancellationToken);
+                UnusedCode = unusedCode;
             }
             catch (OperationCanceledException)
             {
@@ -200,17 +205,19 @@ namespace DevBoard.DevSpaces
 
         private async Task InitializeCoreAsync(CancellationToken cancellationToken)
         {
-            await Task.Yield();
-
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var workspacePath = _discovery(_workspaceRoot);
+                var workspacePath = await Task.Run(
+                    () => _discovery(_workspaceRoot),
+                    cancellationToken);
                 if (string.IsNullOrWhiteSpace(workspacePath))
                     throw new InvalidOperationException("No .slnx, .sln, or .csproj workspace was found.");
 
                 WorkspacePath = workspacePath;
-                var loaded = await _loader.LoadAsync(workspacePath, cancellationToken);
+                var loaded = await Task.Run(
+                    () => _loader.LoadAsync(workspacePath, cancellationToken),
+                    cancellationToken);
                 if (loaded == null)
                     throw new InvalidOperationException("Roslyn did not return a loaded workspace.");
 
@@ -264,7 +271,10 @@ namespace DevBoard.DevSpaces
             UnusedCodeFailureReason = string.Empty;
             try
             {
-                UnusedCode = await loaded.FindUnusedCodeAsync(cancellationToken);
+                var unusedCode = await Task.Run(
+                    () => loaded.FindUnusedCodeAsync(cancellationToken),
+                    cancellationToken);
+                UnusedCode = unusedCode;
             }
             catch (OperationCanceledException)
             {

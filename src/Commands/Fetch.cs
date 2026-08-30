@@ -29,6 +29,7 @@ namespace DevBoard.Commands
             WorkingDirectory = repo;
             Context = repo;
             RaiseError = false;
+            NonInteractiveAuthentication = true;
 
             Args = $"fetch --progress --verbose {remote}";
         }

@@ -97,13 +97,17 @@ namespace DevBoard.DevSpaces
                     if (compilation == null)
                         continue;
 
+                    var diagnostics = new List<Diagnostic>(compilation.GetDiagnostics(cancellationToken));
                     var analyzers = project.AnalyzerReferences
                         .SelectMany(x => x.GetAnalyzers(project.Language))
                         .ToImmutableArray();
-                    var diagnostics = analyzers.IsDefaultOrEmpty
-                        ? compilation.GetDiagnostics(cancellationToken)
-                        : await compilation.WithAnalyzers(analyzers, options: null, cancellationToken: cancellationToken)
-                            .GetAllDiagnosticsAsync(cancellationToken);
+                    if (!analyzers.IsDefaultOrEmpty)
+                    {
+                        var analyzerDiagnostics = await compilation
+                            .WithAnalyzers(analyzers, project.AnalyzerOptions)
+                            .GetAnalyzerDiagnosticsAsync(cancellationToken);
+                        diagnostics.AddRange(analyzerDiagnostics);
+                    }
 
                     foreach (var diagnostic in diagnostics)
                     {

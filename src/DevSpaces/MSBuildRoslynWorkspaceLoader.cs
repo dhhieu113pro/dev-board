@@ -11,7 +11,6 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
-using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.MSBuild;
 
 namespace DevBoard.DevSpaces
@@ -149,7 +148,7 @@ namespace DevBoard.DevSpaces
                             lineSpan.StartLinePosition.Character + 1));
                     }
 
-                    await AddUnusedPrivateFieldsAsync(project, results, cancellationToken);
+                    await AddUnusedPrivateFieldsAsync(project, compilation, results, cancellationToken);
                 }
 
                 return results
@@ -162,18 +161,18 @@ namespace DevBoard.DevSpaces
 
             public void Dispose() => Workspace.Dispose();
 
-            private async Task AddUnusedPrivateFieldsAsync(
+            private static async Task AddUnusedPrivateFieldsAsync(
                 Project project,
+                Compilation compilation,
                 ICollection<RoslynUnusedCodeItem> results,
                 CancellationToken cancellationToken)
             {
-                foreach (var document in project.Documents)
+                var trees = compilation.SyntaxTrees.ToArray();
+                foreach (var tree in trees)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    var root = await document.GetSyntaxRootAsync(cancellationToken);
-                    var semanticModel = await document.GetSemanticModelAsync(cancellationToken);
-                    if (root == null || semanticModel == null)
-                        continue;
+                    var root = await tree.GetRootAsync(cancellationToken);
+                    var semanticModel = compilation.GetSemanticModel(tree);
 
                     foreach (var declarator in root.DescendantNodes().OfType<VariableDeclaratorSyntax>())
                     {
@@ -183,8 +182,29 @@ namespace DevBoard.DevSpaces
                             field.DeclaredAccessibility != Accessibility.Private)
                             continue;
 
-                        var references = await SymbolFinder.FindReferencesAsync(field, Solution, cancellationToken);
-                        if (references.Any(x => x.Locations.Any()))
+                        var isReferenced = false;
+                        foreach (var candidateTree in trees)
+                        {
+                            var candidateRoot = await candidateTree.GetRootAsync(cancellationToken);
+                            var candidateModel = compilation.GetSemanticModel(candidateTree);
+                            foreach (var identifier in candidateRoot.DescendantNodes().OfType<IdentifierNameSyntax>())
+                            {
+                                if (!string.Equals(identifier.Identifier.ValueText, field.Name, StringComparison.Ordinal))
+                                    continue;
+
+                                var referencedSymbol = candidateModel.GetSymbolInfo(identifier, cancellationToken).Symbol;
+                                if (SymbolEqualityComparer.Default.Equals(referencedSymbol, field))
+                                {
+                                    isReferenced = true;
+                                    break;
+                                }
+                            }
+
+                            if (isReferenced)
+                                break;
+                        }
+
+                        if (isReferenced)
                             continue;
 
                         var lineSpan = declarator.Identifier.GetLocation().GetLineSpan();

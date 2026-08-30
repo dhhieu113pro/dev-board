@@ -36,11 +36,7 @@ namespace DevBoard.Views
 
         private async void OnSave(object sender, RoutedEventArgs e)
         {
-            await RunAsync(() =>
-            {
-                ViewModel?.Save();
-                return Task.CompletedTask;
-            });
+            await RunAsync(() => ViewModel?.SaveAndRebindAsync() ?? Task.CompletedTask);
             e.Handled = true;
         }
 

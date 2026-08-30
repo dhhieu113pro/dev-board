@@ -20,6 +20,7 @@ namespace DevBoard.Commands
             builder.Append(remote);
 
             Args = builder.ToString();
+            ResolveBoundCredential();
         }
 
         public Fetch(string repo, string remote)
@@ -29,8 +30,10 @@ namespace DevBoard.Commands
             WorkingDirectory = repo;
             Context = repo;
             RaiseError = false;
+            NonInteractiveAuthentication = true;
 
             Args = $"fetch --progress --verbose {remote}";
+            ResolveBoundCredential();
         }
 
         public Fetch(string repo, Models.Branch local, Models.Branch remote)
@@ -40,12 +43,26 @@ namespace DevBoard.Commands
             WorkingDirectory = repo;
             Context = repo;
             Args = $"fetch --progress --verbose {remote.Remote} {remote.Name}:{local.Name}";
+            ResolveBoundCredential();
         }
 
         public async Task<bool> RunAsync()
         {
-            SSHKey = await new Config(WorkingDirectory).GetAsync($"remote.{_remote}.sshkey").ConfigureAwait(false);
+            var configuredKey = await new Config(WorkingDirectory).GetAsync($"remote.{_remote}.sshkey").ConfigureAwait(false);
+            if (!string.IsNullOrEmpty(configuredKey))
+                SSHKey = configuredKey;
+            else if (string.IsNullOrEmpty(SSHKey))
+                ApplyGitHubCredential(await Services.GitHubCredential.DetectForRepositoryAsync(WorkingDirectory).ConfigureAwait(false));
+
             return await ExecAsync().ConfigureAwait(false);
+        }
+
+        private void ResolveBoundCredential()
+        {
+            // Load persisted PAT eagerly. SSH can still be overridden by remote.*.sshkey in RunAsync.
+            var account = FindBoundGitHubAccount();
+            if (account?.AuthType == Models.GitHubAuthType.PersonalAccessToken)
+                ApplyGitHubCredential(account);
         }
 
         private readonly string _remote;

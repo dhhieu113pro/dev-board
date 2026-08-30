@@ -36,6 +36,7 @@ src/Models/GPGFormat.cs
 src/Models/GitAccount.cs
 src/Models/GitAccountResolver.cs
 src/Models/GitFlow.cs
+src/Models/GitHubAccount.cs
 src/Models/GitHubCredentialConfig.cs
 src/Models/GitIgnoreFile.cs
 src/Models/GitVersions.cs
@@ -132,6 +133,7 @@ src/ViewModels/DeleteTag.cs
 src/ViewModels/DevSpaceAIRouter.cs
 src/ViewModels/DevSpaceDashboard.cs
 src/ViewModels/DevSpaceDashboardModels.cs
+src/ViewModels/DevSpaceFileIconResolver.cs
 src/ViewModels/DevSpaceFileNode.cs
 src/ViewModels/DevSpaceFiles.cs
 src/ViewModels/DevSpaceTerminal.cs
@@ -155,6 +157,7 @@ src/ViewModels/GitAccountManager.cs
 src/ViewModels/GitAccountStore.cs
 src/ViewModels/GitFlowFinish.cs
 src/ViewModels/GitFlowStart.cs
+src/ViewModels/GitHubAccountsViewModel.cs
 src/ViewModels/GoToFileSearch.cs
 src/ViewModels/GoToFileSearchResult.cs
 src/ViewModels/Histories.cs
@@ -412,6 +415,8 @@ src/Views/GitFlowFinish.axaml
 src/Views/GitFlowFinish.axaml.cs
 src/Views/GitFlowStart.axaml
 src/Views/GitFlowStart.axaml.cs
+src/Views/GitHubAccounts.axaml
+src/Views/GitHubAccounts.axaml.cs
 src/Views/GoToFileSearch.axaml
 src/Views/GoToFileSearch.axaml.cs
 src/Views/GotoRevisionSelector.axaml
@@ -475,6 +480,7 @@ src/Views/PopupDataTemplates.cs
 src/Views/PopupRunningStatus.axaml
 src/Views/PopupRunningStatus.axaml.cs
 src/Views/Preferences.DevSpaces.cs
+src/Views/Preferences.GitHubAccounts.cs
 src/Views/Preferences.axaml
 src/Views/Preferences.axaml.cs
 src/Views/PruneRemote.axaml
@@ -505,6 +511,7 @@ src/Views/RepositoryCommandPalette.axaml
 src/Views/RepositoryCommandPalette.axaml.cs
 src/Views/RepositoryCommandPaletteIcon.cs
 src/Views/RepositoryCommandPaletteTextBox.cs
+src/Views/RepositoryConfigure.GitHubBinding.cs
 src/Views/RepositoryConfigure.axaml
 src/Views/RepositoryConfigure.axaml.cs
 src/Views/RepositoryToolbar.axaml

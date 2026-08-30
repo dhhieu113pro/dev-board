@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Avalonia.Collections;
 using CommunityToolkit.Mvvm.ComponentModel;
 
+using DevBoard.AI.Hosting;
 using DevBoard.AI.Routing;
 
 namespace DevBoard.ViewModels
@@ -26,7 +27,17 @@ namespace DevBoard.ViewModels
             }
         }
 
-        public string Endpoint => AIRouterSettings.Instance.ListenUrl.TrimEnd('/') + "/v1";
+        public int Port
+        {
+            get => _port;
+            set
+            {
+                if (SetProperty(ref _port, value))
+                    OnPropertyChanged(nameof(Endpoint));
+            }
+        }
+
+        public string Endpoint => $"http://127.0.0.1:{Port}/v1";
 
         public string StatusText
         {
@@ -36,10 +47,13 @@ namespace DevBoard.ViewModels
 
         public DevSpaceAIRouter()
         {
-            foreach (var provider in AIRouterSettings.Instance.Providers)
+            var settings = AIRouterSettings.Instance;
+            _port = GetConfiguredPort(settings.ListenUrl);
+            foreach (var provider in settings.Providers)
                 Providers.Add(provider.Clone());
 
             SelectedProvider = Providers.FirstOrDefault();
+            _ = EnsureRouterStartedAsync();
         }
 
         public AIRouterProviderSettings AddProvider()
@@ -95,6 +109,7 @@ namespace DevBoard.ViewModels
 
         public void Save()
         {
+            ValidatePort(Port);
             foreach (var provider in Providers)
                 provider.Validate();
 
@@ -103,8 +118,17 @@ namespace DevBoard.ViewModels
                 throw new ArgumentException("AI Router provider IDs must be unique.");
 
             var settings = AIRouterSettings.Instance;
+            settings.ListenUrl = $"http://127.0.0.1:{Port}";
             settings.Providers = Providers.Select(x => x.Clone()).ToList();
             settings.Save();
+            OnPropertyChanged(nameof(Endpoint));
+            StatusText = SelectedProvider?.IsActive == false ? "Disabled" : "Saved";
+        }
+
+        public async Task SaveAndRebindAsync()
+        {
+            Save();
+            await AIRouterHostService.Instance.ApplyAsync(AIRouterSettings.Instance, Port, forceRestart: true);
             StatusText = SelectedProvider?.IsActive == false ? "Disabled" : "Saved";
         }
 
@@ -173,6 +197,31 @@ namespace DevBoard.ViewModels
             }
         }
 
+        internal static int GetConfiguredPort(string listenUrl)
+        {
+            return Uri.TryCreate(listenUrl, UriKind.Absolute, out var uri) && uri.Port is >= 1 and <= 65535
+                ? uri.Port
+                : AIRouterHostOptions.DefaultPort;
+        }
+
+        internal static void ValidatePort(int port)
+        {
+            if (port is < 1 or > 65535)
+                throw new ArgumentOutOfRangeException(nameof(port), "AI Router port must be between 1 and 65535.");
+        }
+
+        private async Task EnsureRouterStartedAsync()
+        {
+            try
+            {
+                await AIRouterHostService.Instance.ApplyAsync(AIRouterSettings.Instance, Port);
+            }
+            catch (Exception ex)
+            {
+                StatusText = $"Unavailable: {ex.Message}";
+            }
+        }
+
         private void EnsureUniqueId(AIRouterProviderSettings provider)
         {
             var seed = string.IsNullOrWhiteSpace(provider.Id) ? "provider" : provider.Id.Trim();
@@ -184,6 +233,7 @@ namespace DevBoard.ViewModels
         }
 
         private AIRouterProviderSettings _selectedProvider;
+        private int _port;
         private string _statusText = string.Empty;
     }
 }

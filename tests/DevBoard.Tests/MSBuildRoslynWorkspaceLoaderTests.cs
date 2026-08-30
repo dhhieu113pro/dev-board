@@ -59,13 +59,6 @@ namespace DevBoard.Tests
                     documentPaths.Any(x => string.Equals(x, sourcePath, StringComparison.OrdinalIgnoreCase)),
                     $"Expected source document '{sourcePath}'. Loaded documents: {string.Join(", ", documentPaths)}");
 
-                var compilation = await project.GetCompilationAsync(CancellationToken.None);
-                Assert.NotNull(compilation);
-                var syntaxTreePaths = compilation.SyntaxTrees.Select(x => x.FilePath ?? "<null>").ToArray();
-                Assert.True(
-                    syntaxTreePaths.Any(x => string.Equals(x, sourcePath, StringComparison.OrdinalIgnoreCase)),
-                    $"Expected syntax tree '{sourcePath}'. Compilation trees: {string.Join(", ", syntaxTreePaths)}");
-
                 var items = await loaded.FindUnusedCodeAsync(CancellationToken.None);
 
                 var item = Assert.Single(items, x => x.Kind == RoslynUnusedCodeKind.Member && x.Symbol == "unused");

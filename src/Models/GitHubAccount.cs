@@ -9,6 +9,7 @@ namespace DevBoard.Models
     {
         PersonalAccessToken = 0,
         SSHKey = 1,
+        GitHubCli = 2,
     }
 
     public partial class GitHubAccount : ObservableObject
@@ -75,6 +76,7 @@ namespace DevBoard.Models
         {
             GitHubAuthType.PersonalAccessToken => !string.IsNullOrWhiteSpace(Token),
             GitHubAuthType.SSHKey => !string.IsNullOrWhiteSpace(SSHKeyPath),
+            GitHubAuthType.GitHubCli => !string.IsNullOrWhiteSpace(Username),
             _ => false,
         };
 

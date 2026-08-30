@@ -9,7 +9,9 @@ using System.Threading.Tasks;
 using Microsoft.Build.Locator;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Microsoft.CodeAnalysis.FindSymbols;
 using Microsoft.CodeAnalysis.MSBuild;
 
 namespace DevBoard.DevSpaces
@@ -146,6 +148,8 @@ namespace DevBoard.DevSpaces
                             lineSpan.StartLinePosition.Line + 1,
                             lineSpan.StartLinePosition.Character + 1));
                     }
+
+                    await AddUnusedPrivateFieldsAsync(project, results, cancellationToken);
                 }
 
                 return results
@@ -157,6 +161,56 @@ namespace DevBoard.DevSpaces
             }
 
             public void Dispose() => Workspace.Dispose();
+
+            private async Task AddUnusedPrivateFieldsAsync(
+                Project project,
+                ICollection<RoslynUnusedCodeItem> results,
+                CancellationToken cancellationToken)
+            {
+                foreach (var document in project.Documents)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var root = await document.GetSyntaxRootAsync(cancellationToken);
+                    var semanticModel = await document.GetSemanticModelAsync(cancellationToken);
+                    if (root == null || semanticModel == null)
+                        continue;
+
+                    foreach (var declarator in root.DescendantNodes().OfType<VariableDeclaratorSyntax>())
+                    {
+                        if (declarator.Parent?.Parent is not FieldDeclarationSyntax)
+                            continue;
+                        if (semanticModel.GetDeclaredSymbol(declarator, cancellationToken) is not IFieldSymbol field ||
+                            field.DeclaredAccessibility != Accessibility.Private)
+                            continue;
+
+                        var references = await SymbolFinder.FindReferencesAsync(field, Solution, cancellationToken);
+                        if (references.Any(x => x.Locations.Any()))
+                            continue;
+
+                        var lineSpan = declarator.Identifier.GetLocation().GetLineSpan();
+                        var filePath = lineSpan.Path;
+                        if (results.Any(x =>
+                                x.Kind == RoslynUnusedCodeKind.Member &&
+                                string.Equals(x.Symbol, field.Name, StringComparison.Ordinal) &&
+                                string.Equals(x.FilePath, filePath, StringComparison.OrdinalIgnoreCase) &&
+                                x.Line == lineSpan.StartLinePosition.Line + 1))
+                            continue;
+
+                        var hasInitializer = declarator.Initializer != null;
+                        results.Add(new RoslynUnusedCodeItem(
+                            project.Name,
+                            RoslynUnusedCodeKind.Member,
+                            field.Name,
+                            hasInitializer ? "CS0414" : "CS0169",
+                            hasInitializer
+                                ? $"The field '{field.Name}' is assigned but its value is never used"
+                                : $"The field '{field.Name}' is never used",
+                            filePath,
+                            lineSpan.StartLinePosition.Line + 1,
+                            lineSpan.StartLinePosition.Character + 1));
+                    }
+                }
+            }
 
             private static bool TryClassify(string diagnosticId, out RoslynUnusedCodeKind kind)
             {

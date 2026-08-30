@@ -92,7 +92,7 @@
               </ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="ds:DevSpaceTerminalProfile">
-                  <Button Margin="0,0,8,8" Content="{Binding Name}" Click="OnStartProfile"/>
+                  <Button Margin="0,0,8,8" Content="{Binding DisplayName}" Click="OnStartProfile"/>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>

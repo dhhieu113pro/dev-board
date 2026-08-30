@@ -35,10 +35,9 @@ namespace DevBoard.Models
             if (remote == null || pullRequestNumber <= 0 || string.IsNullOrWhiteSpace(remote.Name))
                 return false;
 
-            if (!remote.TryGetVisitURL(out var visitUrl) || !Uri.TryCreate(visitUrl, UriKind.Absolute, out var uri))
+            if (!TryGetHost(remote.URL, out var host))
                 return false;
 
-            var host = uri.Host;
             if (host.Contains("github.com", StringComparison.OrdinalIgnoreCase))
             {
                 descriptor = new PullRequestRemote(PullRequestProvider.GitHub, remote.Name, pullRequestNumber, true);
@@ -49,6 +48,29 @@ namespace DevBoard.Models
                 host.Contains("visualstudio.com", StringComparison.OrdinalIgnoreCase))
             {
                 descriptor = new PullRequestRemote(PullRequestProvider.AzureDevOps, remote.Name, pullRequestNumber, false);
+                return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryGetHost(string url, out string host)
+        {
+            host = string.Empty;
+            if (string.IsNullOrWhiteSpace(url))
+                return false;
+
+            if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && !string.IsNullOrWhiteSpace(uri.Host))
+            {
+                host = uri.Host;
+                return true;
+            }
+
+            var at = url.IndexOf('@');
+            var colon = at >= 0 ? url.IndexOf(':', at + 1) : -1;
+            if (at >= 0 && colon > at + 1)
+            {
+                host = url.Substring(at + 1, colon - at - 1);
                 return true;
             }
 

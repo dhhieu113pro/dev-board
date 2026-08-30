@@ -123,29 +123,56 @@ namespace DevBoard.DevSpaces
 
         public async Task RefreshUnusedCodeAsync(CancellationToken cancellationToken = default)
         {
-            IRoslynLoadedWorkspace loaded;
+            string workspacePath;
             lock (_gate)
             {
                 if (_disposed)
                     throw new ObjectDisposedException(nameof(RoslynDevSpaceService));
-                loaded = _loadedWorkspace;
+                if (_loadedWorkspace == null || State != RoslynDevSpaceState.Available)
+                    return;
+                workspacePath = WorkspacePath;
             }
 
-            if (loaded == null || State != RoslynDevSpaceState.Available)
+            if (string.IsNullOrWhiteSpace(workspacePath))
                 return;
 
             IsAnalyzingUnusedCode = true;
             UnusedCodeFailureReason = string.Empty;
+            IRoslynLoadedWorkspace refreshed = null;
             try
             {
-                UnusedCode = await loaded.FindUnusedCodeAsync(cancellationToken);
+                refreshed = await _loader.LoadAsync(workspacePath, cancellationToken);
+                if (refreshed == null)
+                    throw new InvalidOperationException("Roslyn did not return a loaded workspace.");
+                if (refreshed.ProjectCount <= 0)
+                    throw new InvalidOperationException("Roslyn loaded the workspace but found no projects.");
+
+                IRoslynLoadedWorkspace previous;
+                lock (_gate)
+                {
+                    if (_disposed)
+                    {
+                        refreshed.Dispose();
+                        return;
+                    }
+
+                    previous = _loadedWorkspace;
+                    _loadedWorkspace = refreshed;
+                }
+
+                previous?.Dispose();
+                UnusedCode = await refreshed.FindUnusedCodeAsync(cancellationToken);
             }
             catch (OperationCanceledException)
             {
+                if (refreshed != null && !ReferenceEquals(refreshed, _loadedWorkspace))
+                    refreshed.Dispose();
                 UnusedCodeFailureReason = "Unused code analysis was canceled.";
             }
             catch (Exception ex)
             {
+                if (refreshed != null && !ReferenceEquals(refreshed, _loadedWorkspace))
+                    refreshed.Dispose();
                 UnusedCodeFailureReason = string.IsNullOrWhiteSpace(ex.Message)
                     ? "Unused code analysis failed."
                     : ex.Message;
@@ -208,7 +235,7 @@ namespace DevBoard.DevSpaces
 
                 previous?.Dispose();
                 State = RoslynDevSpaceState.Available;
-                await RefreshUnusedCodeAsync(cancellationToken);
+                await AnalyzeLoadedWorkspaceAsync(loaded, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -226,6 +253,32 @@ namespace DevBoard.DevSpaces
             {
                 lock (_gate)
                     _initializationTask = null;
+            }
+        }
+
+        private async Task AnalyzeLoadedWorkspaceAsync(
+            IRoslynLoadedWorkspace loaded,
+            CancellationToken cancellationToken)
+        {
+            IsAnalyzingUnusedCode = true;
+            UnusedCodeFailureReason = string.Empty;
+            try
+            {
+                UnusedCode = await loaded.FindUnusedCodeAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                UnusedCodeFailureReason = "Unused code analysis was canceled.";
+            }
+            catch (Exception ex)
+            {
+                UnusedCodeFailureReason = string.IsNullOrWhiteSpace(ex.Message)
+                    ? "Unused code analysis failed."
+                    : ex.Message;
+            }
+            finally
+            {
+                IsAnalyzingUnusedCode = false;
             }
         }
 

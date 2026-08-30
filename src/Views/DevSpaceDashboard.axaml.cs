@@ -58,6 +58,14 @@ namespace DevBoard.Views
             e.Handled = true;
         }
 
+        private async void OnInitializeRoslyn(object sender, RoutedEventArgs e)
+        {
+            var model = Model;
+            if (model != null && model.CanInitializeRoslyn)
+                await model.InitializeRoslynAsync();
+            e.Handled = true;
+        }
+
         private async void OnCopyPath(object sender, RoutedEventArgs e)
         {
             var model = Model;

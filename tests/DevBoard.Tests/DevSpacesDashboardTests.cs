@@ -1,5 +1,8 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 using DevBoard.DevSpaces;
@@ -236,9 +239,89 @@ namespace DevBoard.Tests
             }
         }
 
+        [Fact]
+        public void RoslynDashboardStartsWithInitializeAction()
+        {
+            var root = CreateTempDirectory();
+            try
+            {
+                using var spaces = new ViewModels.DevSpaces(root, new FakeLauncher());
+                using var dashboard = new DevSpaceDashboard(spaces, root, null, new FakeRoslynLoader(new FakeLoadedWorkspace(1)));
+
+                Assert.Equal(RoslynDevSpaceState.Unavailable, dashboard.RoslynState);
+                Assert.Equal("Unavailable", dashboard.RoslynStatusText);
+                Assert.True(dashboard.CanInitializeRoslyn);
+                Assert.False(dashboard.IsRoslynInitializing);
+                Assert.Equal("Initialize", dashboard.RoslynActionText);
+            }
+            finally
+            {
+                Directory.Delete(root, true);
+            }
+        }
+
+        [Fact]
+        public async Task RoslynDashboardFailedStateShowsRetryAndReason()
+        {
+            var root = CreateTempDirectory();
+            File.WriteAllText(Path.Combine(root, "workspace.csproj"), "<Project />");
+            try
+            {
+                using var spaces = new ViewModels.DevSpaces(root, new FakeLauncher());
+                var loader = new FakeRoslynLoader(new InvalidOperationException("MSBuild unavailable"), new FakeLoadedWorkspace(1));
+                using var dashboard = new DevSpaceDashboard(spaces, root, null, loader);
+
+                await dashboard.InitializeRoslynAsync();
+
+                Assert.Equal(RoslynDevSpaceState.Failed, dashboard.RoslynState);
+                Assert.Equal("Failed", dashboard.RoslynStatusText);
+                Assert.Equal("MSBuild unavailable", dashboard.RoslynFailureReason);
+                Assert.True(dashboard.CanInitializeRoslyn);
+                Assert.Equal("Retry", dashboard.RoslynActionText);
+
+                await dashboard.InitializeRoslynAsync();
+
+                Assert.Equal(RoslynDevSpaceState.Available, dashboard.RoslynState);
+                Assert.Equal("Available", dashboard.RoslynStatusText);
+                Assert.False(dashboard.CanInitializeRoslyn);
+            }
+            finally
+            {
+                Directory.Delete(root, true);
+            }
+        }
+
+        [Fact]
+        public async Task RoslynDashboardInitializingStateDisablesAction()
+        {
+            var root = CreateTempDirectory();
+            File.WriteAllText(Path.Combine(root, "workspace.csproj"), "<Project />");
+            try
+            {
+                using var spaces = new ViewModels.DevSpaces(root, new FakeLauncher());
+                var loader = new BlockingRoslynLoader();
+                using var dashboard = new DevSpaceDashboard(spaces, root, null, loader);
+
+                var initialization = dashboard.InitializeRoslynAsync();
+
+                Assert.Equal(RoslynDevSpaceState.Initializing, dashboard.RoslynState);
+                Assert.Equal("Initializing…", dashboard.RoslynStatusText);
+                Assert.True(dashboard.IsRoslynInitializing);
+                Assert.False(dashboard.CanInitializeRoslyn);
+
+                loader.Complete(new FakeLoadedWorkspace(1));
+                await initialization;
+                Assert.Equal(RoslynDevSpaceState.Available, dashboard.RoslynState);
+            }
+            finally
+            {
+                Directory.Delete(root, true);
+            }
+        }
+
         private static string CreateTempDirectory()
         {
-            var path = Path.Combine(Path.GetTempPath(), $"devboard-dashboard-{System.Guid.NewGuid():N}");
+            var path = Path.Combine(Path.GetTempPath(), $"devboard-dashboard-{Guid.NewGuid():N}");
             Directory.CreateDirectory(path);
             return path;
         }
@@ -248,6 +331,47 @@ namespace DevBoard.Tests
             public DevSpaceLaunchSpec Create(string terminal, string workingDirectory, string startupCommand = null)
             {
                 return new DevSpaceLaunchSpec(terminal ?? string.Empty, [], workingDirectory);
+            }
+        }
+
+        private sealed class FakeRoslynLoader : IRoslynWorkspaceLoader
+        {
+            private readonly Queue<object> _results = new();
+
+            public FakeRoslynLoader(params object[] results)
+            {
+                foreach (var result in results)
+                    _results.Enqueue(result);
+            }
+
+            public Task<IRoslynLoadedWorkspace> LoadAsync(string workspacePath, CancellationToken cancellationToken)
+            {
+                var result = _results.Dequeue();
+                if (result is Exception exception)
+                    return Task.FromException<IRoslynLoadedWorkspace>(exception);
+                return Task.FromResult((IRoslynLoadedWorkspace)result);
+            }
+        }
+
+        private sealed class BlockingRoslynLoader : IRoslynWorkspaceLoader
+        {
+            private readonly TaskCompletionSource<IRoslynLoadedWorkspace> _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public Task<IRoslynLoadedWorkspace> LoadAsync(string workspacePath, CancellationToken cancellationToken) => _completion.Task;
+            public void Complete(IRoslynLoadedWorkspace workspace) => _completion.TrySetResult(workspace);
+        }
+
+        private sealed class FakeLoadedWorkspace : IRoslynLoadedWorkspace
+        {
+            public int ProjectCount { get; }
+
+            public FakeLoadedWorkspace(int projectCount)
+            {
+                ProjectCount = projectCount;
+            }
+
+            public void Dispose()
+            {
             }
         }
     }

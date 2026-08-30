@@ -12,9 +12,9 @@ namespace DevBoard.Tests;
 public class AIRouterProviderDiagnosticTests
 {
     [Fact]
-    public async Task TestAsync_ExercisesBothInferenceEndpointsWithTheirRequiredPayloads()
+    public async Task TestAsync_TestsProviderChatOnceAndReportsResponsesCompatibility()
     {
-        var handler = new RecordingHandler(HttpStatusCode.OK, HttpStatusCode.OK);
+        var handler = new RecordingHandler(HttpStatusCode.OK);
         using var http = new HttpClient(handler);
         var settings = CreateSettings();
         settings.ApiKey = "secret";
@@ -22,24 +22,27 @@ public class AIRouterProviderDiagnosticTests
 
         var results = await AIRouterProviderDiagnostic.TestAsync(settings, http);
 
-        Assert.Collection(handler.Requests,
-            request =>
+        var request = Assert.Single(handler.Requests);
+        Assert.Equal("https://example.test/v1/chat/completions", request.Url);
+        Assert.Contains("\"model\":\"deepseek-v4-flash-free\"", request.Body);
+        Assert.Contains("\"messages\":[{\"role\":\"user\"", request.Body);
+        Assert.Contains("\"thinking\":{\"type\":\"disabled\"}", request.Body);
+        Assert.Equal("secret", request.BearerToken);
+        Assert.Equal("opencode", request.ProviderHeader);
+
+        Assert.Collection(results,
+            result =>
             {
-                Assert.Equal("https://example.test/v1/chat/completions", request.Url);
-                Assert.Contains("\"model\":\"deepseek-v4-flash-free\"", request.Body);
-                Assert.Contains("\"messages\":[{\"role\":\"user\"", request.Body);
-                Assert.Equal("secret", request.BearerToken);
-                Assert.Equal("opencode", request.ProviderHeader);
+                Assert.Equal("Chat Completions", result.Name);
+                Assert.Equal("/v1/chat/completions", result.Path);
+                Assert.True(result.Success);
             },
-            request =>
+            result =>
             {
-                Assert.Equal("https://example.test/v1/responses", request.Url);
-                Assert.Contains("\"model\":\"deepseek-v4-flash-free\"", request.Body);
-                Assert.Contains("\"input\":\"Reply with OK.\"", request.Body);
-                Assert.Equal("secret", request.BearerToken);
-                Assert.Equal("opencode", request.ProviderHeader);
+                Assert.Equal("Responses", result.Name);
+                Assert.Equal("/v1/responses", result.Path);
+                Assert.True(result.Success);
             });
-        Assert.All(results, result => Assert.True(result.Success));
     }
 
     [Fact]
@@ -50,14 +53,14 @@ public class AIRouterProviderDiagnosticTests
         Environment.SetEnvironmentVariable(variable, "environment-secret");
         try
         {
-            var handler = new RecordingHandler(HttpStatusCode.OK, HttpStatusCode.OK);
+            var handler = new RecordingHandler(HttpStatusCode.OK);
             using var http = new HttpClient(handler);
             var settings = CreateSettings();
             settings.ApiKeyEnvironment = variable;
 
             await AIRouterProviderDiagnostic.TestAsync(settings, http);
 
-            Assert.All(handler.Requests, request => Assert.Equal("environment-secret", request.BearerToken));
+            Assert.Equal("environment-secret", Assert.Single(handler.Requests).BearerToken);
         }
         finally
         {
@@ -66,15 +69,15 @@ public class AIRouterProviderDiagnosticTests
     }
 
     [Fact]
-    public async Task TestAsync_ReportsAuthorizationFailureForEachInferenceEndpoint()
+    public async Task TestAsync_ReportsAuthorizationFailureForBothLocalInferenceApis()
     {
-        var handler = new RecordingHandler(HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden);
+        var handler = new RecordingHandler(HttpStatusCode.Unauthorized);
         using var http = new HttpClient(handler);
 
         var results = await AIRouterProviderDiagnostic.TestAsync(CreateSettings(), http);
 
         Assert.Equal(
-            "Chat Completions: Authorization failed (401) - run /login; Responses: Authorization failed (403) - run /login",
+            "Chat Completions: Authorization failed (401) - run /login; Responses: Authorization failed (401) - run /login",
             AIRouterProviderDiagnostic.FormatSummary(results, "opencode"));
     }
 
@@ -92,16 +95,31 @@ public class AIRouterProviderDiagnosticTests
     }
 
     [Fact]
-    public async Task TestAsync_StillTestsResponsesWhenChatCompletionsCannotConnect()
+    public async Task TestAsync_ReportsProviderErrorBodyForBothLocalInferenceApis()
+    {
+        var handler = new RecordingHandler(
+            HttpStatusCode.BadRequest,
+            "{\"error\":{\"message\":\"Model is not available\"}}");
+        using var http = new HttpClient(handler);
+
+        var results = await AIRouterProviderDiagnostic.TestAsync(CreateSettings(), http);
+
+        Assert.Equal(
+            "Chat Completions: Unavailable (400) - Model is not available; Responses: Unavailable (400) - Model is not available",
+            AIRouterProviderDiagnostic.FormatSummary(results, "opencode"));
+    }
+
+    [Fact]
+    public async Task TestAsync_WhenChatCannotConnect_ReportsBothLocalApisUnavailable()
     {
         var handler = new FailingChatHandler();
         using var http = new HttpClient(handler);
 
         var results = await AIRouterProviderDiagnostic.TestAsync(CreateSettings(), http);
 
-        Assert.Equal(2, handler.RequestCount);
+        Assert.Equal(1, handler.RequestCount);
         Assert.Equal(
-            "Chat Completions: Unavailable - connection failed; Responses: Healthy",
+            "Chat Completions: Unavailable - connection failed; Responses: Unavailable - connection failed",
             AIRouterProviderDiagnostic.FormatSummary(results));
     }
 
@@ -116,9 +134,10 @@ public class AIRouterProviderDiagnosticTests
 
     private sealed class RecordingHandler : HttpMessageHandler
     {
-        public RecordingHandler(params HttpStatusCode[] statusCodes)
+        public RecordingHandler(HttpStatusCode statusCode, string responseBody = "{}")
         {
-            _statusCodes = statusCodes;
+            _statusCode = statusCode;
+            _responseBody = responseBody;
         }
 
         public List<RecordedRequest> Requests { get; } = [];
@@ -130,11 +149,11 @@ public class AIRouterProviderDiagnosticTests
                 await request.Content!.ReadAsStringAsync(cancellationToken),
                 request.Headers.Authorization?.Parameter,
                 request.Headers.TryGetValues("X-Provider", out var values) ? string.Join(",", values) : null));
-            var status = _statusCodes[Requests.Count - 1];
-            return new HttpResponseMessage(status) { Content = new StringContent("{}") };
+            return new HttpResponseMessage(_statusCode) { Content = new StringContent(_responseBody) };
         }
 
-        private readonly HttpStatusCode[] _statusCodes;
+        private readonly HttpStatusCode _statusCode;
+        private readonly string _responseBody;
     }
 
     private sealed record RecordedRequest(string? Url, string Body, string? BearerToken, string? ProviderHeader);
@@ -146,10 +165,7 @@ public class AIRouterProviderDiagnosticTests
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             RequestCount++;
-            if (request.RequestUri?.AbsolutePath.EndsWith("/chat/completions", StringComparison.Ordinal) == true)
-                throw new HttpRequestException("connection failed");
-
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{}") });
+            throw new HttpRequestException("connection failed");
         }
     }
 }

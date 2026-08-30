@@ -54,6 +54,8 @@ namespace DevBoard.DevSpaces
             if (tabs == null || tabs.ItemsSource != null)
                 return;
 
+            _preferencesViews.Add(view, new object());
+
             var tab = new TabItem
             {
                 Header = App.Text("DevSpaces"),
@@ -64,7 +66,6 @@ namespace DevBoard.DevSpaces
             };
 
             tabs.Items.Add(tab);
-            _preferencesViews.Add(view, new object());
         }
 
         private sealed class RepositoryIntegration

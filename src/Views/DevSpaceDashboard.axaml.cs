@@ -66,6 +66,27 @@ namespace DevBoard.Views
             e.Handled = true;
         }
 
+        private async void OnRefreshUnusedCode(object sender, RoutedEventArgs e)
+        {
+            if (Model != null)
+                await Model.RefreshUnusedCodeAsync();
+            e.Handled = true;
+        }
+
+        private void OnUnusedCodeFilter(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button { Tag: string filter })
+                Model?.SetUnusedCodeFilter(filter);
+            e.Handled = true;
+        }
+
+        private void OnUnusedCodePressed(object sender, PointerPressedEventArgs e)
+        {
+            if (e.ClickCount >= 2 && sender is Border { DataContext: DevBoard.DevSpaces.RoslynUnusedCodeItem item })
+                Model?.OpenUnusedCode(item);
+            e.Handled = true;
+        }
+
         private async void OnCopyPath(object sender, RoutedEventArgs e)
         {
             var model = Model;

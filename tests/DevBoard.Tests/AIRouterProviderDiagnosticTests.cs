@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using DevBoard.AI.Routing;
@@ -43,6 +44,20 @@ public class AIRouterProviderDiagnosticTests
                 Assert.Equal("/v1/responses", result.Path);
                 Assert.True(result.Success);
             });
+    }
+
+    [Fact]
+    public async Task TestAsync_AllModeFallsBackToNextConfiguredModel_WhenDefaultModelIsUnavailable()
+    {
+        var handler = new ModelFallbackHandler();
+        using var http = new HttpClient(handler);
+        var settings = CreateSettings();
+        settings.Models = ["deepseek-v4-flash-free", "fallback-model"];
+
+        var results = await AIRouterProviderDiagnostic.TestAsync(settings, http);
+
+        Assert.Equal(["deepseek-v4-flash-free", "fallback-model"], handler.Models);
+        Assert.All(results, result => Assert.True(result.Success));
     }
 
     [Fact]
@@ -146,7 +161,7 @@ public class AIRouterProviderDiagnosticTests
         {
             Requests.Add(new RecordedRequest(
                 request.RequestUri?.ToString(),
-                await request.Content!.ReadAsStringAsync(cancellationToken),
+                request.Content == null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken),
                 request.Headers.Authorization?.Parameter,
                 request.Headers.TryGetValues("X-Provider", out var values) ? string.Join(",", values) : null));
             return new HttpResponseMessage(_statusCode) { Content = new StringContent(_responseBody) };
@@ -154,6 +169,32 @@ public class AIRouterProviderDiagnosticTests
 
         private readonly HttpStatusCode _statusCode;
         private readonly string _responseBody;
+    }
+
+    private sealed class ModelFallbackHandler : HttpMessageHandler
+    {
+        public List<string> Models { get; } = [];
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (request.Method == HttpMethod.Get)
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"data\":[]}")
+                };
+            }
+
+            var body = await request.Content!.ReadAsStringAsync(cancellationToken);
+            using var json = JsonDocument.Parse(body);
+            var model = json.RootElement.GetProperty("model").GetString() ?? string.Empty;
+            Models.Add(model);
+            var status = model == "deepseek-v4-flash-free" ? HttpStatusCode.BadRequest : HttpStatusCode.OK;
+            var responseBody = status == HttpStatusCode.OK
+                ? "{\"id\":\"ok\"}"
+                : "{\"error\":{\"message\":\"Model is unavailable\"}}";
+            return new HttpResponseMessage(status) { Content = new StringContent(responseBody) };
+        }
     }
 
     private sealed record RecordedRequest(string? Url, string Body, string? BearerToken, string? ProviderHeader);

@@ -8,7 +8,9 @@ namespace DevBoard.DevSpaces
     public interface IRoslynLoadedWorkspace : IDisposable
     {
         int ProjectCount { get; }
-        Task<IReadOnlyList<RoslynUnusedCodeItem>> FindUnusedCodeAsync(CancellationToken cancellationToken);
+
+        Task<IReadOnlyList<RoslynUnusedCodeItem>> FindUnusedCodeAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<RoslynUnusedCodeItem>>(Array.Empty<RoslynUnusedCodeItem>());
     }
 
     public interface IRoslynWorkspaceLoader

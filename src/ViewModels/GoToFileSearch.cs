@@ -23,7 +23,7 @@ namespace DevBoard.ViewModels
                 if (!SetProperty(ref _query, value ?? string.Empty))
                     return;
 
-                _ = RefreshAsync();
+                ScheduleRefresh();
             }
         }
 
@@ -126,9 +126,46 @@ namespace DevBoard.ViewModels
 
         public void Dispose()
         {
+            _debounceCancellation?.Cancel();
+            _debounceCancellation?.Dispose();
+            _debounceCancellation = null;
+
             _searchCancellation?.Cancel();
             _searchCancellation?.Dispose();
             _searchCancellation = null;
+        }
+
+        private void ScheduleRefresh()
+        {
+            _debounceCancellation?.Cancel();
+
+            if (string.IsNullOrWhiteSpace(_query))
+            {
+                _ = RefreshAsync();
+                return;
+            }
+
+            var cancellation = new CancellationTokenSource();
+            _debounceCancellation = cancellation;
+            _ = RefreshAfterDebounceAsync(cancellation);
+        }
+
+        private async Task RefreshAfterDebounceAsync(CancellationTokenSource cancellation)
+        {
+            try
+            {
+                await Task.Delay(SearchDebounceMilliseconds, cancellation.Token);
+                await RefreshAsync();
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            finally
+            {
+                if (ReferenceEquals(_debounceCancellation, cancellation))
+                    _debounceCancellation = null;
+                cancellation.Dispose();
+            }
         }
 
         private void PublishResults(IReadOnlyList<GoToFileSearchResult> results, int version)
@@ -232,6 +269,7 @@ namespace DevBoard.ViewModels
             return int.MaxValue;
         }
 
+        private const int SearchDebounceMilliseconds = 800;
         private const int MaxResults = 100;
         private const long MaxSearchBytes = 1024 * 1024;
         private const int MaxPreviewCharacters = 240;
@@ -241,6 +279,7 @@ namespace DevBoard.ViewModels
         private readonly DevSpaces _devSpaces;
         private string _query = string.Empty;
         private GoToFileSearchResult _selectedResult;
+        private CancellationTokenSource _debounceCancellation;
         private CancellationTokenSource _searchCancellation;
         private int _searchVersion;
     }

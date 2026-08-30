@@ -7,11 +7,14 @@ namespace SourceGit.Views
 {
     public partial class Preferences
     {
-        protected override void OnOpened(EventArgs e)
+        private void InitializeHuggingFacePanels()
         {
-            base.OnOpened(e);
             EnsureHuggingFacePanels();
+            if (_huggingFaceLayoutHooked)
+                return;
+
             LayoutUpdated += (_, _) => EnsureHuggingFacePanels();
+            _huggingFaceLayoutHooked = true;
         }
 
         private void EnsureHuggingFacePanels()
@@ -40,5 +43,7 @@ namespace SourceGit.Views
                 stack.Children.Insert(insertIndex, new HuggingFaceDownloadPanel(service));
             }
         }
+
+        private bool _huggingFaceLayoutHooked = false;
     }
 }

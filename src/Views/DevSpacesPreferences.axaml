@@ -77,7 +77,7 @@
             Grid.Row="7"
             Grid.ColumnSpan="2"
             x:DataType="mcp:DevBoardMcpSettings"
-            RowDefinitions="32,36,36,36,36,36,36,Auto,Auto"
+            RowDefinitions="32,36,36,36,36,36,36,Auto,Auto,Auto,Auto,Auto"
             ColumnDefinitions="Auto,*">
         <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
                    VerticalAlignment="Center"
@@ -104,11 +104,20 @@
                    HorizontalAlignment="Right"
                    VerticalAlignment="Center"
                    Text="SSE endpoint"/>
-        <TextBox Grid.Row="3" Grid.Column="1"
-                 Height="28"
-                 IsReadOnly="True"
-                 VerticalContentAlignment="Center"
-                 Text="{Binding DisplayEndpoint}"/>
+        <Grid Grid.Row="3" Grid.Column="1" ColumnDefinitions="*,Auto">
+          <TextBox x:Name="McpEndpointTextBox"
+                   Grid.Column="0"
+                   Height="28"
+                   IsReadOnly="True"
+                   VerticalContentAlignment="Center"
+                   Text="{Binding DisplayEndpoint}"/>
+          <Button
+                  Grid.Column="1"
+                  Margin="8,0,0,0"
+                  Padding="12,0"
+                  Content="Copy"
+                  Click="OnCopyMcpEndpoint"/>
+        </Grid>
 
         <CheckBox Grid.Row="4" Grid.Column="1"
                   VerticalAlignment="Center"
@@ -120,14 +129,33 @@
                    HorizontalAlignment="Right"
                    VerticalAlignment="Center"
                    Text="Authentication token"/>
-        <Grid Grid.Row="5" Grid.Column="1" ColumnDefinitions="*,Auto">
-          <TextBox Grid.Column="0"
-                   Height="28"
-                   IsReadOnly="True"
-                   PasswordChar="●"
-                   VerticalContentAlignment="Center"
-                   Text="{Binding AuthToken}"/>
-          <Button Grid.Column="1"
+        <Grid Grid.Row="5" Grid.Column="1" ColumnDefinitions="*,Auto,Auto,Auto">
+          <Grid Grid.Column="0">
+            <TextBox x:Name="MaskedMcpTokenTextBox"
+                     Height="28"
+                     IsReadOnly="True"
+                     PasswordChar="●"
+                     VerticalContentAlignment="Center"
+                     Text="{Binding AuthToken}"/>
+            <TextBox x:Name="VisibleMcpTokenTextBox"
+                     Height="28"
+                     IsReadOnly="True"
+                     IsVisible="False"
+                     VerticalContentAlignment="Center"
+                     Text="{Binding AuthToken}"/>
+          </Grid>
+          <Button x:Name="ToggleMcpTokenButton"
+                  Grid.Column="1"
+                  Margin="8,0,0,0"
+                  Padding="12,0"
+                  Content="Show"
+                  Click="OnToggleMcpToken"/>
+          <Button Grid.Column="2"
+                  Margin="8,0,0,0"
+                  Padding="12,0"
+                  Content="Copy"
+                  Click="OnCopyMcpToken"/>
+          <Button Grid.Column="3"
                   Margin="8,0,0,0"
                   Padding="12,0"
                   Content="Regenerate"
@@ -139,20 +167,60 @@
                    HorizontalAlignment="Right"
                    VerticalAlignment="Center"
                    Text="Status"/>
-        <TextBlock Grid.Row="6" Grid.Column="1"
-                   VerticalAlignment="Center"
-                   Text="{Binding RuntimeStatus}"/>
+        <Grid Grid.Row="6" Grid.Column="1" ColumnDefinitions="*,Auto">
+          <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+            <TextBlock VerticalAlignment="Center"
+                       Text="{Binding RuntimeStatus}"/>
+            <TextBlock x:Name="McpConnectionTestResult"
+                       VerticalAlignment="Center"
+                       Opacity="0.7"/>
+          </StackPanel>
+          <Button x:Name="TestMcpConnectionButton"
+                  Grid.Column="1"
+                  Padding="12,0"
+                  Content="Test connection"
+                  Click="OnTestMcpConnection"/>
+        </Grid>
 
         <TextBlock Grid.Row="7" Grid.Column="1"
                    Margin="0,4,0,0"
                    TextWrapping="Wrap"
                    Text="{Binding RuntimeError}"/>
 
-        <TextBlock Grid.Row="8" Grid.Column="1"
+        <TextBlock Grid.Row="8" Grid.ColumnSpan="2"
+                   Margin="0,16,0,4"
+                   FontWeight="SemiBold"
+                   Text="How to connect an MCP SSE client"/>
+
+        <TextBlock Grid.Row="9" Grid.Column="1"
+                   Margin="0,4,0,8"
+                   TextWrapping="Wrap"
+                   Text="1. Enable the MCP server.&#10;2. Copy the configuration below into your MCP client's settings.&#10;3. Keep DevBoard running, then restart or reconnect the MCP client."/>
+
+        <Grid Grid.Row="10" Grid.Column="1" RowDefinitions="Auto,Auto">
+          <Button Grid.Row="0"
+                  HorizontalAlignment="Right"
+                  Margin="0,0,0,6"
+                  Padding="12,4"
+                  Content="Copy configuration"
+                  Click="OnCopyMcpConfiguration"/>
+          <TextBox x:Name="McpConfigurationTextBox"
+                   Grid.Row="1"
+                   MinHeight="150"
+                   AcceptsReturn="True"
+                   FontFamily="Cascadia Mono,Consolas,monospace"
+                   HorizontalScrollBarVisibility="Auto"
+                   IsReadOnly="True"
+                   Text="{Binding McpClientConfiguration}"
+                   VerticalScrollBarVisibility="Auto"
+                   TextWrapping="NoWrap"/>
+        </Grid>
+
+        <TextBlock Grid.Row="11" Grid.Column="1"
                    Margin="0,8,0,0"
                    Opacity="0.7"
                    TextWrapping="Wrap"
-                   Text="Terminal output can contain secrets. MCP is localhost-only and read-only, and requires the authentication token."/>
+                   Text="Keep the authentication token secret. The generated configuration contains it. Terminal output can also contain secrets. MCP is localhost-only and read-only."/>
       </Grid>
     </Grid>
   </ScrollViewer>

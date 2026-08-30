@@ -29,7 +29,9 @@ When initialization starts, discover a .NET workspace under the DevSpace root us
 2. `.sln`
 3. `.csproj`
 
-Prefer a workspace file in the DevSpace root. If no root-level candidate exists, search descendants while excluding generated/vendor directories such as `.git`, `bin`, `obj`, `node_modules`, and similar ignored directories.
+Prefer a workspace file in the DevSpace root. If no root-level candidate exists, search descendants while excluding `.git`, `bin`, `obj`, `node_modules`, `.vs`, `.idea`, and `.vscode` directories.
+
+Within the same priority level, choose the candidate with the shortest relative path; break ties using ordinal path ordering so discovery is deterministic.
 
 If no supported .NET workspace exists, initialization transitions to `Failed` with a user-readable reason.
 
@@ -86,7 +88,7 @@ Valid transitions:
 
 `Available` is only reached after Roslyn successfully loads at least one project from the selected solution/project.
 
-A second initialization request while `Initializing` is in progress is ignored or awaits the same task.
+A second initialization request while `Initializing` is in progress must return/await the same in-flight task. It must not create a second `MSBuildWorkspace`.
 
 ## Error Handling
 
@@ -108,12 +110,13 @@ Unit tests should cover:
 
 - discovery priority: `.slnx` before `.sln` before `.csproj`;
 - root-level candidates preferred over nested candidates;
+- deterministic tie-breaking for multiple candidates;
 - ignored/generated directories are skipped;
 - state starts as `Unavailable`;
 - initialization transitions through `Initializing` to `Available` on success;
 - failures transition to `Failed` with a reason;
 - Retry can transition from `Failed` back to `Initializing` and then `Available`;
-- duplicate initialization does not create concurrent workspaces;
+- duplicate initialization returns the same in-flight task and does not create concurrent workspaces;
 - dashboard bindings/action availability reflect Roslyn service state.
 
 Add an integration test that loads a tiny temporary .NET project/solution with the real Roslyn/MSBuild path where the CI/runtime environment supports it. If that cannot run in every CI job, isolate it with a clearly documented condition rather than weakening unit coverage.

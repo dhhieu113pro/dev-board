@@ -46,22 +46,6 @@ namespace DevBoard.ViewModels
         public bool IsTerminalsActive => ActivePage == Models.DevSpacePage.Terminals;
         public bool IsRoslynActive => ActivePage == Models.DevSpacePage.Roslyn;
 
-        public Models.DevSpaceTerminalDisplayMode TerminalDisplayMode
-        {
-            get => _terminalDisplayMode;
-            set
-            {
-                if (!SetProperty(ref _terminalDisplayMode, value))
-                    return;
-                OnPropertyChanged(nameof(IsGridLayout));
-                OnPropertyChanged(nameof(IsListLayout));
-                RebuildSlots();
-            }
-        }
-
-        public bool IsGridLayout => TerminalDisplayMode == Models.DevSpaceTerminalDisplayMode.Grid;
-        public bool IsListLayout => TerminalDisplayMode == Models.DevSpaceTerminalDisplayMode.List;
-
         public DevSpaceTerminal ActiveTerminal
         {
             get => _activeTerminal;
@@ -93,9 +77,9 @@ namespace DevBoard.ViewModels
             }
         }
 
-        public int GridRows => IsListLayout ? Math.Max(1, Sessions.Count) : Models.DevSpaceLayoutExtensions.GetRows(_layout, Sessions.Count);
-        public int GridColumns => IsListLayout ? 1 : Models.DevSpaceLayoutExtensions.GetColumns(_layout, Sessions.Count);
-        public int GridCapacity => IsListLayout ? Sessions.Count : GridRows * GridColumns;
+        public int GridRows => Models.DevSpaceLayoutExtensions.GetRows(_layout, Sessions.Count);
+        public int GridColumns => Models.DevSpaceLayoutExtensions.GetColumns(_layout, Sessions.Count);
+        public int GridCapacity => GridRows * GridColumns;
 
         public DevSpaces(
             string workingDirectory,
@@ -280,16 +264,6 @@ namespace DevBoard.ViewModels
 
         private void RebuildSlots()
         {
-            if (IsListLayout)
-            {
-                VisibleSlots.Clear();
-                for (var i = 0; i < Sessions.Count; i++)
-                    VisibleSlots.Add(new DevSpaceGridSlot(i, Sessions[i]));
-                _preferredSlot = -1;
-                NotifyLayoutChanged();
-                return;
-            }
-
             var capacity = GridCapacity;
             var slots = new DevSpaceTerminal[capacity];
             if (capacity == 1)
@@ -335,7 +309,6 @@ namespace DevBoard.ViewModels
         private DevSpaceTerminal _activeTerminal;
         private Models.DevSpaceLayout _layout;
         private Models.DevSpacePage _activePage = Models.DevSpacePage.Dashboard;
-        private Models.DevSpaceTerminalDisplayMode _terminalDisplayMode = Models.DevSpaceTerminalDisplayMode.Grid;
         private int _nextSessionNumber = 1;
         private int _preferredSlot = -1;
     }

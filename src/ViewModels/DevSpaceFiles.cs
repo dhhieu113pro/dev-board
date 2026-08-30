@@ -15,6 +15,8 @@ namespace DevBoard.ViewModels
         public AvaloniaList<DevSpaceFileNode> VisibleItems { get; } = [];
         public AvaloniaList<DevSpaceFileNode> FolderChildren { get; } = [];
 
+        public event Action<DevSpaceFileNode> RevealRequested;
+
         internal Task InitialRefreshTask { get; }
 
         public string Filter
@@ -197,6 +199,7 @@ namespace DevBoard.ViewModels
             }
             RebuildVisibleItems();
             SelectedNode = node;
+            RevealRequested?.Invoke(node);
             return true;
         }
 

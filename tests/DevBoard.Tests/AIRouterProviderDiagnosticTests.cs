@@ -13,7 +13,7 @@ namespace DevBoard.Tests;
 public class AIRouterProviderDiagnosticTests
 {
     [Fact]
-    public async Task TestAsync_TestsProviderChatOnceAndReportsResponsesCompatibility()
+    public async Task TestAsync_DiscoversModelsThenTestsProviderChatOnceAndReportsResponsesCompatibility()
     {
         var handler = new RecordingHandler(HttpStatusCode.OK);
         using var http = new HttpClient(handler);
@@ -23,13 +23,15 @@ public class AIRouterProviderDiagnosticTests
 
         var results = await AIRouterProviderDiagnostic.TestAsync(settings, http);
 
-        var request = Assert.Single(handler.Requests);
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal("https://example.test/v1/models", handler.Requests[0].Url);
+        var request = handler.Requests[1];
         Assert.Equal("https://example.test/v1/chat/completions", request.Url);
         Assert.Contains("\"model\":\"deepseek-v4-flash-free\"", request.Body);
         Assert.Contains("\"messages\":[{\"role\":\"user\"", request.Body);
         Assert.Contains("\"thinking\":{\"type\":\"disabled\"}", request.Body);
-        Assert.Equal("secret", request.BearerToken);
-        Assert.Equal("opencode", request.ProviderHeader);
+        Assert.All(handler.Requests, recorded => Assert.Equal("secret", recorded.BearerToken));
+        Assert.All(handler.Requests, recorded => Assert.Equal("opencode", recorded.ProviderHeader));
 
         Assert.Collection(results,
             result =>
@@ -90,7 +92,8 @@ public class AIRouterProviderDiagnosticTests
 
             await AIRouterProviderDiagnostic.TestAsync(settings, http);
 
-            Assert.Equal("environment-secret", Assert.Single(handler.Requests).BearerToken);
+            Assert.Equal(2, handler.Requests.Count);
+            Assert.All(handler.Requests, request => Assert.Equal("environment-secret", request.BearerToken));
         }
         finally
         {
@@ -140,14 +143,14 @@ public class AIRouterProviderDiagnosticTests
     }
 
     [Fact]
-    public async Task TestAsync_WhenChatCannotConnect_ReportsBothLocalApisUnavailable()
+    public async Task TestAsync_WhenModelDiscoveryAndChatCannotConnect_ReportsBothLocalApisUnavailable()
     {
         var handler = new FailingChatHandler();
         using var http = new HttpClient(handler);
 
         var results = await AIRouterProviderDiagnostic.TestAsync(CreateSettings(), http);
 
-        Assert.Equal(1, handler.RequestCount);
+        Assert.Equal(2, handler.RequestCount);
         Assert.Equal(
             "Chat Completions: Unavailable - connection failed; Responses: Unavailable - connection failed",
             AIRouterProviderDiagnostic.FormatSummary(results));

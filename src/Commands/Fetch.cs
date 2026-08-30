@@ -51,15 +51,17 @@ namespace DevBoard.Commands
             var configuredKey = await new Config(WorkingDirectory).GetAsync($"remote.{_remote}.sshkey").ConfigureAwait(false);
             if (!string.IsNullOrEmpty(configuredKey))
                 SSHKey = configuredKey;
-            else if (string.IsNullOrEmpty(SSHKey))
-                ApplyGitHubCredential(await Services.GitHubCredential.DetectForRepositoryAsync(WorkingDirectory).ConfigureAwait(false));
+
+            if (!await PrepareRepositoryCredentialAsync().ConfigureAwait(false))
+                return false;
 
             return await ExecAsync().ConfigureAwait(false);
         }
 
         private void ResolveBoundCredential()
         {
-            // Load persisted PAT eagerly. SSH can still be overridden by remote.*.sshkey in RunAsync.
+            // Keep the existing eager PAT path for callers that inspect/execute Fetch directly.
+            // GitHub CLI credentials are intentionally resolved only immediately before RunAsync.
             var account = FindBoundGitHubAccount();
             if (account?.AuthType == Models.GitHubAuthType.PersonalAccessToken)
                 ApplyGitHubCredential(account);

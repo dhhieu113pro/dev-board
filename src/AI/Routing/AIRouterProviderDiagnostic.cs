@@ -42,10 +42,16 @@ public static class AIRouterProviderDiagnostic
             "all",
             "{\"model\":\"all\",\"messages\":[{\"role\":\"user\",\"content\":\"Reply with OK.\"}],\"max_tokens\":1,\"stream\":false}",
             ChatCompletionsPath), cancellationToken);
-        var responses = await TestEndpointAsync(provider, "Responses", new AIRouterRequest(
-            "all",
-            "{\"model\":\"all\",\"input\":\"Reply with OK.\",\"max_output_tokens\":1,\"stream\":false}",
-            ResponsesPath), cancellationToken);
+
+        // DevBoard exposes the Responses API as a compatibility layer over Chat Completions,
+        // just like AI Studio. Providers therefore only need a working chat-completions
+        // endpoint; requiring their own /v1/responses endpoint produces false failures.
+        var responses = new AIRouterEndpointTestResult(
+            "Responses",
+            ResponsesPath,
+            chat.Success,
+            chat.StatusCode,
+            chat.Error);
 
         return [chat, responses];
     }

@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace DevBoard.DevSpaces
 {
-    internal static class RoslynWorkspaceDiscovery
+    public static class RoslynWorkspaceDiscovery
     {
         private static readonly HashSet<string> IgnoredDirectories = new(StringComparer.OrdinalIgnoreCase)
         {

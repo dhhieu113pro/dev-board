@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Styling;
 using AvaloniaEdit;
+using AvaloniaEdit.Rendering;
 using AvaloniaEdit.TextMate;
 using DevBoard.ViewModels;
 using TextMateSharp.Grammars;
@@ -104,9 +105,7 @@ namespace DevBoard.Views
                 _editor.TextArea.Background = brush;
             });
             ApplyBrush(installation, "editor.foreground", brush => _editor.Foreground = brush);
-
-            if (!ApplyBrush(installation, "editor.selectionBackground", brush => _editor.TextArea.SelectionBrush = brush))
-                _editor.TextArea.SelectionBrush = null;
+            ApplyBrush(installation, "editor.selectionBackground", brush => _editor.TextArea.SelectionBrush = brush);
 
             if (!ApplyBrush(installation, "editor.lineHighlightBackground", brush =>
                 {

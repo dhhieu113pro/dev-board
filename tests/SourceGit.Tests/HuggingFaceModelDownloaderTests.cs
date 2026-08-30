@@ -44,10 +44,41 @@ public class HuggingFaceModelDownloaderTests
     [Fact]
     public void BuildDestinationPaths_UsesPartSuffix()
     {
-        var paths = HuggingFaceModelDownloader.BuildDestinationPaths("/tmp/models", "model.gguf");
+        var paths = HuggingFaceModelDownloader.BuildDestinationPaths(
+            "/tmp/models",
+            new HuggingFaceModelFile("model.gguf", "https://huggingface.co/owner/repo-a/resolve/main/model.gguf", null));
 
-        Assert.EndsWith("model.gguf", paths.FinalPath, StringComparison.Ordinal);
-        Assert.EndsWith("model.gguf.part", paths.PartPath, StringComparison.Ordinal);
+        Assert.True(paths.FinalPath.EndsWith("model.gguf", StringComparison.Ordinal));
+        Assert.True(paths.PartPath.EndsWith("model.gguf.part", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void BuildDestinationPaths_SameBasenameDifferentRepositories_AreIsolated()
+    {
+        var first = HuggingFaceModelDownloader.BuildDestinationPaths(
+            "/tmp/models",
+            new HuggingFaceModelFile("model.gguf", "https://huggingface.co/owner/repo-a/resolve/main/model.gguf", null));
+        var second = HuggingFaceModelDownloader.BuildDestinationPaths(
+            "/tmp/models",
+            new HuggingFaceModelFile("model.gguf", "https://huggingface.co/owner/repo-b/resolve/main/model.gguf", null));
+
+        Assert.NotEqual(first.FinalPath, second.FinalPath);
+        Assert.NotEqual(first.PartPath, second.PartPath);
+    }
+
+    [Fact]
+    public void BuildDestinationPaths_SameSource_ProducesStableResumePath()
+    {
+        var file = new HuggingFaceModelFile(
+            "subdir/model.gguf",
+            "https://huggingface.co/owner/repo-a/resolve/main/subdir/model.gguf?download=true",
+            null);
+
+        var first = HuggingFaceModelDownloader.BuildDestinationPaths("/tmp/models", file);
+        var second = HuggingFaceModelDownloader.BuildDestinationPaths("/tmp/models", file);
+
+        Assert.Equal(first.FinalPath, second.FinalPath);
+        Assert.Equal(first.PartPath, second.PartPath);
     }
 
     [Fact]

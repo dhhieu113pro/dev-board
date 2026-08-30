@@ -82,6 +82,8 @@ src/Models/TemplateEngine.cs
 src/Models/TextInlineChange.cs
 src/Models/TextMateHelper.cs
 src/Models/ThemeOverrides.cs
+src/Models/ThemeSchedule.cs
+src/Models/ThemeScheduleSettings.cs
 src/Models/User.cs
 src/Models/Watcher.cs
 src/Models/Worktree.cs
@@ -138,6 +140,7 @@ src/ViewModels/DevSpaceDashboardModels.cs
 src/ViewModels/DevSpaceFileIconResolver.cs
 src/ViewModels/DevSpaceFileNode.cs
 src/ViewModels/DevSpaceFiles.cs
+src/ViewModels/DevSpaceRoslynAnalytics.cs
 src/ViewModels/DevSpaceTerminal.cs
 src/ViewModels/DevSpaceWorkspaceFile.cs
 src/ViewModels/DevSpaces.cs
@@ -374,9 +377,12 @@ src/Views/DevSpaceDashboard.axaml.cs
 src/Views/DevSpaceFiles.axaml
 src/Views/DevSpaceFiles.axaml.cs
 src/Views/DevSpaceProfileManager.cs
+src/Views/DevSpaceRoslynAnalytics.axaml
+src/Views/DevSpaceRoslynAnalytics.axaml.cs
 src/Views/DevSpaceTerminal.axaml
 src/Views/DevSpaceTerminal.axaml.cs
 src/Views/DevSpaceTerminalControl.cs
+src/Views/DevSpaces.Roslyn.cs
 src/Views/DevSpaces.axaml
 src/Views/DevSpaces.axaml.cs
 src/Views/DevSpacesPreferences.axaml
@@ -562,6 +568,9 @@ src/Views/TagsView.axaml
 src/Views/TagsView.axaml.cs
 src/Views/TextDiffView.axaml
 src/Views/TextDiffView.axaml.cs
+src/Views/ThemeSchedulePreferences.axaml
+src/Views/ThemeSchedulePreferences.axaml.cs
+src/Views/ThemeSchedulePreferencesInjector.cs
 src/Views/UpdateSubmodules.axaml
 src/Views/UpdateSubmodules.axaml.cs
 src/Views/ViewLogs.axaml

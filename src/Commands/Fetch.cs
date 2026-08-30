@@ -48,18 +48,14 @@ namespace DevBoard.Commands
 
         public async Task<bool> RunAsync()
         {
-            var configuredKey = await new Config(WorkingDirectory).GetAsync($"remote.{_remote}.sshkey").ConfigureAwait(false);
-            if (!string.IsNullOrEmpty(configuredKey))
-                SSHKey = configuredKey;
-            else if (string.IsNullOrEmpty(SSHKey))
-                ApplyGitHubCredential(await Services.GitHubCredential.DetectForRepositoryAsync(WorkingDirectory).ConfigureAwait(false));
-
+            await PrepareRepositoryAuthenticationAsync(_remote).ConfigureAwait(false);
             return await ExecAsync().ConfigureAwait(false);
         }
 
         private void ResolveBoundCredential()
         {
-            // Load persisted PAT eagerly. SSH can still be overridden by remote.*.sshkey in RunAsync.
+            // PAT credentials can be loaded without starting another process. GitHub CLI
+            // credentials are resolved at execution time for the exact bound account.
             var account = FindBoundGitHubAccount();
             if (account?.AuthType == Models.GitHubAuthType.PersonalAccessToken)
                 ApplyGitHubCredential(account);

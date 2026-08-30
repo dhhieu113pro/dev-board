@@ -12,6 +12,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
     <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- Roslyn/MSBuildWorkspace loads language and build components dynamically; NativeAOT cannot support that runtime model. -->
+    <DisableAOT Condition="'$(DisableAOT)' == ''">true</DisableAOT>
 
     <Product>DevBoard</Product>
     <Description>Open-source developer workspace for Git, terminals, files, worktrees, and AI-assisted development</Description>
@@ -70,6 +72,7 @@
     <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.27.0" />
     <PackageReference Include="Microsoft.Build.Framework" Version="17.11.48" ExcludeAssets="runtime" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Build.Locator" Version="1.11.2" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.9.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="5.9.0" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
     <PackageReference Include="OpenAI" Version="2.10.0" />

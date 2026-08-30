@@ -1,0 +1,55 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DevBoard.ViewModels"
+             xmlns:ds="using:DevBoard.DevSpaces"
+             x:Class="DevBoard.Views.DevSpaceRoslynAnalytics"
+             x:DataType="vm:DevSpaces">
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+    <StackPanel Margin="16" Spacing="12">
+      <StackPanel Spacing="4">
+        <TextBlock FontSize="20" FontWeight="SemiBold" Text="Roslyn Analytics"/>
+        <TextBlock Opacity="0.65" Text="Compiler and analyzer insights for this DevSpace."/>
+      </StackPanel>
+
+      <Border Padding="14" CornerRadius="6" Background="{DynamicResource Brush.Contents}" BorderBrush="{DynamicResource Brush.Border2}" BorderThickness="1">
+        <Grid RowDefinitions="Auto,Auto,*">
+          <Grid ColumnDefinitions="*,Auto,Auto">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock FontSize="15" FontWeight="SemiBold" Text="Unused Code"/>
+              <TextBlock FontSize="15" Opacity="0.65" Text="{Binding RoslynAnalytics.Dashboard.UnusedCodeCount, StringFormat='· {0}'}"/>
+            </StackPanel>
+            <TextBlock Grid.Column="1" Margin="0,0,8,0" VerticalAlignment="Center" Opacity="0.65" IsVisible="{Binding RoslynAnalytics.Dashboard.IsAnalyzingUnusedCode}" Text="Analyzing…"/>
+            <Button Grid.Column="2" Classes="flat" Content="Refresh" Click="OnRefreshUnusedCode"/>
+          </Grid>
+
+          <WrapPanel Grid.Row="1" Margin="0,8,0,6">
+            <Button Margin="0,0,6,4" Content="All" Tag="All" Click="OnUnusedCodeFilter"/>
+            <Button Margin="0,0,6,4" Content="Members" Tag="Members" Click="OnUnusedCodeFilter"/>
+            <Button Margin="0,0,6,4" Content="Variables" Tag="Variables" Click="OnUnusedCodeFilter"/>
+            <Button Margin="0,0,6,4" Content="Usings" Tag="Usings" Click="OnUnusedCodeFilter"/>
+          </WrapPanel>
+
+          <Grid Grid.Row="2">
+            <TextBlock Margin="0,8,0,0" Opacity="0.65" Text="{Binding RoslynAnalytics.Dashboard.UnusedCodeFailureReason}" TextWrapping="Wrap"/>
+            <ItemsControl ItemsSource="{Binding RoslynAnalytics.Dashboard.FilteredUnusedCode}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="ds:RoslynUnusedCodeItem">
+                  <Border Padding="9" Margin="0,0,0,5" CornerRadius="4" Background="{DynamicResource Brush.Window}" PointerPressed="OnUnusedCodePressed" ToolTip.Tip="{Binding Message}">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                      <TextBlock Margin="0,0,10,0" Opacity="0.65" Text="{Binding Kind}"/>
+                      <StackPanel Grid.Column="1">
+                        <TextBlock FontWeight="SemiBold" Text="{Binding Symbol}" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock FontSize="11" Opacity="0.65" Text="{Binding FilePath}" TextTrimming="CharacterEllipsis"/>
+                      </StackPanel>
+                      <TextBlock Grid.Column="2" Margin="10,0,0,0" VerticalAlignment="Center" Text="{Binding Line, StringFormat='L{0}'}"/>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </Grid>
+        </Grid>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

@@ -124,7 +124,7 @@
             <Grid ColumnDefinitions="*,Auto"><TextBlock Text="Antigravity"/><TextBlock Grid.Column="1" Text="{Binding AntigravityCapability}"/></Grid>
             <Grid ColumnDefinitions="*,Auto,Auto">
               <TextBlock Text="Roslyn" VerticalAlignment="Center"/>
-              <TextBlock Grid.Column="1" Margin="0,0,8,0" VerticalAlignment="Center" Text="{Binding RoslynStatusText}" ToolTip.Tip="{Binding RoslynFailureReason}"/>
+              <TextBlock Grid.Column="1" Margin="0,0,8,0" VerticalAlignment="Center" Text="{Binding RoslynHealthStatusText}" ToolTip.Tip="{Binding RoslynFailureReason}"/>
               <Button Grid.Column="2" Classes="flat" IsVisible="{Binding CanInitializeRoslyn}" Content="{Binding RoslynActionText}" Click="OnInitializeRoslyn" ToolTip.Tip="{Binding RoslynFailureReason}"/>
             </Grid>
           </StackPanel>

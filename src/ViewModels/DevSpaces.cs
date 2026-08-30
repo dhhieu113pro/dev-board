@@ -22,6 +22,7 @@ namespace DevBoard.ViewModels
         public DevBoard.DevSpaces.IDevSpaceSessionLauncher Launcher { get; }
         public DevSpaceFiles Files { get; }
         public DevSpaceDashboard Dashboard { get; }
+        public DevSpaceRoslynAnalytics RoslynAnalytics { get; }
         public AvaloniaList<DevSpaceTerminal> Sessions { get; } = [];
         public AvaloniaList<DevSpaceGridSlot> VisibleSlots { get; } = [];
         public int TerminalCount => Sessions.Count;
@@ -101,6 +102,7 @@ namespace DevBoard.ViewModels
             Launcher = launcher ?? new DevBoard.DevSpaces.LocalDevSpaceSessionLauncher();
             Files = new DevSpaceFiles(workingDirectory);
             Dashboard = new DevSpaceDashboard(this, workingDirectory, repository);
+            RoslynAnalytics = new DevSpaceRoslynAnalytics(Dashboard);
 
             var savedLayout = Preferences.Instance.DevSpacesDefaultLayout;
             if (savedLayout == Models.DevSpaceLayout.FourByFour)

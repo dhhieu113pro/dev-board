@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -46,6 +47,43 @@ namespace DevBoard.DevSpaces
             }
         }
 
+        public IReadOnlyList<RoslynUnusedCodeItem> UnusedCode
+        {
+            get => _unusedCode;
+            private set
+            {
+                _unusedCode = value ?? Array.Empty<RoslynUnusedCodeItem>();
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(UnusedCodeCount));
+            }
+        }
+
+        public int UnusedCodeCount => UnusedCode.Count;
+
+        public bool IsAnalyzingUnusedCode
+        {
+            get => _isAnalyzingUnusedCode;
+            private set
+            {
+                if (_isAnalyzingUnusedCode == value)
+                    return;
+                _isAnalyzingUnusedCode = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string UnusedCodeFailureReason
+        {
+            get => _unusedCodeFailureReason;
+            private set
+            {
+                if (string.Equals(_unusedCodeFailureReason, value, StringComparison.Ordinal))
+                    return;
+                _unusedCodeFailureReason = value;
+                OnPropertyChanged();
+            }
+        }
+
         public IRoslynLoadedWorkspace LoadedWorkspace => _loadedWorkspace;
 
         public RoslynDevSpaceService(string workspaceRoot, IRoslynWorkspaceLoader loader)
@@ -80,6 +118,68 @@ namespace DevBoard.DevSpaces
                 State = RoslynDevSpaceState.Initializing;
                 _initializationTask = InitializeCoreAsync(cancellationToken);
                 return _initializationTask;
+            }
+        }
+
+        public async Task RefreshUnusedCodeAsync(CancellationToken cancellationToken = default)
+        {
+            string workspacePath;
+            lock (_gate)
+            {
+                if (_disposed)
+                    throw new ObjectDisposedException(nameof(RoslynDevSpaceService));
+                if (_loadedWorkspace == null || State != RoslynDevSpaceState.Available)
+                    return;
+                workspacePath = WorkspacePath;
+            }
+
+            if (string.IsNullOrWhiteSpace(workspacePath))
+                return;
+
+            IsAnalyzingUnusedCode = true;
+            UnusedCodeFailureReason = string.Empty;
+            IRoslynLoadedWorkspace refreshed = null;
+            try
+            {
+                refreshed = await _loader.LoadAsync(workspacePath, cancellationToken);
+                if (refreshed == null)
+                    throw new InvalidOperationException("Roslyn did not return a loaded workspace.");
+                if (refreshed.ProjectCount <= 0)
+                    throw new InvalidOperationException("Roslyn loaded the workspace but found no projects.");
+
+                IRoslynLoadedWorkspace previous;
+                lock (_gate)
+                {
+                    if (_disposed)
+                    {
+                        refreshed.Dispose();
+                        return;
+                    }
+
+                    previous = _loadedWorkspace;
+                    _loadedWorkspace = refreshed;
+                }
+
+                previous?.Dispose();
+                UnusedCode = await refreshed.FindUnusedCodeAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                if (refreshed != null && !ReferenceEquals(refreshed, _loadedWorkspace))
+                    refreshed.Dispose();
+                UnusedCodeFailureReason = "Unused code analysis was canceled.";
+            }
+            catch (Exception ex)
+            {
+                if (refreshed != null && !ReferenceEquals(refreshed, _loadedWorkspace))
+                    refreshed.Dispose();
+                UnusedCodeFailureReason = string.IsNullOrWhiteSpace(ex.Message)
+                    ? "Unused code analysis failed."
+                    : ex.Message;
+            }
+            finally
+            {
+                IsAnalyzingUnusedCode = false;
             }
         }
 
@@ -135,6 +235,7 @@ namespace DevBoard.DevSpaces
 
                 previous?.Dispose();
                 State = RoslynDevSpaceState.Available;
+                await AnalyzeLoadedWorkspaceAsync(loaded, cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -155,6 +256,32 @@ namespace DevBoard.DevSpaces
             }
         }
 
+        private async Task AnalyzeLoadedWorkspaceAsync(
+            IRoslynLoadedWorkspace loaded,
+            CancellationToken cancellationToken)
+        {
+            IsAnalyzingUnusedCode = true;
+            UnusedCodeFailureReason = string.Empty;
+            try
+            {
+                UnusedCode = await loaded.FindUnusedCodeAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                UnusedCodeFailureReason = "Unused code analysis was canceled.";
+            }
+            catch (Exception ex)
+            {
+                UnusedCodeFailureReason = string.IsNullOrWhiteSpace(ex.Message)
+                    ? "Unused code analysis failed."
+                    : ex.Message;
+            }
+            finally
+            {
+                IsAnalyzingUnusedCode = false;
+            }
+        }
+
         private void OnPropertyChanged([CallerMemberName] string propertyName = null) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
@@ -167,6 +294,9 @@ namespace DevBoard.DevSpaces
         private string _workspacePath = string.Empty;
         private Task _initializationTask;
         private IRoslynLoadedWorkspace _loadedWorkspace;
+        private IReadOnlyList<RoslynUnusedCodeItem> _unusedCode = Array.Empty<RoslynUnusedCodeItem>();
+        private bool _isAnalyzingUnusedCode;
+        private string _unusedCodeFailureReason = string.Empty;
         private bool _disposed;
     }
 }

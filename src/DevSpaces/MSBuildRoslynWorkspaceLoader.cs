@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -6,6 +8,7 @@ using System.Threading.Tasks;
 
 using Microsoft.Build.Locator;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.MSBuild;
 
 namespace DevBoard.DevSpaces
@@ -84,7 +87,83 @@ namespace DevBoard.DevSpaces
                 Solution = solution;
             }
 
+            public async Task<IReadOnlyList<RoslynUnusedCodeItem>> FindUnusedCodeAsync(CancellationToken cancellationToken)
+            {
+                var results = new List<RoslynUnusedCodeItem>();
+                foreach (var project in Solution.Projects.Where(x => x.Language == LanguageNames.CSharp))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var compilation = await project.GetCompilationAsync(cancellationToken);
+                    if (compilation == null)
+                        continue;
+
+                    var analyzers = project.AnalyzerReferences
+                        .SelectMany(x => x.GetAnalyzers(project.Language))
+                        .ToImmutableArray();
+                    var diagnostics = analyzers.IsDefaultOrEmpty
+                        ? compilation.GetDiagnostics(cancellationToken)
+                        : await compilation.WithAnalyzers(analyzers, cancellationToken: cancellationToken)
+                            .GetAllDiagnosticsAsync(cancellationToken);
+
+                    foreach (var diagnostic in diagnostics)
+                    {
+                        if (!TryClassify(diagnostic.Id, out var kind) || !diagnostic.Location.IsInSource)
+                            continue;
+
+                        var lineSpan = diagnostic.Location.GetLineSpan();
+                        var sourceTree = diagnostic.Location.SourceTree;
+                        var symbol = string.Empty;
+                        if (sourceTree != null)
+                        {
+                            var root = await sourceTree.GetRootAsync(cancellationToken);
+                            symbol = root.FindToken(diagnostic.Location.SourceSpan.Start).ValueText;
+                        }
+
+                        results.Add(new RoslynUnusedCodeItem(
+                            project.Name,
+                            kind,
+                            symbol,
+                            diagnostic.Id,
+                            diagnostic.GetMessage(),
+                            lineSpan.Path,
+                            lineSpan.StartLinePosition.Line + 1,
+                            lineSpan.StartLinePosition.Character + 1));
+                    }
+                }
+
+                return results
+                    .OrderBy(x => x.ProjectName, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(x => x.FilePath, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(x => x.Line)
+                    .ThenBy(x => x.Column)
+                    .ToArray();
+            }
+
             public void Dispose() => Workspace.Dispose();
+
+            private static bool TryClassify(string diagnosticId, out RoslynUnusedCodeKind kind)
+            {
+                switch (diagnosticId)
+                {
+                    case "IDE0005":
+                        kind = RoslynUnusedCodeKind.Using;
+                        return true;
+                    case "IDE0051":
+                    case "IDE0052":
+                    case "CS0414":
+                        kind = RoslynUnusedCodeKind.Member;
+                        return true;
+                    case "CS0168":
+                    case "CS0219":
+                    case "IDE0059":
+                    case "IDE0060":
+                        kind = RoslynUnusedCodeKind.Variable;
+                        return true;
+                    default:
+                        kind = default;
+                        return false;
+                }
+            }
         }
 
         private static readonly object RegistrationGate = new();

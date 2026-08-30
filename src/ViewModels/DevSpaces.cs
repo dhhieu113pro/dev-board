@@ -24,6 +24,7 @@ namespace DevBoard.ViewModels
         public DevSpaceDashboard Dashboard { get; }
         public AvaloniaList<DevSpaceTerminal> Sessions { get; } = [];
         public AvaloniaList<DevSpaceGridSlot> VisibleSlots { get; } = [];
+        public int TerminalCount => Sessions.Count;
 
         public Models.DevSpacePage ActivePage
         {
@@ -113,12 +114,7 @@ namespace DevBoard.ViewModels
 
         public void EnsureFirstSession()
         {
-            if (Sessions.Count != 0)
-                return;
-
-            var activePage = ActivePage;
-            CreateTerminal();
-            ActivePage = activePage;
+            // Kept for bootstrap compatibility. Terminal creation is now always explicit.
         }
 
         public void ActivateDashboard() => ActivePage = Models.DevSpacePage.Dashboard;
@@ -167,6 +163,7 @@ namespace DevBoard.ViewModels
                 _workingDirectory);
             _terminalRegistry.Register(created);
             Sessions.Add(created);
+            OnPropertyChanged(nameof(TerminalCount));
             ActiveTerminal = created;
             ActivateTerminals();
             Dashboard.AddActivity(DevSpaceActivityKind.SessionStarted, $"{created.Title} started");
@@ -231,6 +228,7 @@ namespace DevBoard.ViewModels
         {
             if (terminal == null || !Sessions.Remove(terminal))
                 return;
+            OnPropertyChanged(nameof(TerminalCount));
             _terminalRegistry.Unregister(terminal.Id);
             Dashboard.AddActivity(DevSpaceActivityKind.SessionClosed, $"{terminal.Title} closed");
             terminal.Dispose();
@@ -247,6 +245,7 @@ namespace DevBoard.ViewModels
                 Sessions[i].Dispose();
             }
             Sessions.Clear();
+            OnPropertyChanged(nameof(TerminalCount));
             VisibleSlots.Clear();
             ActiveTerminal = null;
             _preferredSlot = -1;

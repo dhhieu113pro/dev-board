@@ -61,7 +61,7 @@ namespace DevBoard.Tests
         }
 
         [AvaloniaFact]
-        public void OpenTerminalTabsRemainVisibleFromDashboard()
+        public void TerminalTabsAreOnlyVisibleOnTerminalsPage()
         {
             var root = CreateTempDirectory();
             try
@@ -74,6 +74,10 @@ namespace DevBoard.Tests
                 var sessionTabs = view.GetVisualDescendants()
                     .OfType<ItemsControl>()
                     .Single(x => ReferenceEquals(x.ItemsSource, spaces.Sessions));
+
+                Assert.False(sessionTabs.IsVisible);
+
+                spaces.ActivateTerminals();
 
                 Assert.True(sessionTabs.IsVisible);
             }

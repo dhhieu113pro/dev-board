@@ -27,13 +27,12 @@ namespace DevBoard.Tests
                 var loader = new BlockingRoslynLoader();
                 using var dashboard = new DevSpaceDashboard(spaces, root, null, loader);
 
-                // Construction returned while the fake loader is still blocked, and the
-                // state already proves initialization was kicked off automatically.
-                Assert.Equal(RoslynDevSpaceState.Initializing, dashboard.RoslynState);
-                Assert.False(dashboard.CanInitializeRoslyn);
-
+                // Construction already returned even though the fake loader cannot finish.
+                // Automatic initialization must reach that loader without a manual click.
                 await loader.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
                 Assert.Equal(1, loader.CallCount);
+                Assert.Equal(RoslynDevSpaceState.Initializing, dashboard.RoslynState);
+                Assert.False(dashboard.CanInitializeRoslyn);
 
                 loader.Complete(new FakeLoadedWorkspace(1));
                 await dashboard.InitializeRoslynAsync();

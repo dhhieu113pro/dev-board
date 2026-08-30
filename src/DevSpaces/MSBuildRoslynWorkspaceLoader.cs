@@ -152,9 +152,7 @@ namespace DevBoard.DevSpaces
                 foreach (var project in Solution.Projects.Where(x => x.Language == LanguageNames.CSharp))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    var compilation = await project.GetCompilationAsync(cancellationToken);
-                    if (compilation == null)
-                        continue;
+                    var compilation = await GetCompilationForAnalysisAsync(project, cancellationToken);
 
                     if (compilation is CSharpCompilation csharpCompilation)
                     {
@@ -217,6 +215,36 @@ namespace DevBoard.DevSpaces
             }
 
             public void Dispose() => Workspace.Dispose();
+
+            private static async Task<Compilation> GetCompilationForAnalysisAsync(
+                Project project,
+                CancellationToken cancellationToken)
+            {
+                var compilation = await project.GetCompilationAsync(cancellationToken);
+                if (compilation != null)
+                    return compilation;
+
+                var parseOptions = project.ParseOptions as CSharpParseOptions ?? CSharpParseOptions.Default;
+                var syntaxTrees = new List<SyntaxTree>();
+                foreach (var document in project.Documents)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var text = await document.GetTextAsync(cancellationToken);
+                    syntaxTrees.Add(CSharpSyntaxTree.ParseText(
+                        text,
+                        parseOptions,
+                        document.FilePath ?? document.Name,
+                        cancellationToken));
+                }
+
+                var compilationOptions = project.CompilationOptions as CSharpCompilationOptions ??
+                    new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);
+                return CSharpCompilation.Create(
+                    project.AssemblyName ?? project.Name,
+                    syntaxTrees,
+                    project.MetadataReferences,
+                    compilationOptions);
+            }
 
             private static async Task AddUnusedPrivateFieldsAsync(
                 Project project,

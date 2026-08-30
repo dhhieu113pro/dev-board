@@ -23,8 +23,15 @@ public sealed class DevSpaceDashboardProfileDisplayTests
         {
             DataContext = new ProfileDisplayTestDataContext(profile),
         };
-        var window = new Window { Content = view };
+        var window = new Window
+        {
+            Width = 1200,
+            Height = 800,
+            Content = view,
+            SystemDecorations = SystemDecorations.None,
+        };
         window.Show();
+        window.UpdateLayout();
 
         var profileButton = view.GetVisualDescendants()
             .OfType<Button>()

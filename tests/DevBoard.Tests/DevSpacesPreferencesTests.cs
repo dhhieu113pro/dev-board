@@ -12,7 +12,7 @@ namespace DevBoard.Tests;
 public sealed class DevSpacesPreferencesTests
 {
     [AvaloniaFact]
-    public void OpeningPreferencesAddsExactlyOneDevSpacesTab()
+    public void OpeningPreferencesAddsExactlyOneDevTab()
     {
         var view = new Views.Preferences();
         try
@@ -20,10 +20,10 @@ public sealed class DevSpacesPreferencesTests
             view.Show();
 
             var tabs = Assert.IsType<TabControl>(view.FindDescendantOfType<TabControl>());
-            var devSpacesTabs = tabs.Items
+            var devTabs = tabs.Items
                 .OfType<TabItem>()
-                .Where(x => x.Header as string == App.Text("DevSpaces"));
-            Assert.Single(devSpacesTabs);
+                .Where(x => x.Header as string == App.Text("Dev"));
+            Assert.Single(devTabs);
         }
         finally
         {

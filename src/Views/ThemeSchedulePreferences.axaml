@@ -1,0 +1,65 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="DevBoard.Views.ThemeSchedulePreferences">
+  <StackPanel Spacing="4">
+    <ComboBox x:Name="ModePicker"
+              MinHeight="28"
+              Padding="8,0"
+              HorizontalAlignment="Stretch"
+              SelectionChanged="OnModeChanged">
+      <ComboBoxItem Content="System"/>
+      <ComboBoxItem Content="Light"/>
+      <ComboBoxItem Content="Dark"/>
+      <ComboBoxItem Content="Sunset / sunrise"/>
+      <ComboBoxItem Content="Custom time"/>
+    </ComboBox>
+
+    <Grid x:Name="CustomPanel"
+          ColumnDefinitions="Auto,120,12,Auto,120"
+          IsVisible="False">
+      <TextBlock Grid.Column="0" Text="Light starts" VerticalAlignment="Center" Margin="0,0,8,0"/>
+      <TimePicker x:Name="LightTimePicker"
+                  Grid.Column="1"
+                  MinHeight="28"
+                  SelectedTimeChanged="OnCustomTimeChanged"/>
+      <TextBlock Grid.Column="3" Text="Dark starts" VerticalAlignment="Center" Margin="0,0,8,0"/>
+      <TimePicker x:Name="DarkTimePicker"
+                  Grid.Column="4"
+                  MinHeight="28"
+                  SelectedTimeChanged="OnCustomTimeChanged"/>
+    </Grid>
+
+    <StackPanel x:Name="SunsetPanel" Spacing="4" IsVisible="False">
+      <Grid ColumnDefinitions="Auto,100,12,Auto,100,12,Auto">
+        <TextBlock Grid.Column="0" Text="Latitude" VerticalAlignment="Center" Margin="0,0,8,0"/>
+        <NumericUpDown x:Name="LatitudeInput"
+                       Grid.Column="1"
+                       Minimum="-90"
+                       Maximum="90"
+                       Increment="0.01"
+                       FormatString="0.####"
+                       MinHeight="28"
+                       ValueChanged="OnCoordinatesChanged"/>
+        <TextBlock Grid.Column="3" Text="Longitude" VerticalAlignment="Center" Margin="0,0,8,0"/>
+        <NumericUpDown x:Name="LongitudeInput"
+                       Grid.Column="4"
+                       Minimum="-180"
+                       Maximum="180"
+                       Increment="0.01"
+                       FormatString="0.####"
+                       MinHeight="28"
+                       ValueChanged="OnCoordinatesChanged"/>
+        <Button x:Name="DetectLocationButton"
+                Grid.Column="6"
+                Height="28"
+                Padding="10,0"
+                Content="Detect location"
+                Click="OnDetectLocation"/>
+      </Grid>
+      <TextBlock x:Name="LocationStatus"
+                 FontSize="11"
+                 Foreground="{DynamicResource Brush.FG2}"
+                 Text="Sunset uses these coordinates. If unavailable, DevBoard follows the system theme."/>
+    </StackPanel>
+  </StackPanel>
+</UserControl>

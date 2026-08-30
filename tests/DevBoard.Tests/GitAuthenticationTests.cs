@@ -1,6 +1,7 @@
 using System.Diagnostics;
 
 using DevBoard.Commands;
+using Xunit;
 
 namespace DevBoard.Tests;
 
@@ -29,7 +30,7 @@ public class GitAuthenticationTests
         var command = new TestCommand
         {
             NonInteractiveAuthentication = true,
-            SSHKey = @"C:\\Users\\test\\.ssh\\id_ed25519",
+            SSHKey = @"C:\Users\test\.ssh\id_ed25519",
             Args = "fetch origin",
         };
 

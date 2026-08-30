@@ -154,6 +154,7 @@ namespace DevBoard.DevSpaces
                         return true;
                     case "IDE0051":
                     case "IDE0052":
+                    case "CS0169":
                     case "CS0414":
                         kind = RoslynUnusedCodeKind.Member;
                         return true;

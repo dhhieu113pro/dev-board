@@ -15,14 +15,30 @@ namespace DevBoard.Views
             e.Handled = true;
         }
 
-        private void OnTreePointerPressed(object sender, PointerPressedEventArgs e)
+        private void OnTreeArrowClick(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is ViewModels.DevSpaceFiles files &&
+                sender is Control { DataContext: ViewModels.DevSpaceFileNode node } &&
+                node.IsDirectory)
+            {
+                files.ToggleExpanded(node);
+                e.Handled = true;
+            }
+        }
+
+        private void OnTreeDoubleTapped(object sender, TappedEventArgs e)
         {
             if (DataContext is not ViewModels.DevSpaceFiles files ||
                 e.Source is not Control { DataContext: ViewModels.DevSpaceFileNode node } ||
                 !node.IsDirectory)
                 return;
 
-            files.SelectFolder(node);
+            files.ToggleExpanded(node);
+            e.Handled = true;
+        }
+
+        private void OnTreeArrowDoubleTapped(object sender, TappedEventArgs e)
+        {
             e.Handled = true;
         }
 

@@ -23,6 +23,9 @@ public static class AIRouterHost
         var app = builder.Build();
 
         app.MapGet("/health", () => Results.Text("{\"status\":\"ok\"}", "application/json"));
+        app.MapGet("/v1", () => Results.Text(
+            "{\"status\":\"ok\",\"service\":\"DevBoard AI Router\",\"models\":\"/v1/models\",\"chat_completions\":\"/v1/chat/completions\",\"responses\":\"/v1/responses\"}",
+            "application/json"));
         app.MapGet("/v1/models", () => Results.Text(
             "{\"object\":\"list\",\"data\":[{\"id\":\"all\",\"object\":\"model\",\"owned_by\":\"devboard\"}]}",
             "application/json"));

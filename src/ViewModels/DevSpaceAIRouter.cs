@@ -23,7 +23,19 @@ namespace DevBoard.ViewModels
             set
             {
                 if (SetProperty(ref _selectedProvider, value))
-                    StatusText = value == null ? string.Empty : value.IsActive ? "Ready" : "Disabled";
+                    StatusText = !IsEnabled ? "Disabled" : value == null ? string.Empty : value.IsActive ? "Ready" : "Disabled";
+            }
+        }
+
+        public bool IsEnabled
+        {
+            get => _isEnabled;
+            set
+            {
+                if (!SetProperty(ref _isEnabled, value))
+                    return;
+
+                _ = ApplyEnabledStateFromBindingAsync(value);
             }
         }
 
@@ -48,6 +60,7 @@ namespace DevBoard.ViewModels
         public DevSpaceAIRouter()
         {
             var settings = AIRouterSettings.Instance;
+            _isEnabled = settings.Enabled;
             _port = GetConfiguredPort(settings.ListenUrl);
             foreach (var provider in settings.Providers)
                 Providers.Add(provider.Clone());
@@ -102,7 +115,7 @@ namespace DevBoard.ViewModels
                 return;
 
             SelectedProvider.IsActive = !SelectedProvider.IsActive;
-            StatusText = SelectedProvider.IsActive ? "Ready" : "Disabled";
+            StatusText = !IsEnabled ? "Disabled" : SelectedProvider.IsActive ? "Ready" : "Disabled";
             Save();
             OnPropertyChanged(nameof(SelectedProvider));
         }
@@ -118,18 +131,36 @@ namespace DevBoard.ViewModels
                 throw new ArgumentException("AI Router provider IDs must be unique.");
 
             var settings = AIRouterSettings.Instance;
+            settings.Enabled = IsEnabled;
             settings.ListenUrl = $"http://127.0.0.1:{Port}";
             settings.Providers = Providers.Select(x => x.Clone()).ToList();
             settings.Save();
             OnPropertyChanged(nameof(Endpoint));
-            StatusText = SelectedProvider?.IsActive == false ? "Disabled" : "Saved";
+            StatusText = !IsEnabled ? "Disabled" : SelectedProvider?.IsActive == false ? "Disabled" : "Saved";
         }
 
         public async Task SaveAndRebindAsync()
         {
             Save();
-            await AIRouterHostService.Instance.ApplyAsync(AIRouterSettings.Instance, Port, forceRestart: true);
-            StatusText = SelectedProvider?.IsActive == false ? "Disabled" : "Saved";
+            await AIRouterHostService.Instance.ApplyAsync(AIRouterSettings.Instance, Port, forceRestart: IsEnabled);
+            StatusText = !IsEnabled ? "Disabled" : SelectedProvider?.IsActive == false ? "Disabled" : "Saved";
+        }
+
+        public async Task SetEnabledAsync(bool enabled)
+        {
+            if (_isEnabled != enabled)
+            {
+                _isEnabled = enabled;
+                OnPropertyChanged(nameof(IsEnabled));
+            }
+
+            var settings = AIRouterSettings.Instance;
+            settings.Enabled = enabled;
+            settings.ListenUrl = $"http://127.0.0.1:{Port}";
+            settings.Save();
+
+            await AIRouterHostService.Instance.ApplyAsync(settings, Port, forceRestart: enabled);
+            StatusText = enabled ? "Running" : "Disabled";
         }
 
         public async Task ExportAsync(Stream stream, bool includeSecrets = false)
@@ -210,11 +241,24 @@ namespace DevBoard.ViewModels
                 throw new ArgumentOutOfRangeException(nameof(port), "AI Router port must be between 1 and 65535.");
         }
 
+        private async Task ApplyEnabledStateFromBindingAsync(bool enabled)
+        {
+            try
+            {
+                await SetEnabledAsync(enabled);
+            }
+            catch (Exception ex)
+            {
+                StatusText = $"Unavailable: {ex.Message}";
+            }
+        }
+
         private async Task EnsureRouterStartedAsync()
         {
             try
             {
                 await AIRouterHostService.Instance.ApplyAsync(AIRouterSettings.Instance, Port);
+                StatusText = IsEnabled ? "Running" : "Disabled";
             }
             catch (Exception ex)
             {
@@ -233,6 +277,7 @@ namespace DevBoard.ViewModels
         }
 
         private AIRouterProviderSettings _selectedProvider;
+        private bool _isEnabled;
         private int _port;
         private string _statusText = string.Empty;
     }

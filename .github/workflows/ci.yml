@@ -18,7 +18,7 @@ jobs:
           node --test tests/devboard-identity.test.mjs
           node scripts/check-devboard-identity.mjs
   github-auth-tests:
-    name: GitHub auth regression tests
+    name: Focused regression tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
@@ -29,8 +29,8 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
-      - name: Run GitHub auth tests
-        run: dotnet test tests/DevBoard.Tests/DevBoard.Tests.csproj -c Release --filter "FullyQualifiedName~GitAuthenticationTests|FullyQualifiedName~GitHubAccountBindingTests"
+      - name: Run focused regression tests
+        run: dotnet test tests/DevBoard.Tests/DevBoard.Tests.csproj -c Release --filter "FullyQualifiedName~GitAuthenticationTests|FullyQualifiedName~GitHubAccountBindingTests|FullyQualifiedName~AIRouterToggleTests"
   build:
     name: Build
     uses: ./.github/workflows/build.yml

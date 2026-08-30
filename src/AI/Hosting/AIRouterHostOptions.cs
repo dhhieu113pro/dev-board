@@ -4,19 +4,19 @@ namespace DevBoard.AI.Hosting;
 
 public sealed class AIRouterHostOptions
 {
+    public const int DefaultPort = 11435;
+
     public bool Enabled { get; set; } = true;
-    public string ListenUrl { get; set; } = "http://127.0.0.1:11435";
+    public int Port { get; set; } = DefaultPort;
     public string ApiKey { get; set; } = "devboard-local";
+
+    public string ListenUrl => $"http://127.0.0.1:{Port}";
+    public string EndpointUrl => $"{ListenUrl}/v1";
 
     public void Validate()
     {
-        if (string.IsNullOrWhiteSpace(ListenUrl))
-            throw new InvalidOperationException("AI Router listen URL must not be empty.");
-
-        if (!Uri.TryCreate(ListenUrl, UriKind.Absolute, out var uri) ||
-            !uri.IsLoopback ||
-            !string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("AI Router must listen on a loopback HTTP URL.");
+        if (Port is < 1 or > 65535)
+            throw new InvalidOperationException("AI Router port must be between 1 and 65535.");
 
         if (string.IsNullOrWhiteSpace(ApiKey))
             throw new InvalidOperationException("AI Router API key must not be empty.");

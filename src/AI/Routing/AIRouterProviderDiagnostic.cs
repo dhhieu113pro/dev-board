@@ -76,14 +76,10 @@ public static class AIRouterProviderDiagnostic
         string apiKey,
         HttpClient httpClient)
     {
-        // Treat DefaultModel as configured static metadata for diagnostics so an existing
-        // provider health check remains one request when no explicit model list was saved.
-        // The embedded host still performs live /models discovery when both are absent.
-        IReadOnlyList<string> models = settings.Models.Count > 0
-            ? settings.Models
-            : !string.IsNullOrWhiteSpace(settings.DefaultModel)
-                ? [settings.DefaultModel]
-                : [];
+        // Explicit Models are authoritative, matching AI Studio. DefaultModel is only a
+        // fallback when live /models discovery returns nothing; it must not collapse
+        // model: "all" into a single saved default model.
+        IReadOnlyList<string> models = settings.Models;
 
         var deepSeekCompatible =
             string.Equals(settings.Id, "opencode", StringComparison.OrdinalIgnoreCase) ||

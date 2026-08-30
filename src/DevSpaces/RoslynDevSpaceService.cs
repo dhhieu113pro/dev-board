@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -46,6 +47,43 @@ namespace DevBoard.DevSpaces
             }
         }
 
+        public IReadOnlyList<RoslynUnusedCodeItem> UnusedCode
+        {
+            get => _unusedCode;
+            private set
+            {
+                _unusedCode = value ?? Array.Empty<RoslynUnusedCodeItem>();
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(UnusedCodeCount));
+            }
+        }
+
+        public int UnusedCodeCount => UnusedCode.Count;
+
+        public bool IsAnalyzingUnusedCode
+        {
+            get => _isAnalyzingUnusedCode;
+            private set
+            {
+                if (_isAnalyzingUnusedCode == value)
+                    return;
+                _isAnalyzingUnusedCode = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string UnusedCodeFailureReason
+        {
+            get => _unusedCodeFailureReason;
+            private set
+            {
+                if (string.Equals(_unusedCodeFailureReason, value, StringComparison.Ordinal))
+                    return;
+                _unusedCodeFailureReason = value;
+                OnPropertyChanged();
+            }
+        }
+
         public IRoslynLoadedWorkspace LoadedWorkspace => _loadedWorkspace;
 
         public RoslynDevSpaceService(string workspaceRoot, IRoslynWorkspaceLoader loader)
@@ -80,6 +118,41 @@ namespace DevBoard.DevSpaces
                 State = RoslynDevSpaceState.Initializing;
                 _initializationTask = InitializeCoreAsync(cancellationToken);
                 return _initializationTask;
+            }
+        }
+
+        public async Task RefreshUnusedCodeAsync(CancellationToken cancellationToken = default)
+        {
+            IRoslynLoadedWorkspace loaded;
+            lock (_gate)
+            {
+                if (_disposed)
+                    throw new ObjectDisposedException(nameof(RoslynDevSpaceService));
+                loaded = _loadedWorkspace;
+            }
+
+            if (loaded == null || State != RoslynDevSpaceState.Available)
+                return;
+
+            IsAnalyzingUnusedCode = true;
+            UnusedCodeFailureReason = string.Empty;
+            try
+            {
+                UnusedCode = await loaded.FindUnusedCodeAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                UnusedCodeFailureReason = "Unused code analysis was canceled.";
+            }
+            catch (Exception ex)
+            {
+                UnusedCodeFailureReason = string.IsNullOrWhiteSpace(ex.Message)
+                    ? "Unused code analysis failed."
+                    : ex.Message;
+            }
+            finally
+            {
+                IsAnalyzingUnusedCode = false;
             }
         }
 
@@ -135,6 +208,7 @@ namespace DevBoard.DevSpaces
 
                 previous?.Dispose();
                 State = RoslynDevSpaceState.Available;
+                await RefreshUnusedCodeAsync(cancellationToken);
             }
             catch (OperationCanceledException)
             {
@@ -167,6 +241,9 @@ namespace DevBoard.DevSpaces
         private string _workspacePath = string.Empty;
         private Task _initializationTask;
         private IRoslynLoadedWorkspace _loadedWorkspace;
+        private IReadOnlyList<RoslynUnusedCodeItem> _unusedCode = Array.Empty<RoslynUnusedCodeItem>();
+        private bool _isAnalyzingUnusedCode;
+        private string _unusedCodeFailureReason = string.Empty;
         private bool _disposed;
     }
 }

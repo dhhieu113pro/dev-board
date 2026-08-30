@@ -30,6 +30,7 @@ namespace DevBoard.ViewModels
         public bool IsTypeScriptIcon => IconKind == DevSpaceFileIconKind.TypeScript;
         public bool IsCssIcon => IconKind == DevSpaceFileIconKind.Css;
         public bool IsGenericFileIcon => IconKind == DevSpaceFileIconKind.File;
+        public string ExpansionGlyph => IsExpanded ? "⌄" : "›";
 
         public Models.Change Change
         {
@@ -73,7 +74,11 @@ namespace DevBoard.ViewModels
         public bool IsExpanded
         {
             get => _isExpanded;
-            set => SetProperty(ref _isExpanded, value);
+            set
+            {
+                if (SetProperty(ref _isExpanded, value))
+                    OnPropertyChanged(nameof(ExpansionGlyph));
+            }
         }
 
         public DevSpaceFileNode(string name, string relativePath, bool isDirectory, int depth)

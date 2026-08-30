@@ -46,7 +46,7 @@ namespace DevBoard.Tests
         }
 
         [Fact]
-        public void AutomaticFirstSessionKeepsDashboardAsLandingPage()
+        public void ActivatingDevSpacesKeepsDashboardEmptyUntilTerminalIsExplicitlyStarted()
         {
             var root = CreateTempDirectory();
             try
@@ -55,8 +55,8 @@ namespace DevBoard.Tests
 
                 spaces.EnsureFirstSession();
 
-                Assert.Single(spaces.Sessions);
-                Assert.NotNull(spaces.ActiveTerminal);
+                Assert.Empty(spaces.Sessions);
+                Assert.Null(spaces.ActiveTerminal);
                 Assert.Equal(DevSpacePage.Dashboard, spaces.ActivePage);
             }
             finally

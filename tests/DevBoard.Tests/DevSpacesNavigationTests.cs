@@ -54,8 +54,7 @@ namespace DevBoard.Tests
                 .Select(x => x.Text)
                 .ToArray();
 
-            Assert.Contains("Dev", labels);
-            Assert.DoesNotContain("DevSpaces", labels);
+            Assert.Contains(App.Text("DevSpaces"), labels);
             Assert.Contains(App.Text("DevSpaces.Files"), labels);
             Assert.Contains("AI Router", labels);
             Assert.Contains("Roslyn", labels);

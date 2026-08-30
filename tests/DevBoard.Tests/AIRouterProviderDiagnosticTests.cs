@@ -61,6 +61,21 @@ public class AIRouterProviderDiagnosticTests
     }
 
     [Fact]
+    public async Task TestAsync_AllModeDiscoversLiveModels_WhenOnlyDefaultModelIsSaved()
+    {
+        var handler = new LiveModelFallbackHandler();
+        using var http = new HttpClient(handler);
+        var settings = CreateSettings();
+        settings.Models = [];
+
+        var results = await AIRouterProviderDiagnostic.TestAsync(settings, http);
+
+        Assert.Equal(1, handler.ModelsRequestCount);
+        Assert.Equal(["deepseek-v4-flash-free", "fallback-model"], handler.Models);
+        Assert.All(results, result => Assert.True(result.Success));
+    }
+
+    [Fact]
     public async Task TestAsync_UsesApiKeyEnvironmentVariableWhenApiKeyIsEmpty()
     {
         const string variable = "DEVBOARD_TEST_PROVIDER_API_KEY";
@@ -182,6 +197,34 @@ public class AIRouterProviderDiagnosticTests
                 return new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     Content = new StringContent("{\"data\":[]}")
+                };
+            }
+
+            var body = await request.Content!.ReadAsStringAsync(cancellationToken);
+            using var json = JsonDocument.Parse(body);
+            var model = json.RootElement.GetProperty("model").GetString() ?? string.Empty;
+            Models.Add(model);
+            var status = model == "deepseek-v4-flash-free" ? HttpStatusCode.BadRequest : HttpStatusCode.OK;
+            var responseBody = status == HttpStatusCode.OK
+                ? "{\"id\":\"ok\"}"
+                : "{\"error\":{\"message\":\"Model is unavailable\"}}";
+            return new HttpResponseMessage(status) { Content = new StringContent(responseBody) };
+        }
+    }
+
+    private sealed class LiveModelFallbackHandler : HttpMessageHandler
+    {
+        public int ModelsRequestCount { get; private set; }
+        public List<string> Models { get; } = [];
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (request.Method == HttpMethod.Get)
+            {
+                ModelsRequestCount++;
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"data\":[{\"id\":\"deepseek-v4-flash-free\"},{\"id\":\"fallback-model\"}]}")
                 };
             }
 

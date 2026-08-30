@@ -80,9 +80,24 @@
           <StackPanel Spacing="10">
             <TextBlock FontSize="15" FontWeight="SemiBold" Text="{DynamicResource Text.DevSpaces.QuickStart}"/>
             <WrapPanel>
-              <Button Margin="0,0,8,8" Content="Copilot" Tag="copilot" Click="OnStartAgent"/>
-              <Button Margin="0,0,8,8" Content="Codex" Tag="codex" Click="OnStartAgent"/>
-              <Button Margin="0,0,8,8" Content="Antigravity" Tag="agy" Click="OnStartAgent"/>
+              <Button Margin="0,0,8,8" Tag="copilot" Click="OnStartAgent">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                  <Image Width="16" Height="16" Source="/Resources/Images/ExternalToolIcons/githubcopilot.ico"/>
+                  <TextBlock Text="Copilot" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <Button Margin="0,0,8,8" Tag="codex" Click="OnStartAgent">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                  <Image Width="16" Height="16" Source="/Resources/Images/ExternalToolIcons/codex.ico"/>
+                  <TextBlock Text="Codex" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <Button Margin="0,0,8,8" Tag="agy" Click="OnStartAgent">
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                  <Image Width="16" Height="16" Source="/Resources/Images/ExternalToolIcons/antigravity.ico"/>
+                  <TextBlock Text="Antigravity" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
               <Button Margin="0,0,8,8" Content="{DynamicResource Text.DevSpaces.NewTerminal}" Click="OnStartTerminal"/>
               <Button Margin="0,0,8,8" Content="{DynamicResource Text.DevSpaces.Files}" Click="OnOpenFiles"/>
             </WrapPanel>

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -101,17 +102,65 @@ public class AIRouterTests
     }
 
     [Fact]
-    public async Task RouteAsync_DoesNotFallbackForClientErrors()
+    public async Task RouteAsync_AllModeTriesNextConfiguredModel_WhenFirstModelReturns400()
     {
-        var first = new StubProvider("first", false, 400);
-        var second = new StubProvider("second", true, 200);
-        var router = new AIRouter([first, second]);
+        var provider = new ModelAwareStubProvider(
+            "opencode",
+            ["deepseek-v4-flash-free", "fallback-model"],
+            new Dictionary<string, int>
+            {
+                ["deepseek-v4-flash-free"] = 400,
+                ["fallback-model"] = 200,
+            });
+        var router = new AIRouter([provider]);
 
         var result = await router.RouteAsync(new AIRouterRequest("all", "{}"));
 
+        Assert.True(result.Success);
+        Assert.Equal("opencode", result.ProviderId);
+        Assert.Equal("fallback-model", result.Model);
+        Assert.Equal(["deepseek-v4-flash-free", "fallback-model"], provider.ModelsTried);
+    }
+
+    [Fact]
+    public async Task RouteAsync_BareProviderIdTriesConfiguredModels()
+    {
+        var provider = new ModelAwareStubProvider(
+            "opencode",
+            ["deepseek-v4-flash-free", "fallback-model"],
+            new Dictionary<string, int>
+            {
+                ["deepseek-v4-flash-free"] = 400,
+                ["fallback-model"] = 200,
+            });
+        var router = new AIRouter([provider]);
+
+        var result = await router.RouteAsync(new AIRouterRequest("opencode", "{}"));
+
+        Assert.True(result.Success);
+        Assert.Equal("fallback-model", result.Model);
+        Assert.Equal(["deepseek-v4-flash-free", "fallback-model"], provider.ModelsTried);
+    }
+
+    [Fact]
+    public async Task RouteAsync_ExplicitProviderAndModelDoesNotSwitchModels_OnClientError()
+    {
+        var provider = new ModelAwareStubProvider(
+            "opencode",
+            ["deepseek-v4-flash-free", "fallback-model"],
+            new Dictionary<string, int>
+            {
+                ["deepseek-v4-flash-free"] = 400,
+                ["fallback-model"] = 200,
+            });
+        var router = new AIRouter([provider]);
+
+        var result = await router.RouteAsync(new AIRouterRequest("opencode/deepseek-v4-flash-free", "{}"));
+
         Assert.False(result.Success);
         Assert.Equal(400, result.StatusCode);
-        Assert.Equal(0, second.Calls);
+        Assert.Equal("deepseek-v4-flash-free", result.Model);
+        Assert.Equal(["deepseek-v4-flash-free"], provider.ModelsTried);
     }
 
     private sealed class StubProvider : IAIProvider
@@ -146,6 +195,39 @@ public class AIRouterTests
                 Id,
                 request.Model,
                 _success ? _responsePayload : null));
+        }
+    }
+
+    private sealed class ModelAwareStubProvider : IAIProvider
+    {
+        private readonly IReadOnlyDictionary<string, int> _statusCodes;
+
+        public ModelAwareStubProvider(string id, IReadOnlyList<string> models, IReadOnlyDictionary<string, int> statusCodes)
+        {
+            Id = id;
+            Models = models;
+            _statusCodes = statusCodes;
+        }
+
+        public string Id { get; }
+        public IReadOnlyList<string> Models { get; }
+        public List<string> ModelsTried { get; } = [];
+
+        public Task<IReadOnlyList<string>> ListModelsAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(Models);
+
+        public Task<AIRouterResult> SendAsync(AIRouterRequest request, CancellationToken cancellationToken = default)
+        {
+            ModelsTried.Add(request.Model);
+            var statusCode = _statusCodes.TryGetValue(request.Model, out var configured) ? configured : 400;
+            var success = statusCode is >= 200 and < 300;
+            return Task.FromResult(new AIRouterResult(
+                success,
+                statusCode,
+                Id,
+                request.Model,
+                success ? "{}" : null,
+                success ? null : "Model is unavailable"));
         }
     }
 }

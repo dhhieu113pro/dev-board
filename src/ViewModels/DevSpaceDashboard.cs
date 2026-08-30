@@ -40,7 +40,7 @@ namespace DevBoard.ViewModels
             DevBoard.DevSpaces.RoslynDevSpaceState.Available => "Roslyn is available for this DevSpace.",
             DevBoard.DevSpaces.RoslynDevSpaceState.Failed when !string.IsNullOrWhiteSpace(RoslynFailureReason) => RoslynFailureReason,
             DevBoard.DevSpaces.RoslynDevSpaceState.Failed => "Roslyn initialization failed. Use Retry in Workspace Health.",
-            _ => "Roslyn initializes automatically when a .NET workspace is detected. You can also initialize it manually from Workspace Health.",
+            _ => "Roslyn is not running. Click Initialize to analyze this workspace.",
         };
 
         public IReadOnlyList<DevBoard.DevSpaces.RoslynUnusedCodeItem> UnusedCode => _roslynService.UnusedCode;
@@ -132,8 +132,6 @@ namespace DevBoard.ViewModels
                     _repository.WorkingCopy.PropertyChanged += OnWorkingCopyPropertyChanged;
                 RefreshRepositorySummary();
             }
-
-            _ = InitializeRoslynInBackgroundAsync();
         }
 
         public static DevSpaceGitSummary BuildGitSummary(
@@ -254,7 +252,6 @@ namespace DevBoard.ViewModels
 
         public void Dispose()
         {
-            _disposed = true;
             _roslynService.PropertyChanged -= OnRoslynPropertyChanged;
             _roslynService.Dispose();
             _owner.Sessions.CollectionChanged -= OnSessionsChanged;
@@ -263,22 +260,6 @@ namespace DevBoard.ViewModels
                 _repository.PropertyChanged -= OnRepositoryPropertyChanged;
                 if (_repository.WorkingCopy != null)
                     _repository.WorkingCopy.PropertyChanged -= OnWorkingCopyPropertyChanged;
-            }
-        }
-
-        private async Task InitializeRoslynInBackgroundAsync()
-        {
-            try
-            {
-                var workspacePath = await Task.Run(() => DevBoard.DevSpaces.RoslynWorkspaceDiscovery.FindWorkspace(WorkspacePath));
-                if (_disposed || string.IsNullOrWhiteSpace(workspacePath))
-                    return;
-
-                await _roslynService.InitializeAsync();
-            }
-            catch (ObjectDisposedException)
-            {
-                // The DevSpace was closed while background discovery was still running.
             }
         }
 
@@ -364,6 +345,5 @@ namespace DevBoard.ViewModels
         private int _behindCount;
         private DevSpaceGitSummary _gitSummary = DevSpaceGitSummary.Empty;
         private string _unusedCodeFilter = "All";
-        private bool _disposed;
     }
 }

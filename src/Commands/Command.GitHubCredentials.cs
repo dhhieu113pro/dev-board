@@ -39,10 +39,7 @@ namespace DevBoard.Commands
                 return true;
 
             if (!account.HasValidCredentials)
-            {
-                RaiseException($"GitHub account '{account.DisplayName}' does not have valid credentials.");
-                return false;
-            }
+                return FailRepositoryCredential($"GitHub account '{account.DisplayName}' does not have valid credentials.");
 
             try
             {
@@ -62,23 +59,24 @@ namespace DevBoard.Commands
             }
             catch (Exception ex)
             {
-                RaiseException($"Unable to use GitHub account '{account.DisplayName}': {ex.Message}");
-                return false;
+                return FailRepositoryCredential($"Unable to use GitHub account '{account.DisplayName}': {ex.Message}");
             }
 
             if (account.AuthType == Models.GitHubAuthType.PersonalAccessToken && string.IsNullOrEmpty(GitHubToken))
-            {
-                RaiseException($"GitHub account '{account.DisplayName}' has no saved token.");
-                return false;
-            }
+                return FailRepositoryCredential($"GitHub account '{account.DisplayName}' has no saved token.");
 
             if (account.AuthType == Models.GitHubAuthType.SSHKey && string.IsNullOrEmpty(SSHKey))
-            {
-                RaiseException($"GitHub account '{account.DisplayName}' has no SSH key configured.");
-                return false;
-            }
+                return FailRepositoryCredential($"GitHub account '{account.DisplayName}' has no SSH key configured.");
 
             return true;
+        }
+
+        private bool FailRepositoryCredential(string message)
+        {
+            Log?.AppendLine(message);
+            if (RaiseError)
+                RaiseException(message);
+            return false;
         }
     }
 }

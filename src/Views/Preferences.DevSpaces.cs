@@ -12,23 +12,23 @@ namespace DevBoard.Views
         {
             base.OnOpened(e);
 
-            if (_devSpacesTabAdded)
-                return;
-
             var tabs = this.GetVisualDescendants().OfType<TabControl>().FirstOrDefault();
-            if (tabs == null)
+            if (tabs == null || tabs.Items.OfType<TabItem>().Any(x => x.Tag as string == DevSpacesTabTag))
                 return;
 
             var item = new TabItem
             {
+                Tag = DevSpacesTabTag,
                 Header = App.Text("DevSpaces"),
-                Content = new DevSpacesPreferences(),
+                Content = new DevSpacesPreferences
+                {
+                    DataContext = ViewModels.Preferences.Instance,
+                },
             };
 
             tabs.Items.Add(item);
-            _devSpacesTabAdded = true;
         }
 
-        private bool _devSpacesTabAdded = false;
+        private const string DevSpacesTabTag = "devboard.devspaces";
     }
 }

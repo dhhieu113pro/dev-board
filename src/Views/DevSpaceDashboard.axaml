@@ -116,6 +116,43 @@
           </StackPanel>
         </Border>
 
+        <Border Width="430" MinHeight="190" MaxHeight="360" Margin="0,0,12,12" Padding="14" CornerRadius="6" Background="{DynamicResource Brush.Contents}" BorderBrush="{DynamicResource Brush.Border2}" BorderThickness="1" IsVisible="{Binding IsUnusedCodeVisible}">
+          <Grid RowDefinitions="Auto,Auto,*">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock FontSize="15" FontWeight="SemiBold" Text="Unused Code"/>
+                <TextBlock FontSize="15" Opacity="0.65" Text="{Binding UnusedCodeCount, StringFormat='· {0}'}"/>
+              </StackPanel>
+              <TextBlock Grid.Column="1" Margin="0,0,8,0" VerticalAlignment="Center" Opacity="0.65" IsVisible="{Binding IsAnalyzingUnusedCode}" Text="Analyzing…"/>
+              <Button Grid.Column="2" Classes="flat" Content="Refresh" Click="OnRefreshUnusedCode"/>
+            </Grid>
+            <WrapPanel Grid.Row="1" Margin="0,8,0,6">
+              <Button Margin="0,0,6,4" Content="All" Tag="All" Click="OnUnusedCodeFilter"/>
+              <Button Margin="0,0,6,4" Content="Members" Tag="Members" Click="OnUnusedCodeFilter"/>
+              <Button Margin="0,0,6,4" Content="Variables" Tag="Variables" Click="OnUnusedCodeFilter"/>
+              <Button Margin="0,0,6,4" Content="Usings" Tag="Usings" Click="OnUnusedCodeFilter"/>
+            </WrapPanel>
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+              <ItemsControl ItemsSource="{Binding FilteredUnusedCode}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="ds:RoslynUnusedCodeItem">
+                    <Border Padding="7" Margin="0,0,0,4" CornerRadius="4" Background="{DynamicResource Brush.Window}" PointerPressed="OnUnusedCodePressed" ToolTip.Tip="{Binding Message}">
+                      <Grid ColumnDefinitions="Auto,*,Auto">
+                        <TextBlock Margin="0,0,8,0" Opacity="0.65" Text="{Binding Kind}"/>
+                        <StackPanel Grid.Column="1">
+                          <TextBlock FontWeight="SemiBold" Text="{Binding Symbol}" TextTrimming="CharacterEllipsis"/>
+                          <TextBlock FontSize="11" Opacity="0.65" Text="{Binding FilePath}" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="2" Margin="8,0,0,0" VerticalAlignment="Center" Text="{Binding Line, StringFormat='L{0}'}"/>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </Grid>
+        </Border>
+
         <Border Width="430" MinHeight="190" Margin="0,0,12,12" Padding="14" CornerRadius="6" Background="{DynamicResource Brush.Contents}" BorderBrush="{DynamicResource Brush.Border2}" BorderThickness="1">
           <StackPanel Spacing="8">
             <TextBlock FontSize="15" FontWeight="SemiBold" Text="{DynamicResource Text.DevSpaces.WorkspaceHealth}"/>
@@ -124,7 +161,7 @@
             <Grid ColumnDefinitions="*,Auto"><TextBlock Text="Antigravity"/><TextBlock Grid.Column="1" Text="{Binding AntigravityCapability}"/></Grid>
             <Grid ColumnDefinitions="*,Auto,Auto">
               <TextBlock Text="Roslyn" VerticalAlignment="Center"/>
-              <TextBlock Grid.Column="1" Margin="0,0,8,0" VerticalAlignment="Center" Text="{Binding RoslynStatusText}" ToolTip.Tip="{Binding RoslynFailureReason}"/>
+              <TextBlock Grid.Column="1" Margin="0,0,8,0" VerticalAlignment="Center" Text="{Binding RoslynHealthStatusText}" ToolTip.Tip="{Binding RoslynFailureReason}"/>
               <Button Grid.Column="2" Classes="flat" IsVisible="{Binding CanInitializeRoslyn}" Content="{Binding RoslynActionText}" Click="OnInitializeRoslyn" ToolTip.Tip="{Binding RoslynFailureReason}"/>
             </Grid>
           </StackPanel>

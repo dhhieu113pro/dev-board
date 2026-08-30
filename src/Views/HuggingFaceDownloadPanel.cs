@@ -18,6 +18,9 @@ namespace SourceGit.Views
             Orientation = Orientation.Vertical;
             Margin = new Thickness(0, 12, 0, 0);
 
+            AttachedToVisualTree += (_, _) => AttachState(AI.HuggingFaceModelDownloader.Instance.GetState(_service));
+            DetachedFromVisualTree += (_, _) => DetachState();
+
             Children.Add(new TextBlock { Text = "Download from Hugging Face" });
 
             _source = new TextBox
@@ -164,24 +167,46 @@ namespace SourceGit.Views
 
         private void AttachState(AI.HuggingFaceDownloadState state)
         {
-            if (ReferenceEquals(_state, state))
+            if (ReferenceEquals(_state, state) && _isSubscribed)
             {
-                UpdateState();
+                QueueStateUpdate();
                 return;
             }
 
-            if (_state != null)
-                _state.PropertyChanged -= OnStatePropertyChanged;
-
+            DetachState();
             _state = state;
             if (_state != null)
+            {
                 _state.PropertyChanged += OnStatePropertyChanged;
-            UpdateState();
+                _isSubscribed = true;
+            }
+            QueueStateUpdate();
+        }
+
+        private void DetachState()
+        {
+            if (_state != null && _isSubscribed)
+                _state.PropertyChanged -= OnStatePropertyChanged;
+            _isSubscribed = false;
+            Interlocked.Exchange(ref _updateQueued, 0);
         }
 
         private void OnStatePropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            Dispatcher.UIThread.Post(UpdateState);
+            QueueStateUpdate();
+        }
+
+        private void QueueStateUpdate()
+        {
+            if (Interlocked.Exchange(ref _updateQueued, 1) != 0)
+                return;
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                Interlocked.Exchange(ref _updateQueued, 0);
+                if (_isSubscribed || _state == null)
+                    UpdateState();
+            }, DispatcherPriority.Background);
         }
 
         private void UpdateState()
@@ -244,5 +269,7 @@ namespace SourceGit.Views
         private CancellationTokenSource _loadCts;
         private List<AI.HuggingFaceModelFile> _resolvedFiles = [];
         private AI.HuggingFaceDownloadState _state;
+        private bool _isSubscribed;
+        private int _updateQueued;
     }
 }

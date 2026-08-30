@@ -27,9 +27,13 @@ namespace DevBoard.Tests
                 var loader = new BlockingRoslynLoader();
                 using var dashboard = new DevSpaceDashboard(spaces, root, null, loader);
 
-                Assert.Equal(1, loader.CallCount);
+                // Construction returned while the fake loader is still blocked, and the
+                // state already proves initialization was kicked off automatically.
                 Assert.Equal(RoslynDevSpaceState.Initializing, dashboard.RoslynState);
                 Assert.False(dashboard.CanInitializeRoslyn);
+
+                await loader.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                Assert.Equal(1, loader.CallCount);
 
                 loader.Complete(new FakeLoadedWorkspace(1));
                 await dashboard.InitializeRoslynAsync();
@@ -61,11 +65,13 @@ namespace DevBoard.Tests
         {
             private readonly TaskCompletionSource<IRoslynLoadedWorkspace> _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+            public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
             public int CallCount { get; private set; }
 
             public Task<IRoslynLoadedWorkspace> LoadAsync(string workspacePath, CancellationToken cancellationToken)
             {
                 CallCount++;
+                Started.TrySetResult();
                 return _completion.Task;
             }
 

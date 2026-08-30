@@ -31,9 +31,10 @@ namespace DevBoard.Commands
         public EditorType Editor { get; set; } = EditorType.CoreEditor;
         public string SSHKey { get; set; } = string.Empty;
         public string Args { get; set; } = string.Empty;
+        public string GitHubUsername { get; set; } = string.Empty;
+        public string GitHubToken { get; set; } = string.Empty;
         public bool NonInteractiveAuthentication { get; set; } = false;
 
-        // Only used in `ExecAsync` mode.
         public CancellationToken CancellationToken { get; set; } = CancellationToken.None;
         public bool RaiseError { get; set; } = true;
         public Models.ICommandLog Log { get; set; } = null;
@@ -41,9 +42,7 @@ namespace DevBoard.Commands
         public async Task<bool> ExecAsync()
         {
             Log?.AppendLine($"$ git {Args}\n");
-
             var errs = new List<string>();
-
             using var proc = new Process();
             proc.StartInfo = CreateGitStartInfo(true);
             proc.OutputDataReceived += (_, e) => HandleOutput(e.Data, errs);
@@ -54,8 +53,6 @@ namespace DevBoard.Commands
             try
             {
                 proc.Start();
-
-                // Not safe, please only use `CancellationToken` in readonly commands.
                 if (CancellationToken.CanBeCanceled)
                 {
                     CancellationToken.Register(() =>
@@ -72,14 +69,12 @@ namespace DevBoard.Commands
             {
                 if (RaiseError)
                     RaiseException(e.Message);
-
                 Log?.AppendLine(string.Empty);
                 return false;
             }
 
             proc.BeginOutputReadLine();
             proc.BeginErrorReadLine();
-
             try
             {
                 await proc.WaitForExitAsync(CancellationToken).ConfigureAwait(false);
@@ -90,12 +85,9 @@ namespace DevBoard.Commands
             }
 
             lock (capturedLock)
-            {
                 captured.Process = null;
-            }
 
             Log?.AppendLine(string.Empty);
-
             if (!CancellationToken.IsCancellationRequested && proc.ExitCode != 0)
             {
                 if (RaiseError)
@@ -104,10 +96,8 @@ namespace DevBoard.Commands
                     if (!string.IsNullOrEmpty(errMsg))
                         RaiseException(errMsg);
                 }
-
                 return false;
             }
-
             return true;
         }
 
@@ -115,7 +105,6 @@ namespace DevBoard.Commands
         {
             using var proc = new Process();
             proc.StartInfo = CreateGitStartInfo(true);
-
             try
             {
                 proc.Start();
@@ -129,7 +118,6 @@ namespace DevBoard.Commands
             rs.StdOut = proc.StandardOutput.ReadToEnd();
             rs.StdErr = proc.StandardError.ReadToEnd();
             proc.WaitForExit();
-
             rs.IsSuccess = proc.ExitCode == 0;
             return rs;
         }
@@ -138,7 +126,6 @@ namespace DevBoard.Commands
         {
             using var proc = new Process();
             proc.StartInfo = CreateGitStartInfo(true);
-
             try
             {
                 proc.Start();
@@ -152,17 +139,18 @@ namespace DevBoard.Commands
             rs.StdOut = await proc.StandardOutput.ReadToEndAsync(CancellationToken).ConfigureAwait(false);
             rs.StdErr = await proc.StandardError.ReadToEndAsync(CancellationToken).ConfigureAwait(false);
             await proc.WaitForExitAsync(CancellationToken).ConfigureAwait(false);
-
             rs.IsSuccess = proc.ExitCode == 0;
             return rs;
         }
 
         protected ProcessStartInfo CreateGitStartInfo(bool redirect)
         {
-            var start = new ProcessStartInfo();
-            start.FileName = Native.OS.GitExecutable;
-            start.UseShellExecute = false;
-            start.CreateNoWindow = true;
+            var start = new ProcessStartInfo
+            {
+                FileName = Native.OS.GitExecutable,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
 
             if (redirect)
             {
@@ -173,44 +161,62 @@ namespace DevBoard.Commands
             }
 
             var selfExecFile = Environment.ProcessPath;
-            if (NonInteractiveAuthentication)
+            if (!NonInteractiveAuthentication)
             {
-                start.Environment["GIT_TERMINAL_PROMPT"] = "0";
-
-                if (!start.Environment.ContainsKey("GIT_SSH_COMMAND"))
-                {
-                    var normalizedKey = SSHKey?.Replace('\\', '/');
-                    start.Environment["GIT_SSH_COMMAND"] = string.IsNullOrEmpty(normalizedKey)
-                        ? "ssh -o BatchMode=yes"
-                        : $"ssh -i '{normalizedKey}' -o BatchMode=yes";
-                }
+                start.Environment["SSH_ASKPASS"] = selfExecFile;
+                start.Environment["SSH_ASKPASS_REQUIRE"] = "prefer";
+                start.Environment["SOURCEGIT_LAUNCH_AS_ASKPASS"] = "TRUE";
+                if (!OperatingSystem.IsLinux())
+                    start.Environment["DISPLAY"] = "required";
             }
             else
             {
-                // Force using this app as SSH askpass program for interactive commands.
-                start.Environment.Add("SSH_ASKPASS", selfExecFile); // Can not use parameter here, because it invoked by SSH with `exec`
-                start.Environment.Add("SSH_ASKPASS_REQUIRE", "prefer");
-                start.Environment.Add("SOURCEGIT_LAUNCH_AS_ASKPASS", "TRUE");
-                if (!OperatingSystem.IsLinux())
-                    start.Environment.Add("DISPLAY", "required");
-
-                // If an SSH private key was provided, sets the environment.
-                if (!start.Environment.ContainsKey("GIT_SSH_COMMAND") && !string.IsNullOrEmpty(SSHKey))
-                    start.Environment.Add("GIT_SSH_COMMAND", $"ssh -i '{SSHKey}' -o AddKeysToAgent=yes");
+                start.Environment["GIT_TERMINAL_PROMPT"] = "0";
             }
 
-            // Force using en_US.UTF-8 locale
+            if (!string.IsNullOrEmpty(GitHubToken))
+            {
+                start.Environment["GIT_ASKPASS"] = selfExecFile;
+                start.Environment["SOURCEGIT_LAUNCH_AS_ASKPASS"] = "TRUE";
+                start.Environment["SOURCEGIT_GITHUB_ASKPASS_USERNAME"] =
+                    string.IsNullOrEmpty(GitHubUsername) ? "x-access-token" : GitHubUsername;
+                start.Environment["SOURCEGIT_GITHUB_ASKPASS_TOKEN"] = GitHubToken;
+                start.Environment["GIT_TERMINAL_PROMPT"] = "0";
+            }
+
+            if (!start.Environment.ContainsKey("GIT_SSH_COMMAND"))
+            {
+                if (!string.IsNullOrEmpty(SSHKey))
+                {
+                    var normalizedKey = SSHKey.Replace('\\', '/');
+                    var batchMode = NonInteractiveAuthentication ? " -o BatchMode=yes" : string.Empty;
+                    start.Environment["GIT_SSH_COMMAND"] =
+                        $"ssh -i '{normalizedKey}' -o IdentitiesOnly=yes -o AddKeysToAgent=yes{batchMode}";
+                }
+                else if (NonInteractiveAuthentication)
+                {
+                    start.Environment["GIT_SSH_COMMAND"] = "ssh -o BatchMode=yes";
+                }
+            }
+
             if (OperatingSystem.IsLinux())
             {
-                start.Environment.Add("LANG", "C");
-                start.Environment.Add("LC_ALL", "C");
+                start.Environment["LANG"] = "C";
+                start.Environment["LC_ALL"] = "C";
             }
 
             var builder = new StringBuilder(2048);
-            builder.Append("--no-pager -c core.quotepath=off -c credential.helper=");
-            if (!NonInteractiveAuthentication)
-                builder.Append(Native.OS.CredentialHelper);
-            builder.Append(' ');
+            if (string.IsNullOrEmpty(GitHubToken) && !NonInteractiveAuthentication)
+            {
+                builder
+                    .Append("--no-pager -c core.quotepath=off -c credential.helper=")
+                    .Append(Native.OS.CredentialHelper)
+                    .Append(' ');
+            }
+            else
+            {
+                builder.Append("--no-pager -c core.quotepath=off -c credential.helper= ");
+            }
 
             switch (Editor)
             {
@@ -227,11 +233,8 @@ namespace DevBoard.Commands
 
             builder.Append(Args);
             start.Arguments = builder.ToString();
-
-            // Working directory
             if (!string.IsNullOrEmpty(WorkingDirectory))
                 start.WorkingDirectory = WorkingDirectory;
-
             return start;
         }
 
@@ -246,8 +249,6 @@ namespace DevBoard.Commands
                 return;
 
             Log?.AppendLine(line);
-
-            // Lines to hide in error message.
             if (line.Length > 0)
             {
                 if (line.StartsWith("remote: Enumerating objects:", StringComparison.Ordinal) ||
@@ -256,11 +257,9 @@ namespace DevBoard.Commands
                     line.StartsWith("Filtering content:", StringComparison.Ordinal) ||
                     line.StartsWith("hint:", StringComparison.Ordinal))
                     return;
-
                 if (REG_PROGRESS().IsMatch(line))
                     return;
             }
-
             errs.Add(line);
         }
 

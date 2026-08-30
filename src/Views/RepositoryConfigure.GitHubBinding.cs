@@ -62,7 +62,7 @@ namespace DevBoard.Views
                 PlaceholderText = "Unbound",
                 ItemsSource = Services.GitHubAccountStore.Instance.Accounts,
             };
-            _githubAccountCombo.DisplayMemberBinding = new Avalonia.Data.Binding(nameof(Models.GitHubAccount.DisplayName));
+            _githubAccountCombo.DisplayMemberBinding = new Avalonia.Data.Binding(nameof(Models.GitHubAccount.BindingDisplayName));
             _githubAccountCombo.SelectedItem = Services.GitHubCredential.FindForRepository(repoPath);
             _githubAccountCombo.SelectionChanged += (_, _) =>
             {
@@ -149,15 +149,14 @@ namespace DevBoard.Views
 
             if (account != null)
             {
-                _githubBindingStatus.Text = string.IsNullOrEmpty(source)
-                    ? $"Bound to {account.DisplayName}"
-                    : $"Bound to {account.DisplayName} ({source})";
+                var suffix = string.IsNullOrEmpty(source) ? string.Empty : $" ({source})";
+                _githubBindingStatus.Text = $"Fetch, pull, and push use {account.DisplayName} via {account.AuthDisplayName}{suffix}";
                 return;
             }
 
             _githubBindingStatus.Text = Services.GitHubAccountStore.Instance.Accounts.Count == 0
-                ? "No GitHub accounts configured — add one in Preferences"
-                : "Unbound — automatic fetch will not open credential prompts";
+                ? "No GitHub accounts configured — import gh accounts or add one in Preferences"
+                : "Unbound — choose an account to make fetch, pull, and push use a specific GitHub identity";
         }
 
         private ComboBox _githubAccountCombo;

@@ -5,13 +5,23 @@
              x:Class="DevBoard.Views.GitHubAccounts"
              x:DataType="vm:GitHubAccountsViewModel">
   <Grid Margin="8" RowDefinitions="Auto,*,Auto" MinWidth="640" MinHeight="360">
-    <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="0,0,0,8">
+    <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,0,0,8">
       <Button Grid.Column="0" Content="Add GitHub account" Command="{Binding BeginAddCommand}"/>
-      <TextBlock Grid.Column="1"
+      <Button Grid.Column="1"
+              Margin="8,0,0,0"
+              Content="Import from gh"
+              Command="{Binding ImportGitHubCliAccountsCommand}"
+              IsEnabled="{Binding !IsImportingGitHubCli}"/>
+      <TextBlock Grid.Column="2"
                  Margin="12,0,0,0"
                  VerticalAlignment="Center"
                  Foreground="{DynamicResource Brush.FG2}"
-                 Text="Bind PAT or SSH credentials to repositories without interactive background prompts."/>
+                 Text="GitHub CLI is recommended. DevBoard binds an identity per repository for fetch, pull, and push."/>
+      <TextBlock Grid.Column="3"
+                 Margin="12,0,0,0"
+                 VerticalAlignment="Center"
+                 Foreground="{DynamicResource Brush.FG2}"
+                 Text="{Binding ImportResult}"/>
     </Grid>
 
     <Grid Grid.Row="1" RowDefinitions="*,Auto">
@@ -27,7 +37,7 @@
                   </StackPanel>
                   <TextBlock FontSize="12" Foreground="{DynamicResource Brush.FG2}" Text="@{Binding Username}"/>
                 </StackPanel>
-                <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding AuthType}"/>
+                <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding AuthDisplayName}"/>
               </Grid>
             </DataTemplate>
           </ListBox.ItemTemplate>
@@ -47,7 +57,10 @@
                   Spacing="12">
         <Path Width="42" Height="42" Data="{StaticResource Icons.Remotes}" Fill="{DynamicResource Brush.FG2}"/>
         <TextBlock Text="No GitHub authentication accounts configured" Foreground="{DynamicResource Brush.FG2}"/>
-        <Button Content="Add account" Command="{Binding BeginAddCommand}"/>
+        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+          <Button Content="Import from gh" Command="{Binding ImportGitHubCliAccountsCommand}"/>
+          <Button Content="Add manually" Command="{Binding BeginAddCommand}"/>
+        </StackPanel>
       </StackPanel>
     </Grid>
 
@@ -73,12 +86,17 @@
 
           <TextBlock Grid.Row="3" Grid.Column="0" Text="Authentication" HorizontalAlignment="Right" VerticalAlignment="Center"/>
           <ComboBox Grid.Row="3" Grid.Column="1" SelectedIndex="{Binding EditingAuthTypeIndex, Mode=TwoWay}">
+            <ComboBoxItem Content="GitHub CLI (recommended)"/>
             <ComboBoxItem Content="Personal access token"/>
             <ComboBoxItem Content="SSH private key"/>
           </ComboBox>
 
           <TextBlock Grid.Row="4" Grid.Column="0" Text="Credential" HorizontalAlignment="Right" VerticalAlignment="Center"/>
           <Grid Grid.Row="4" Grid.Column="1">
+            <TextBox Text="{Binding EditingAccount.Host, Mode=TwoWay}"
+                     Watermark="github.com"
+                     ToolTip.Tip="DevBoard reads this account from gh at operation time; it never changes the global gh account."
+                     IsVisible="{Binding IsEditingGitHubCli}"/>
             <TextBox Text="{Binding NewToken, Mode=TwoWay}"
                      PasswordChar="•"
                      Watermark="Leave blank to keep the saved token"

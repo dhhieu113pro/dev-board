@@ -149,7 +149,7 @@ namespace DevBoard.Services
         public static bool IsAccountCompatible(Models.GitHubAccount account, bool sshRemote)
             => sshRemote
                 ? account?.AuthType == Models.GitHubAuthType.SSHKey
-                : account?.AuthType == Models.GitHubAuthType.PersonalAccessToken;
+                : account?.AuthType is Models.GitHubAuthType.PersonalAccessToken or Models.GitHubAuthType.GitHubCli;
 
         public static Models.GitHubAccount SelectAccountForRemotes(
             IEnumerable<string> remoteUrls,

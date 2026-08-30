@@ -1,3 +1,5 @@
+using System;
+
 using DevBoard.Models;
 using DevBoard.Services;
 using Xunit;
@@ -25,6 +27,79 @@ public class GitHubAccountBindingTests
             ["https://github.com/octocat/hello-world.git"], [ssh, pat]);
 
         Assert.Same(pat, selected);
+    }
+
+    [Fact]
+    public void HttpsRemoteSelectsMatchingGitHubCliAccount()
+    {
+        var cli = Account("octocat", GitHubAuthType.GitHubCli);
+        var ssh = Account("octocat", GitHubAuthType.SSHKey, sshKey: "/tmp/id_ed25519");
+
+        var selected = GitHubCredential.SelectAccountForRemotes(
+            ["https://github.com/octocat/hello-world.git"], [ssh, cli]);
+
+        Assert.Same(cli, selected);
+    }
+
+    [Fact]
+    public void GitHubCliTokenCommandTargetsExactAccountWithoutSwitchingGlobalAccount()
+    {
+        var startInfo = GitHubCliCredential.CreateTokenStartInfo("github.com", "work-user");
+
+        Assert.Equal("gh", startInfo.FileName);
+        Assert.Equal(
+            ["auth", "token", "--hostname", "github.com", "--user", "work-user"],
+            startInfo.ArgumentList);
+        Assert.DoesNotContain(startInfo.ArgumentList, value =>
+            string.Equals(value, "switch", StringComparison.OrdinalIgnoreCase));
+        Assert.False(startInfo.UseShellExecute);
+        Assert.True(startInfo.RedirectStandardOutput);
+        Assert.True(startInfo.RedirectStandardError);
+        Assert.False(startInfo.Environment.ContainsKey("GH_TOKEN"));
+        Assert.False(startInfo.Environment.ContainsKey("GITHUB_TOKEN"));
+        Assert.False(startInfo.Environment.ContainsKey("GH_ENTERPRISE_TOKEN"));
+        Assert.False(startInfo.Environment.ContainsKey("GITHUB_ENTERPRISE_TOKEN"));
+    }
+
+    [Fact]
+    public void GitHubCliStatusJsonParsesAllAccountsAcrossHosts()
+    {
+        const string json = """
+            {
+              "hosts": {
+                "github.com": [
+                  { "login": "personal", "active": true },
+                  { "login": "work", "active": false }
+                ],
+                "github.example.com": [
+                  { "login": "employee", "active": true }
+                ]
+              }
+            }
+            """;
+
+        var accounts = GitHubCliCredential.ParseAccounts(json);
+
+        Assert.Collection(
+            accounts,
+            account =>
+            {
+                Assert.Equal("github.com", account.Host);
+                Assert.Equal("personal", account.Username);
+                Assert.True(account.IsActive);
+            },
+            account =>
+            {
+                Assert.Equal("github.com", account.Host);
+                Assert.Equal("work", account.Username);
+                Assert.False(account.IsActive);
+            },
+            account =>
+            {
+                Assert.Equal("github.example.com", account.Host);
+                Assert.Equal("employee", account.Username);
+                Assert.True(account.IsActive);
+            });
     }
 
     [Fact]

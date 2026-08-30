@@ -9,6 +9,7 @@ namespace DevBoard.Models
     {
         PersonalAccessToken = 0,
         SSHKey = 1,
+        GitHubCli = 2,
     }
 
     public partial class GitHubAccount : ObservableObject
@@ -30,6 +31,9 @@ namespace DevBoard.Models
 
         [ObservableProperty]
         private string _email = string.Empty;
+
+        [ObservableProperty]
+        private string _host = "github.com";
 
         [ObservableProperty]
         private GitHubAuthType _authType = GitHubAuthType.PersonalAccessToken;
@@ -71,10 +75,23 @@ namespace DevBoard.Models
         public string DisplayName => string.IsNullOrWhiteSpace(Name) ? Username : Name;
 
         [JsonIgnore]
+        public string AuthDisplayName => AuthType switch
+        {
+            GitHubAuthType.GitHubCli => "GitHub CLI",
+            GitHubAuthType.PersonalAccessToken => "Personal access token",
+            GitHubAuthType.SSHKey => "SSH key",
+            _ => AuthType.ToString(),
+        };
+
+        [JsonIgnore]
+        public string BindingDisplayName => $"{DisplayName} · {AuthDisplayName}";
+
+        [JsonIgnore]
         public bool HasValidCredentials => AuthType switch
         {
             GitHubAuthType.PersonalAccessToken => !string.IsNullOrWhiteSpace(Token),
             GitHubAuthType.SSHKey => !string.IsNullOrWhiteSpace(SSHKeyPath),
+            GitHubAuthType.GitHubCli => !string.IsNullOrWhiteSpace(Username) && !string.IsNullOrWhiteSpace(Host),
             _ => false,
         };
 

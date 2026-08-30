@@ -11,6 +11,7 @@ namespace SourceGit.Views
         protected override void OnOpened(EventArgs e)
         {
             base.OnOpened(e);
+            InitializeHuggingFacePanels();
 
             if (_devSpacesTabAdded)
                 return;

@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 
 using Avalonia.Controls;
@@ -8,10 +7,14 @@ namespace DevBoard.Views
 {
     public partial class Preferences
     {
-        protected override void OnOpened(EventArgs e)
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
         {
-            base.OnOpened(e);
+            base.OnAttachedToVisualTree(e);
+            EnsureGitHubAccountsTab();
+        }
 
+        private void EnsureGitHubAccountsTab()
+        {
             var tabs = this.GetVisualDescendants().OfType<TabControl>().FirstOrDefault();
             if (tabs == null || tabs.Items.OfType<TabItem>().Any(x => x.Tag as string == GitHubAccountsTabTag))
                 return;

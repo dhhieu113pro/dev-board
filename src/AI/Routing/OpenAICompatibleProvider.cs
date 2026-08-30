@@ -33,7 +33,7 @@ public sealed class OpenAICompatibleProvider : IAIProvider
         if (!path.StartsWith('/'))
             path = "/" + path;
 
-        var payload = RewriteModel(request.Payload, model);
+        var payload = RewritePayload(request.Payload, model, path);
         using var message = new HttpRequestMessage(HttpMethod.Post, _baseUrl + NormalizePath(path));
         message.Content = new StringContent(payload, Encoding.UTF8, "application/json");
         if (!string.IsNullOrWhiteSpace(_apiKey))
@@ -42,8 +42,13 @@ public sealed class OpenAICompatibleProvider : IAIProvider
         using var response = await _httpClient.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         var statusCode = (int)response.StatusCode;
-        return new AIRouterResult(response.IsSuccessStatusCode, statusCode, Id, model, body,
-            response.IsSuccessStatusCode ? null : response.ReasonPhrase);
+        return new AIRouterResult(
+            response.IsSuccessStatusCode,
+            statusCode,
+            Id,
+            model,
+            body,
+            response.IsSuccessStatusCode ? null : ExtractError(body, response.ReasonPhrase));
     }
 
     private string ResolveModel(string model)
@@ -55,12 +60,66 @@ public sealed class OpenAICompatibleProvider : IAIProvider
         return model;
     }
 
-    private static string RewriteModel(string payload, string model)
+    private string RewritePayload(string payload, string model, string path)
     {
         var node = JsonNode.Parse(payload) as JsonObject ?? throw new System.Text.Json.JsonException("AI request payload must be a JSON object.");
         if (!string.IsNullOrWhiteSpace(model))
             node["model"] = model;
+
+        if (string.Equals(Id, "opencode", StringComparison.OrdinalIgnoreCase) &&
+            path.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase))
+        {
+            node["thinking"] = new JsonObject
+            {
+                ["type"] = "disabled",
+            };
+        }
+
         return node.ToJsonString();
+    }
+
+    private static string ExtractError(string body, string reasonPhrase)
+    {
+        if (!string.IsNullOrWhiteSpace(body))
+        {
+            try
+            {
+                var root = JsonNode.Parse(body);
+                if (root is JsonObject rootObject)
+                {
+                    if (rootObject["error"] is JsonObject errorObject && TryGetString(errorObject["message"], out var errorMessage))
+                        return errorMessage;
+                    if (TryGetString(rootObject["error"], out var errorText))
+                        return errorText;
+                    if (TryGetString(rootObject["message"], out var message))
+                        return message;
+                    if (TryGetString(rootObject["detail"], out var detail))
+                        return detail;
+                }
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                // Fall through to the raw response text.
+            }
+
+            var trimmed = body.Trim();
+            if (!string.IsNullOrEmpty(trimmed))
+                return trimmed;
+        }
+
+        return string.IsNullOrWhiteSpace(reasonPhrase) ? "Provider request failed." : reasonPhrase;
+    }
+
+    private static bool TryGetString(JsonNode node, out string value)
+    {
+        if (node is JsonValue jsonValue && jsonValue.TryGetValue<string>(out var text))
+        {
+            value = text;
+            return true;
+        }
+
+        value = null;
+        return false;
     }
 
     private string NormalizePath(string path)

@@ -10,24 +10,25 @@ namespace DevBoard.Tests
     public sealed class DevSpacesTerminalLayoutTests
     {
         [Fact]
-        public void ListModeStacksEverySessionInOneColumn()
+        public void AutoLayoutPlacesSessionsInGrid()
         {
             var root = CreateTempDirectory();
             try
             {
                 using var spaces = new ViewModels.DevSpaces(root, new FakeLauncher());
+                spaces.Layout = DevSpaceLayout.Auto;
                 spaces.CreateTerminal();
                 spaces.CreateTerminal();
                 spaces.CreateTerminal();
 
-                spaces.TerminalDisplayMode = DevSpaceTerminalDisplayMode.List;
-
-                Assert.True(spaces.IsListLayout);
-                Assert.False(spaces.IsGridLayout);
-                Assert.Equal(3, spaces.GridRows);
-                Assert.Equal(1, spaces.GridColumns);
-                Assert.Equal(3, spaces.VisibleSlots.Count);
-                Assert.All(spaces.VisibleSlots, slot => Assert.NotNull(slot.Terminal));
+                Assert.Equal(2, spaces.GridRows);
+                Assert.Equal(2, spaces.GridColumns);
+                Assert.Equal(3, spaces.Sessions.Count);
+                Assert.Equal(4, spaces.VisibleSlots.Count);
+                Assert.NotNull(spaces.VisibleSlots[0].Terminal);
+                Assert.NotNull(spaces.VisibleSlots[1].Terminal);
+                Assert.NotNull(spaces.VisibleSlots[2].Terminal);
+                Assert.Null(spaces.VisibleSlots[3].Terminal);
             }
             finally
             {
@@ -36,7 +37,7 @@ namespace DevBoard.Tests
         }
 
         [Fact]
-        public void SwitchingBackToGridKeepsSelectedGridLayoutAndSessions()
+        public void SelectedGridLayoutKeepsSessions()
         {
             var root = CreateTempDirectory();
             try
@@ -45,9 +46,6 @@ namespace DevBoard.Tests
                 spaces.Layout = DevSpaceLayout.TwoByTwo;
                 var first = spaces.CreateTerminal();
                 var second = spaces.CreateTerminal();
-
-                spaces.TerminalDisplayMode = DevSpaceTerminalDisplayMode.List;
-                spaces.TerminalDisplayMode = DevSpaceTerminalDisplayMode.Grid;
 
                 Assert.Equal(DevSpaceLayout.TwoByTwo, spaces.Layout);
                 Assert.Equal(2, spaces.GridRows);

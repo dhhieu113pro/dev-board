@@ -66,8 +66,7 @@ namespace DevBoard.Views
                 e.PropertyName == nameof(ViewModels.DevSpaces.GridRows) ||
                 e.PropertyName == nameof(ViewModels.DevSpaces.GridColumns) ||
                 e.PropertyName == nameof(ViewModels.DevSpaces.ActiveTerminal) ||
-                e.PropertyName == nameof(ViewModels.DevSpaces.Layout) ||
-                e.PropertyName == nameof(ViewModels.DevSpaces.TerminalDisplayMode))
+                e.PropertyName == nameof(ViewModels.DevSpaces.Layout))
                 Dispatcher.UIThread.Post(RebuildGrid);
         }
 
@@ -75,20 +74,6 @@ namespace DevBoard.Views
         {
             if (sender is Control control)
                 ShowTerminalPicker(control, -1);
-            e.Handled = true;
-        }
-
-        private void OnGridLayout(object sender, RoutedEventArgs e)
-        {
-            if (_owner != null)
-                _owner.TerminalDisplayMode = Models.DevSpaceTerminalDisplayMode.Grid;
-            e.Handled = true;
-        }
-
-        private void OnListLayout(object sender, RoutedEventArgs e)
-        {
-            if (_owner != null)
-                _owner.TerminalDisplayMode = Models.DevSpaceTerminalDisplayMode.List;
             e.Handled = true;
         }
 
@@ -198,7 +183,7 @@ namespace DevBoard.Views
                     pane.IsHitTestVisible = true;
                     pane.ZIndex = 1;
                 }
-                else if (_owner.IsGridLayout && _owner.Layout != Models.DevSpaceLayout.Auto)
+                else if (_owner.Layout != Models.DevSpaceLayout.Auto)
                 {
                     var empty = CreateEmptySlot(slot.Index);
                     Grid.SetRow(empty, row);

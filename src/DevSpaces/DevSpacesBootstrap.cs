@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
@@ -6,7 +5,6 @@ using System.Runtime.CompilerServices;
 
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Shapes;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -98,7 +96,11 @@ namespace DevBoard.DevSpaces
                     return null;
 
                 var item = CreateNavigationItem(view, out var label, out var badge, out var badgeLabel);
+                var filesItem = CreateToolNavigationItem(view, "Icons.Folder", App.Text("DevSpaces.Files"), "Files");
+                var aiRouterItem = CreateToolNavigationItem(view, "Icons.AIAssist", "AI Router", "AIRouter");
                 pageSwitcher.Items.Add(item);
+                pageSwitcher.Items.Add(filesItem);
+                pageSwitcher.Items.Add(aiRouterItem);
 
                 var host = new Border
                 {
@@ -108,19 +110,34 @@ namespace DevBoard.DevSpaces
                 };
                 rightPages.Children.Add(host);
 
-                return new RepositoryIntegration(repository, item, label, badge, badgeLabel, host);
+                return new RepositoryIntegration(
+                    repository,
+                    pageSwitcher,
+                    item,
+                    filesItem,
+                    aiRouterItem,
+                    label,
+                    badge,
+                    badgeLabel,
+                    host);
             }
 
             private RepositoryIntegration(
                 ViewModels.Repository repository,
+                ListBox pageSwitcher,
                 ListBoxItem navigationItem,
+                ListBoxItem filesNavigationItem,
+                ListBoxItem aiRouterNavigationItem,
                 TextBlock navigationLabel,
                 Border navigationBadge,
                 TextBlock navigationBadgeLabel,
                 Border host)
             {
                 _repository = repository;
+                _pageSwitcher = pageSwitcher;
                 _navigationItem = navigationItem;
+                _filesNavigationItem = filesNavigationItem;
+                _aiRouterNavigationItem = aiRouterNavigationItem;
                 _navigationLabel = navigationLabel;
                 _navigationBadge = navigationBadge;
                 _navigationBadgeLabel = navigationBadgeLabel;
@@ -128,8 +145,7 @@ namespace DevBoard.DevSpaces
 
                 _repository.PropertyChanged += OnRepositoryPropertyChanged;
                 ViewModels.Preferences.Instance.PropertyChanged += OnPreferencesPropertyChanged;
-
-                WireToolNavigation();
+                _pageSwitcher.SelectionChanged += OnPageSwitcherSelectionChanged;
 
                 if (ViewModels.Preferences.Instance.EnableDevSpaces)
                     AttachSpaces();
@@ -144,6 +160,7 @@ namespace DevBoard.DevSpaces
 
                 _repository.PropertyChanged -= OnRepositoryPropertyChanged;
                 ViewModels.Preferences.Instance.PropertyChanged -= OnPreferencesPropertyChanged;
+                _pageSwitcher.SelectionChanged -= OnPageSwitcherSelectionChanged;
                 DetachSpaces();
             }
 
@@ -164,6 +181,51 @@ namespace DevBoard.DevSpaces
                 UpdateNavigationLabel();
             }
 
+            private void OnSpacesPropertyChanged(object sender, PropertyChangedEventArgs e)
+            {
+                if (e.PropertyName != nameof(ViewModels.DevSpaces.ActivePage) || _spaces == null)
+                    return;
+
+                var index = _spaces.ActivePage switch
+                {
+                    Models.DevSpacePage.Files => FilesNavigationIndex,
+                    Models.DevSpacePage.AIRouter => AIRouterNavigationIndex,
+                    _ => DevSpacesNavigationIndex,
+                };
+
+                if (_repository.SelectedViewIndex != index)
+                    _repository.SelectedViewIndex = index;
+            }
+
+            private void OnPageSwitcherSelectionChanged(object sender, SelectionChangedEventArgs e)
+            {
+                if (!ViewModels.Preferences.Instance.EnableDevSpaces)
+                    return;
+
+                var selectedIndex = _pageSwitcher.SelectedIndex;
+                if (!IsDevSpacesNavigationIndex(selectedIndex))
+                    return;
+
+                AttachSpaces();
+                if (_spaces == null)
+                    return;
+
+                switch (selectedIndex)
+                {
+                    case FilesNavigationIndex:
+                        _spaces.ActivateFiles();
+                        break;
+                    case AIRouterNavigationIndex:
+                        _spaces.ActivateAIRouter();
+                        break;
+                    default:
+                        _spaces.ActivateDashboard();
+                        break;
+                }
+
+                Update();
+            }
+
             private void AttachSpaces()
             {
                 if (_spaces != null)
@@ -171,7 +233,10 @@ namespace DevBoard.DevSpaces
 
                 _spaces = DevSpaceRegistry.Attach(_repository, _host);
                 if (_spaces != null)
+                {
                     _spaces.Sessions.CollectionChanged += OnSessionsChanged;
+                    _spaces.PropertyChanged += OnSpacesPropertyChanged;
+                }
 
                 UpdateNavigationLabel();
             }
@@ -179,65 +244,21 @@ namespace DevBoard.DevSpaces
             private void DetachSpaces()
             {
                 if (_spaces != null)
+                {
                     _spaces.Sessions.CollectionChanged -= OnSessionsChanged;
+                    _spaces.PropertyChanged -= OnSpacesPropertyChanged;
+                }
 
                 _spaces = null;
                 UpdateNavigationLabel();
-            }
-
-            private void ActivateFiles()
-            {
-                ActivateTool(spaces => spaces.ActivateFiles());
-            }
-
-            private void ActivateAIRouter()
-            {
-                ActivateTool(spaces => spaces.ActivateAIRouter());
-            }
-
-            private void ActivateTool(Action<ViewModels.DevSpaces> activate)
-            {
-                if (!ViewModels.Preferences.Instance.EnableDevSpaces)
-                    return;
-
-                AttachSpaces();
-                _repository.SelectedViewIndex = 3;
-
-                if (_spaces != null)
-                    activate(_spaces);
-
-                Update();
-            }
-
-            private void WireToolNavigation()
-            {
-                if (_navigationItem.Content is not StackPanel root || root.Children.Count < 2 || root.Children[1] is not StackPanel tools)
-                    return;
-
-                foreach (var button in tools.Children.OfType<Button>())
-                {
-                    if (button.Tag is not string target)
-                        continue;
-
-                    if (target == "Files")
-                        button.Click += (_, e) =>
-                        {
-                            ActivateFiles();
-                            e.Handled = true;
-                        };
-                    else if (target == "AIRouter")
-                        button.Click += (_, e) =>
-                        {
-                            ActivateAIRouter();
-                            e.Handled = true;
-                        };
-                }
             }
 
             private void Update()
             {
                 var enabled = ViewModels.Preferences.Instance.EnableDevSpaces;
                 _navigationItem.IsVisible = enabled;
+                _filesNavigationItem.IsVisible = enabled;
+                _aiRouterNavigationItem.IsVisible = enabled;
 
                 if (!enabled)
                 {
@@ -249,7 +270,7 @@ namespace DevBoard.DevSpaces
                     _host.IsHitTestVisible = false;
                     DetachSpaces();
 
-                    if (_repository.SelectedViewIndex == 3)
+                    if (IsDevSpacesNavigationIndex(_repository.SelectedViewIndex))
                         _repository.SelectedViewIndex = 0;
                     return;
                 }
@@ -261,7 +282,7 @@ namespace DevBoard.DevSpaces
                 // force its TUI to resize/reload when returning to DevSpaces. Native HWNDs are
                 // hidden separately by DevSpaces.SetPageActive.
                 _host.IsVisible = true;
-                var active = _repository.SelectedViewIndex == 3;
+                var active = IsDevSpacesNavigationIndex(_repository.SelectedViewIndex);
                 _host.Opacity = active ? 1 : 0;
                 _host.IsHitTestVisible = active;
 
@@ -279,6 +300,9 @@ namespace DevBoard.DevSpaces
                 _navigationBadge.IsVisible = count > 0;
                 _navigationBadgeLabel.Text = count.ToString();
             }
+
+            private static bool IsDevSpacesNavigationIndex(int index) =>
+                index >= DevSpacesNavigationIndex && index <= AIRouterNavigationIndex;
 
             private static ListBoxItem CreateNavigationItem(
                 Views.Repository view,
@@ -331,71 +355,41 @@ namespace DevBoard.DevSpaces
                 };
                 badge.Bind(Border.BackgroundProperty, view.GetResourceObservable("Brush.Badge"));
 
-                var tools = new StackPanel
+                var content = new Grid
                 {
-                    Margin = new Thickness(20, 0, 0, 2),
-                    IsVisible = true,
+                    ColumnDefinitions = new ColumnDefinitions("4,Auto,*,Auto"),
                 };
-                tools.Children.Add(CreateToolButton(view, "Icons.Folder", App.Text("DevSpaces.Files"), "Files"));
-                tools.Children.Add(CreateToolButton(view, "Icons.AIAssist", "AI Router", "AIRouter"));
-
-                var expanderLabel = new TextBlock
-                {
-                    Text = "▾",
-                    VerticalAlignment = VerticalAlignment.Center,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                };
-                var expander = new ToggleButton
-                {
-                    Width = 24,
-                    Height = 24,
-                    Margin = new Thickness(2, 0, 2, 0),
-                    IsChecked = true,
-                    Content = expanderLabel,
-                };
-                expander.Classes.Add("icon_button");
-                ToolTip.SetTip(expander, App.Text("DevSpaces"));
-                expander.Click += (_, _) =>
-                {
-                    tools.IsVisible = expander.IsChecked != false;
-                    expanderLabel.Text = tools.IsVisible ? "▾" : "▸";
-                };
-
-                var header = new Grid
-                {
-                    Height = 28,
-                    ColumnDefinitions = new ColumnDefinitions("4,Auto,*,Auto,Auto"),
-                };
-                header.Children.Add(indicator);
+                content.Children.Add(indicator);
                 Grid.SetColumn(icon, 1);
-                header.Children.Add(icon);
+                content.Children.Add(icon);
                 Grid.SetColumn(label, 2);
-                header.Children.Add(label);
+                content.Children.Add(label);
                 Grid.SetColumn(badge, 3);
-                header.Children.Add(badge);
-                Grid.SetColumn(expander, 4);
-                header.Children.Add(expander);
-
-                var content = new StackPanel();
-                content.Children.Add(header);
-                content.Children.Add(tools);
+                content.Children.Add(badge);
 
                 return new ListBoxItem
                 {
-                    Height = double.NaN,
                     Content = content,
                 };
             }
 
-            private static Button CreateToolButton(Views.Repository view, string iconKey, string text, string tag)
+            private static ListBoxItem CreateToolNavigationItem(Views.Repository view, string iconKey, string text, string tag)
             {
+                var indicator = new Rectangle
+                {
+                    Width = 4,
+                    Height = 20,
+                    VerticalAlignment = VerticalAlignment.Center,
+                };
+                indicator.Classes.Add("indicator");
+
                 var icon = new Path
                 {
                     Width = 12,
                     Height = 12,
-                    Margin = new Thickness(6, 0, 8, 0),
-                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(6, 0),
                 };
+                icon.Classes.Add("icon");
                 if (view.TryFindResource(iconKey, out var iconResource) && iconResource is Geometry geometry)
                     icon.Data = geometry;
 
@@ -404,29 +398,34 @@ namespace DevBoard.DevSpaces
                     Text = text,
                     VerticalAlignment = VerticalAlignment.Center,
                 };
+                label.Classes.Add("header");
 
-                var content = new StackPanel
+                var content = new Grid
                 {
-                    Orientation = Orientation.Horizontal,
+                    ColumnDefinitions = new ColumnDefinitions("4,Auto,*"),
                 };
+                content.Children.Add(indicator);
+                Grid.SetColumn(icon, 1);
                 content.Children.Add(icon);
+                Grid.SetColumn(label, 2);
                 content.Children.Add(label);
 
-                var button = new Button
+                return new ListBoxItem
                 {
-                    Height = 26,
-                    Padding = new Thickness(0),
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
-                    HorizontalContentAlignment = HorizontalAlignment.Left,
                     Tag = tag,
                     Content = content,
                 };
-                button.Classes.Add("flat");
-                return button;
             }
 
+            private const int DevSpacesNavigationIndex = 3;
+            private const int FilesNavigationIndex = 4;
+            private const int AIRouterNavigationIndex = 5;
+
             private readonly ViewModels.Repository _repository;
+            private readonly ListBox _pageSwitcher;
             private readonly ListBoxItem _navigationItem;
+            private readonly ListBoxItem _filesNavigationItem;
+            private readonly ListBoxItem _aiRouterNavigationItem;
             private readonly TextBlock _navigationLabel;
             private readonly Border _navigationBadge;
             private readonly TextBlock _navigationBadgeLabel;

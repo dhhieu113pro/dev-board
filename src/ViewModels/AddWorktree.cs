@@ -13,8 +13,14 @@ namespace DevBoard.ViewModels
             get => _worktreeName;
             set
             {
-                if (SetProperty(ref _worktreeName, value) && !_isPathManuallyEdited)
-                    SetSuggestedPath(value);
+                if (SetProperty(ref _worktreeName, value))
+                {
+                    if (!_isPathManuallyEdited)
+                        SetSuggestedPath(value);
+
+                    if (_createNewBranch && !_isBranchNameManuallyEdited)
+                        SetSuggestedBranchName(value);
+                }
             }
         }
 
@@ -127,6 +133,16 @@ namespace DevBoard.ViewModels
             }
         }
 
+        public static string DeriveWorktreeName(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title))
+                return string.Empty;
+
+            var normalized = title.Trim().TrimEnd('/', '\\');
+            var separator = Math.Max(normalized.LastIndexOf('/'), normalized.LastIndexOf('\\'));
+            return separator >= 0 ? normalized[(separator + 1)..] : normalized;
+        }
+
         public static ValidationResult ValidateWorktreePath(string path, ValidationContext ctx)
         {
             if (ctx.ObjectInstance is not AddWorktree creator)
@@ -222,15 +238,7 @@ namespace DevBoard.ViewModels
             if (!_createNewBranch || !_setTrackingBranch || _selectedTrackingBranch == null || _isBranchNameManuallyEdited)
                 return;
 
-            _isUpdatingSuggestedBranchName = true;
-            try
-            {
-                NewBranchName = _selectedTrackingBranch.Name;
-            }
-            finally
-            {
-                _isUpdatingSuggestedBranchName = false;
-            }
+            SetSuggestedBranchName(_selectedTrackingBranch.Name);
         }
 
         private string GetBranchName(bool fallback)
@@ -252,16 +260,30 @@ namespace DevBoard.ViewModels
             return fallback ? System.IO.Path.GetFileName(_path.TrimEnd('/', '\\')) : string.Empty;
         }
 
-        private void SetSuggestedPath(string name)
+        private void SetSuggestedPath(string title)
         {
             _isUpdatingSuggestedPath = true;
             try
             {
-                Path = string.IsNullOrWhiteSpace(name) ? string.Empty : System.IO.Path.Combine("..", name.Trim());
+                var name = DeriveWorktreeName(title);
+                Path = string.IsNullOrWhiteSpace(name) ? string.Empty : System.IO.Path.Combine("..", name);
             }
             finally
             {
                 _isUpdatingSuggestedPath = false;
+            }
+        }
+
+        private void SetSuggestedBranchName(string name)
+        {
+            _isUpdatingSuggestedBranchName = true;
+            try
+            {
+                NewBranchName = name?.Trim() ?? string.Empty;
+            }
+            finally
+            {
+                _isUpdatingSuggestedBranchName = false;
             }
         }
 

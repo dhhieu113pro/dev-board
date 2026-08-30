@@ -76,6 +76,8 @@ namespace DevBoard.DevSpaces
                 if (_initializationTask != null)
                     return _initializationTask;
 
+                FailureReason = string.Empty;
+                State = RoslynDevSpaceState.Initializing;
                 _initializationTask = InitializeCoreAsync(cancellationToken);
                 return _initializationTask;
             }
@@ -98,8 +100,7 @@ namespace DevBoard.DevSpaces
 
         private async Task InitializeCoreAsync(CancellationToken cancellationToken)
         {
-            State = RoslynDevSpaceState.Initializing;
-            FailureReason = string.Empty;
+            await Task.Yield();
 
             try
             {

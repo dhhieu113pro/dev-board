@@ -1,20 +1,19 @@
 using System;
 using System.Linq;
 using System.Reflection;
-using System.Threading.Tasks;
 
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Interactivity;
 using Avalonia.Layout;
+using Avalonia.VisualTree;
 
 namespace DevBoard.Views
 {
     public partial class RepositoryConfigure
     {
-        protected override void OnOpened(EventArgs e)
+        protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
         {
-            base.OnOpened(e);
+            base.OnAttachedToVisualTree(e);
             AddGitHubBindingSelector();
         }
 

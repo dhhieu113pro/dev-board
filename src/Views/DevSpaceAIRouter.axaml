@@ -10,9 +10,27 @@
             BorderThickness="0,0,0,1"
             BorderBrush="{DynamicResource Brush.Border2}">
       <Grid ColumnDefinitions="*,Auto">
-        <StackPanel Spacing="3">
+        <StackPanel Spacing="6">
           <TextBlock FontSize="16" FontWeight="SemiBold" Text="AI Router"/>
-          <TextBlock Foreground="{DynamicResource Brush.FG2}" Text="{Binding Endpoint}"/>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock VerticalAlignment="Center" Foreground="{DynamicResource Brush.FG2}" Text="Port"/>
+            <NumericUpDown Width="100"
+                           Minimum="1"
+                           Maximum="65535"
+                           Value="{Binding Port, Mode=TwoWay}"/>
+            <Button Classes="flat"
+                    Padding="4,2"
+                    Cursor="Hand"
+                    Click="OnOpenEndpoint"
+                    ToolTip.Tip="Open endpoint in browser">
+              <TextBlock Foreground="{DynamicResource Brush.Accent}" Text="{Binding Endpoint}"/>
+            </Button>
+            <Button Classes="flat"
+                    Padding="6,2"
+                    Click="OnCopyEndpoint"
+                    ToolTip.Tip="Copy endpoint URL"
+                    Content="Copy URL"/>
+          </StackPanel>
         </StackPanel>
         <TextBlock Grid.Column="1"
                    VerticalAlignment="Center"

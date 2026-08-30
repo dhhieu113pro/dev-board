@@ -18,20 +18,20 @@ namespace DevBoard.Views
             e.Handled = true;
         }
 
-        private void OnCherryPickAll(object sender, RoutedEventArgs e)
+        private async void OnCherryPickAll(object sender, RoutedEventArgs e)
         {
             if (DataContext is ViewModels.PullRequestCherryPickPage vm)
-                vm.CherryPickAll();
+                await vm.CherryPickAllAsync();
 
             e.Handled = true;
         }
 
-        private void OnCherryPickCommit(object sender, RoutedEventArgs e)
+        private async void OnCherryPickCommit(object sender, RoutedEventArgs e)
         {
             if (DataContext is ViewModels.PullRequestCherryPickPage vm &&
                 sender is Button { Tag: Models.Commit commit })
             {
-                vm.CherryPick(commit);
+                await vm.CherryPickAsync(commit);
             }
 
             e.Handled = true;

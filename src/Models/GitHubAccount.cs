@@ -34,8 +34,16 @@ namespace DevBoard.Models
         [ObservableProperty]
         private GitHubAuthType _authType = GitHubAuthType.PersonalAccessToken;
 
-        [ObservableProperty]
         private string _sshKeyPath = string.Empty;
+        public string SSHKeyPath
+        {
+            get => _sshKeyPath;
+            set
+            {
+                if (SetProperty(ref _sshKeyPath, value ?? string.Empty))
+                    OnPropertyChanged(nameof(HasValidCredentials));
+            }
+        }
 
         [ObservableProperty]
         private bool _isDefault;

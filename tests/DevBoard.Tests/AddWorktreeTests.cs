@@ -1,4 +1,5 @@
 using DevBoard.ViewModels;
+using Xunit;
 
 namespace DevBoard.Tests;
 

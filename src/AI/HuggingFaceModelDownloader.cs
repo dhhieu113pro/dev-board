@@ -7,6 +7,8 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -291,13 +293,21 @@ namespace SourceGit.AI
             GetState(service)?.Cancellation?.Cancel();
         }
 
-        public static HuggingFaceDestinationPaths BuildDestinationPaths(string directory, string fileName)
+        public static HuggingFaceDestinationPaths BuildDestinationPaths(string directory, HuggingFaceModelFile file)
         {
-            var safeName = Path.GetFileName(fileName);
-            if (string.IsNullOrWhiteSpace(safeName) || !safeName.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase))
-                throw new ArgumentException("A .gguf file name is required.", nameof(fileName));
+            ArgumentNullException.ThrowIfNull(file);
 
-            var finalPath = Path.Combine(directory, safeName);
+            var safeName = Path.GetFileName(file.FileName);
+            if (string.IsNullOrWhiteSpace(safeName) || !safeName.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("A .gguf file name is required.", nameof(file));
+
+            if (!Uri.TryCreate(file.DownloadUrl, UriKind.Absolute, out var uri))
+                throw new ArgumentException("A valid Hugging Face download URL is required.", nameof(file));
+
+            var identity = uri.GetLeftPart(UriPartial.Path).TrimEnd('/').ToLowerInvariant();
+            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity))).ToLowerInvariant()[..16];
+            var sourceDirectory = Path.Combine(directory, hash);
+            var finalPath = Path.Combine(sourceDirectory, safeName);
             return new HuggingFaceDestinationPaths(finalPath, finalPath + ".part");
         }
 
@@ -314,19 +324,19 @@ namespace SourceGit.AI
 
         private async Task DownloadCoreAsync(Service service, HuggingFaceDownloadState state, CancellationToken cancellationToken)
         {
-            var modelDirectory = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "DevBoard",
-                "models");
-            Directory.CreateDirectory(modelDirectory);
-            var paths = BuildDestinationPaths(modelDirectory, state.File.FileName);
-
             state.IsRunning = true;
             state.Status = "Downloading...";
             state.Error = string.Empty;
 
             try
             {
+                var modelDirectory = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "DevBoard",
+                    "models");
+                var paths = BuildDestinationPaths(modelDirectory, state.File);
+                Directory.CreateDirectory(Path.GetDirectoryName(paths.FinalPath)!);
+
                 var existingLength = File.Exists(paths.PartPath) ? new FileInfo(paths.PartPath).Length : 0L;
                 using var request = new HttpRequestMessage(HttpMethod.Get, state.File.DownloadUrl);
                 if (existingLength > 0)

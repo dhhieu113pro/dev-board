@@ -14,14 +14,20 @@ public sealed class DevSpacesPreferencesTests
     [AvaloniaFact]
     public void OpeningPreferencesAddsExactlyOneDevSpacesTab()
     {
-        using var view = new Views.Preferences();
+        var view = new Views.Preferences();
+        try
+        {
+            view.Show();
 
-        view.Show();
-
-        var tabs = Assert.IsType<TabControl>(view.FindDescendantOfType<TabControl>());
-        var devSpacesTabs = tabs.Items
-            .OfType<TabItem>()
-            .Where(x => x.Header as string == App.Text("DevSpaces"));
-        Assert.Single(devSpacesTabs);
+            var tabs = Assert.IsType<TabControl>(view.FindDescendantOfType<TabControl>());
+            var devSpacesTabs = tabs.Items
+                .OfType<TabItem>()
+                .Where(x => x.Header as string == App.Text("DevSpaces"));
+            Assert.Single(devSpacesTabs);
+        }
+        finally
+        {
+            view.Close();
+        }
     }
 }

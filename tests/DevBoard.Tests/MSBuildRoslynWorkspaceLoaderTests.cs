@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -27,6 +28,35 @@ namespace DevBoard.Tests
                 using var loaded = await new MSBuildRoslynWorkspaceLoader().LoadAsync(projectPath, CancellationToken.None);
 
                 Assert.Equal(1, loaded.ProjectCount);
+            }
+            finally
+            {
+                Directory.Delete(root, true);
+            }
+        }
+
+        [Fact]
+        public async Task FindUnusedCodeAsync_ReturnsCompilerUnusedVariableWithLocation()
+        {
+            var root = Path.Combine(Path.GetTempPath(), $"devboard-roslyn-unused-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(root);
+            try
+            {
+                var projectPath = Path.Combine(root, "UnusedSmoke.csproj");
+                File.WriteAllText(
+                    projectPath,
+                    "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework><OutputType>Library</OutputType></PropertyGroup></Project>");
+                var sourcePath = Path.Combine(root, "Example.cs");
+                File.WriteAllText(sourcePath, "class Example { void Run() { int unused = 42; } }");
+
+                using var loaded = await new MSBuildRoslynWorkspaceLoader().LoadAsync(projectPath, CancellationToken.None);
+                var items = await loaded.FindUnusedCodeAsync(CancellationToken.None);
+
+                var item = Assert.Single(items.Where(x => x.DiagnosticId == "CS0219"));
+                Assert.Equal(RoslynUnusedCodeKind.Variable, item.Kind);
+                Assert.Equal("unused", item.Symbol);
+                Assert.Equal(sourcePath, item.FilePath);
+                Assert.Equal(1, item.Line);
             }
             finally
             {

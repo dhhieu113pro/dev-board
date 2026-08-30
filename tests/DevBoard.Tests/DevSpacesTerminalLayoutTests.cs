@@ -23,8 +23,12 @@ namespace DevBoard.Tests
 
                 Assert.Equal(2, spaces.GridRows);
                 Assert.Equal(2, spaces.GridColumns);
+                Assert.Equal(3, spaces.Sessions.Count);
                 Assert.Equal(4, spaces.VisibleSlots.Count);
-                Assert.Equal(3, spaces.VisibleSlots.Count(slot => slot.Terminal != null));
+                Assert.NotNull(spaces.VisibleSlots[0].Terminal);
+                Assert.NotNull(spaces.VisibleSlots[1].Terminal);
+                Assert.NotNull(spaces.VisibleSlots[2].Terminal);
+                Assert.Null(spaces.VisibleSlots[3].Terminal);
             }
             finally
             {

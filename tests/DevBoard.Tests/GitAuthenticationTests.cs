@@ -40,6 +40,14 @@ public class GitAuthenticationTests
         Assert.Contains("C:/Users/test/.ssh/id_ed25519", startInfo.Environment["GIT_SSH_COMMAND"]);
     }
 
+    [Fact]
+    public void BackgroundFetchUsesNonInteractiveAuthentication()
+    {
+        var fetch = new Fetch("/tmp/repo", "origin");
+
+        Assert.True(fetch.NonInteractiveAuthentication);
+    }
+
     private sealed class TestCommand : Command
     {
         public ProcessStartInfo GetStartInfo() => CreateGitStartInfo(true);

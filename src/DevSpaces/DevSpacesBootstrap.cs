@@ -20,7 +20,6 @@ namespace DevBoard.DevSpaces
         {
             Control.LoadedEvent.AddClassHandler<Views.Repository>(OnRepositoryLoaded);
             Control.UnloadedEvent.AddClassHandler<Views.Repository>(OnRepositoryUnloaded);
-            Control.LoadedEvent.AddClassHandler<Views.Preferences>(OnPreferencesLoaded);
         }
 
         private static void OnRepositoryLoaded(Views.Repository view, RoutedEventArgs e)
@@ -43,29 +42,6 @@ namespace DevBoard.DevSpaces
 
             integration.Detach();
             _repositoryViews.Remove(view);
-        }
-
-        private static void OnPreferencesLoaded(Views.Preferences view, RoutedEventArgs e)
-        {
-            if (_preferencesViews.TryGetValue(view, out _))
-                return;
-
-            var tabs = view.FindDescendantOfType<TabControl>();
-            if (tabs == null || tabs.ItemsSource != null)
-                return;
-
-            _preferencesViews.Add(view, new object());
-
-            var tab = new TabItem
-            {
-                Header = App.Text("DevSpaces"),
-                Content = new Views.DevSpacesPreferences
-                {
-                    DataContext = ViewModels.Preferences.Instance,
-                },
-            };
-
-            tabs.Items.Add(tab);
         }
 
         private sealed class RepositoryIntegration
@@ -446,6 +422,5 @@ namespace DevBoard.DevSpaces
         }
 
         private static readonly ConditionalWeakTable<Views.Repository, RepositoryIntegration> _repositoryViews = new();
-        private static readonly ConditionalWeakTable<Views.Preferences, object> _preferencesViews = new();
     }
 }

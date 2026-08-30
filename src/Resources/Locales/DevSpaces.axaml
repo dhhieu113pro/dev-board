@@ -25,7 +25,7 @@
   <x:String x:Key="Text.DevSpaces.CloseAll" xml:space="preserve">Close All</x:String>
   <x:String x:Key="Text.DevSpaces.CopyPath" xml:space="preserve">Copy Path</x:String>
   <x:String x:Key="Text.DevSpaces.OpenFolder" xml:space="preserve">Open Folder</x:String>
-  <x:String x:Key="Text.DevSpaces.RoslynUnavailable" xml:space="preserve">Roslyn diagnostics are unavailable until the Roslyn DevSpace integration is present.</x:String>
+  <x:String x:Key="Text.DevSpaces.RoslynUnavailable" xml:space="preserve">Roslyn diagnostics are unavailable until the Roslyn Dev integration is present.</x:String>
   <x:String x:Key="Text.DevSpaces.Branch" xml:space="preserve">Branch</x:String>
   <x:String x:Key="Text.DevSpaces.BaseBranch" xml:space="preserve">Base</x:String>
   <x:String x:Key="Text.DevSpaces.Changed" xml:space="preserve">Changed</x:String>

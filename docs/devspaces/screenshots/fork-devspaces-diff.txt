@@ -25,7 +25,6 @@ src/Models/DealWithLocalChanges.cs
 src/Models/Decorator.cs
 src/Models/DevSpaceLayout.cs
 src/Models/DevSpacePage.cs
-src/Models/DevSpaceTerminalDisplayMode.cs
 src/Models/DiffOption.cs
 src/Models/DiffResult.cs
 src/Models/DirtyState.cs

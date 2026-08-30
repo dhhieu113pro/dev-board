@@ -44,6 +44,20 @@ namespace DevBoard.Views
             e.Handled = true;
         }
 
+        private void OnOpenEndpoint(object sender, RoutedEventArgs e)
+        {
+            if (ViewModel != null)
+                Native.OS.OpenBrowser(ViewModel.Endpoint);
+            e.Handled = true;
+        }
+
+        private async void OnCopyEndpoint(object sender, RoutedEventArgs e)
+        {
+            if (ViewModel != null && TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard)
+                await clipboard.SetTextAsync(ViewModel.Endpoint);
+            e.Handled = true;
+        }
+
         private async void OnTestConnection(object sender, RoutedEventArgs e)
         {
             await RunAsync(() => ViewModel?.TestSelectedAsync() ?? Task.CompletedTask);

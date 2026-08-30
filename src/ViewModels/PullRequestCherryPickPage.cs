@@ -111,7 +111,7 @@ namespace DevBoard.ViewModels
                     Log = log,
                 };
 
-                var fetchedMerge = await mergeFetch.RunAsync().ConfigureAwait(false);
+                var fetchedMerge = await mergeFetch.RunAsync();
                 string limits = null;
 
                 if (fetchedMerge)
@@ -130,15 +130,14 @@ namespace DevBoard.ViewModels
                         Log = log,
                     };
 
-                    if (!await headFetch.RunAsync().ConfigureAwait(false))
+                    if (!await headFetch.RunAsync())
                     {
                         StatusMessage = $"Unable to fetch pull request #{number} from '{descriptor.RemoteName}'.";
                         return;
                     }
 
                     var mergeBase = await new Commands.MergeBase(_repo.FullPath, "HEAD", descriptor.HeadLocalRef)
-                        .GetResultAsync()
-                        .ConfigureAwait(false);
+                        .GetResultAsync();
                     if (string.IsNullOrEmpty(mergeBase))
                     {
                         StatusMessage = "Unable to resolve the pull request base commit.";
@@ -154,8 +153,7 @@ namespace DevBoard.ViewModels
                 }
 
                 var commits = await new Commands.QueryCommits(_repo.FullPath, limits, false)
-                    .GetResultAsync()
-                    .ConfigureAwait(false);
+                    .GetResultAsync();
 
                 if (commits.Count == 0)
                 {
@@ -183,23 +181,23 @@ namespace DevBoard.ViewModels
             }
         }
 
-        public void CherryPick(Models.Commit commit)
+        public async Task CherryPickAsync(Models.Commit commit)
         {
-            if (commit == null || !CanStartCherryPick())
+            if (commit == null || !await CanStartCherryPickAsync())
                 return;
 
             _repo.ShowPopup(new CherryPick(_repo, [commit]));
         }
 
-        public void CherryPickAll()
+        public async Task CherryPickAllAsync()
         {
-            if (!HasCommits || !CanStartCherryPick())
+            if (!HasCommits || !await CanStartCherryPickAsync())
                 return;
 
             _repo.ShowPopup(new CherryPick(_repo, [.. Commits]));
         }
 
-        private bool CanStartCherryPick()
+        private async Task<bool> CanStartCherryPickAsync()
         {
             if (_repo.CurrentBranch == null || _repo.CurrentBranch.IsDetachedHead)
             {
@@ -213,7 +211,8 @@ namespace DevBoard.ViewModels
                 return false;
             }
 
-            if (_repo.LocalChangesCount > 0)
+            var changes = await new Commands.QueryLocalChanges(_repo.FullPath, true).GetResultAsync();
+            if (changes.Count > 0)
             {
                 _repo.SendNotification("The working tree must be clean before cherry-picking a pull request.", true);
                 return false;

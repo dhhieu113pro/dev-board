@@ -28,6 +28,18 @@ public class GitHubAccountBindingTests
     }
 
     [Fact]
+    public void HttpsRemoteSelectsMatchingGitHubCliAccount()
+    {
+        var cli = Account("octocat", GitHubAuthType.GitHubCli);
+        var ssh = Account("octocat", GitHubAuthType.SSHKey, sshKey: "/tmp/id_ed25519");
+
+        var selected = GitHubCredential.SelectAccountForRemotes(
+            ["https://github.com/octocat/hello-world.git"], [ssh, cli]);
+
+        Assert.Same(cli, selected);
+    }
+
+    [Fact]
     public void SshRemoteSelectsMatchingSshAccount()
     {
         var pat = Account("octocat", GitHubAuthType.PersonalAccessToken, token: "token");

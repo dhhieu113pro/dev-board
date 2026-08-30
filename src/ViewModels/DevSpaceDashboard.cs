@@ -31,6 +31,9 @@ namespace DevBoard.ViewModels
             DevBoard.DevSpaces.RoslynDevSpaceState.Failed => "Failed",
             _ => "Unavailable",
         };
+        public string RoslynHealthStatusText => RoslynState == DevBoard.DevSpaces.RoslynDevSpaceState.Available
+            ? $"Available · {UnusedCodeCount} unused"
+            : RoslynStatusText;
         public string RoslynSummaryText => RoslynState switch
         {
             DevBoard.DevSpaces.RoslynDevSpaceState.Initializing => "Roslyn is loading this workspace…",
@@ -39,6 +42,30 @@ namespace DevBoard.ViewModels
             DevBoard.DevSpaces.RoslynDevSpaceState.Failed => "Roslyn initialization failed. Use Retry in Workspace Health.",
             _ => "Roslyn is not initialized. Use Initialize in Workspace Health when you need diagnostics or code intelligence.",
         };
+
+        public IReadOnlyList<DevBoard.DevSpaces.RoslynUnusedCodeItem> UnusedCode => _roslynService.UnusedCode;
+        public int UnusedCodeCount => _roslynService.UnusedCodeCount;
+        public bool IsUnusedCodeVisible => RoslynState == DevBoard.DevSpaces.RoslynDevSpaceState.Available;
+        public bool IsAnalyzingUnusedCode => _roslynService.IsAnalyzingUnusedCode;
+        public string UnusedCodeFailureReason => _roslynService.UnusedCodeFailureReason;
+        public string UnusedCodeFilter
+        {
+            get => _unusedCodeFilter;
+            private set
+            {
+                if (SetProperty(ref _unusedCodeFilter, value))
+                    OnPropertyChanged(nameof(FilteredUnusedCode));
+            }
+        }
+        public IReadOnlyList<DevBoard.DevSpaces.RoslynUnusedCodeItem> FilteredUnusedCode => UnusedCode
+            .Where(x => UnusedCodeFilter switch
+            {
+                "Members" => x.Kind == DevBoard.DevSpaces.RoslynUnusedCodeKind.Member,
+                "Variables" => x.Kind == DevBoard.DevSpaces.RoslynUnusedCodeKind.Variable,
+                "Usings" => x.Kind == DevBoard.DevSpaces.RoslynUnusedCodeKind.Using,
+                _ => true,
+            })
+            .ToArray();
 
         public IReadOnlyList<DevBoard.DevSpaces.DevSpaceTerminalProfile> Profiles =>
             DevBoard.DevSpaces.DevSpaceProfileSettings.Instance.Profiles;
@@ -178,6 +205,30 @@ namespace DevBoard.ViewModels
         }
 
         public Task InitializeRoslynAsync() => _roslynService.InitializeAsync();
+        public Task RefreshUnusedCodeAsync() => _roslynService.RefreshUnusedCodeAsync();
+
+        public void SetUnusedCodeFilter(string filter)
+        {
+            UnusedCodeFilter = filter is "Members" or "Variables" or "Usings" ? filter : "All";
+        }
+
+        public bool OpenUnusedCode(DevBoard.DevSpaces.RoslynUnusedCodeItem item)
+        {
+            if (item == null || string.IsNullOrWhiteSpace(item.FilePath))
+                return false;
+
+            string relativePath;
+            try
+            {
+                relativePath = Path.GetRelativePath(WorkspacePath, item.FilePath);
+            }
+            catch
+            {
+                return false;
+            }
+
+            return !relativePath.StartsWith("..", StringComparison.Ordinal) && _owner.OpenFile(relativePath);
+        }
 
         public void OpenSession(DevSpaceTerminal terminal) => _owner.ActivateTerminal(terminal);
         public void CloseSession(DevSpaceTerminal terminal) => _owner.CloseTerminal(terminal);
@@ -221,15 +272,33 @@ namespace DevBoard.ViewModels
             {
                 OnPropertyChanged(nameof(RoslynState));
                 OnPropertyChanged(nameof(RoslynStatusText));
+                OnPropertyChanged(nameof(RoslynHealthStatusText));
                 OnPropertyChanged(nameof(IsRoslynInitializing));
                 OnPropertyChanged(nameof(CanInitializeRoslyn));
                 OnPropertyChanged(nameof(RoslynActionText));
                 OnPropertyChanged(nameof(RoslynSummaryText));
+                OnPropertyChanged(nameof(IsUnusedCodeVisible));
             }
             else if (e.PropertyName == nameof(DevBoard.DevSpaces.RoslynDevSpaceService.FailureReason))
             {
                 OnPropertyChanged(nameof(RoslynFailureReason));
                 OnPropertyChanged(nameof(RoslynSummaryText));
+            }
+            else if (e.PropertyName == nameof(DevBoard.DevSpaces.RoslynDevSpaceService.UnusedCode) ||
+                     e.PropertyName == nameof(DevBoard.DevSpaces.RoslynDevSpaceService.UnusedCodeCount))
+            {
+                OnPropertyChanged(nameof(UnusedCode));
+                OnPropertyChanged(nameof(UnusedCodeCount));
+                OnPropertyChanged(nameof(FilteredUnusedCode));
+                OnPropertyChanged(nameof(RoslynHealthStatusText));
+            }
+            else if (e.PropertyName == nameof(DevBoard.DevSpaces.RoslynDevSpaceService.IsAnalyzingUnusedCode))
+            {
+                OnPropertyChanged(nameof(IsAnalyzingUnusedCode));
+            }
+            else if (e.PropertyName == nameof(DevBoard.DevSpaces.RoslynDevSpaceService.UnusedCodeFailureReason))
+            {
+                OnPropertyChanged(nameof(UnusedCodeFailureReason));
             }
         }
 
@@ -275,5 +344,6 @@ namespace DevBoard.ViewModels
         private int _aheadCount;
         private int _behindCount;
         private DevSpaceGitSummary _gitSummary = DevSpaceGitSummary.Empty;
+        private string _unusedCodeFilter = "All";
     }
 }

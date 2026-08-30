@@ -12,6 +12,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
     <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- Roslyn/MSBuildWorkspace loads language and build components dynamically; NativeAOT cannot support that runtime model. -->
+    <DisableAOT Condition="'$(DisableAOT)' == ''">true</DisableAOT>
 
     <Product>DevBoard</Product>
     <Description>Open-source developer workspace for Git, terminals, files, worktrees, and AI-assisted development</Description>

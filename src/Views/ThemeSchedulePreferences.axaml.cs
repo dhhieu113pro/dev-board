@@ -86,7 +86,7 @@ namespace DevBoard.Views
         private async System.Threading.Tasks.Task DetectLocationAsync()
         {
             DetectLocationButton.IsEnabled = false;
-            LocationStatus.Text = "Detecting approximate location…";
+            LocationStatus.Text = "Detecting approximate IP location…";
 
             var success = await ThemeScheduleController.DetectLocationAsync();
             if (success)
@@ -96,11 +96,11 @@ namespace DevBoard.Views
                 LatitudeInput.Value = settings.Latitude is double latitude ? (decimal)latitude : null;
                 LongitudeInput.Value = settings.Longitude is double longitude ? (decimal)longitude : null;
                 _loading = false;
-                LocationStatus.Text = "Location detected. Sunrise and sunset are calculated locally from these coordinates.";
+                LocationStatus.Text = "Approximate IP location detected. Sunrise and sunset are calculated locally from the saved coordinates.";
             }
             else
             {
-                LocationStatus.Text = "Location detection failed. Enter coordinates manually, or DevBoard will follow the system theme.";
+                LocationStatus.Text = "Approximate location detection failed. Enter coordinates manually, or DevBoard will follow the system theme.";
             }
 
             DetectLocationButton.IsEnabled = true;

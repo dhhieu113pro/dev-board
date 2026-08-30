@@ -21,12 +21,26 @@ public sealed class DevSpaceFileExplorerTests
     }
 
     [Fact]
-    public void ToggleFolderSelection_selects_and_expands_folder()
+    public void ToggleFolderSelection_toggles_folder_state()
     {
         var folder = new DevSpaceFileNode("src", "src", true, 0);
 
         DevSpaceFiles.ToggleFolderSelection(folder);
-
         Assert.True(folder.IsExpanded);
+
+        DevSpaceFiles.ToggleFolderSelection(folder);
+        Assert.False(folder.IsExpanded);
+    }
+
+    [Fact]
+    public void ExpansionGlyph_reflects_folder_state()
+    {
+        var folder = new DevSpaceFileNode("src", "src", true, 0);
+
+        Assert.Equal("›", folder.ExpansionGlyph);
+
+        folder.IsExpanded = true;
+
+        Assert.Equal("⌄", folder.ExpansionGlyph);
     }
 }

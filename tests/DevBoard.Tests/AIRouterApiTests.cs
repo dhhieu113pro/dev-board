@@ -30,7 +30,7 @@ public class AIRouterApiTests
     [InlineData("router-key", "router-key", true)]
     [InlineData("Bearer wrong", "router-key", false)]
     [InlineData(null, "router-key", false)]
-    public void IsAuthorized_AcceptsBearerOrRawLocalKey(string authorization, string apiKey, bool expected)
+    public void IsAuthorized_AcceptsBearerOrRawLocalKey(string? authorization, string apiKey, bool expected)
     {
         Assert.Equal(expected, AIRouterApi.IsAuthorized(authorization, apiKey));
     }

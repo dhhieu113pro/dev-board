@@ -64,7 +64,7 @@ jobs:
       - name: Build
         run: dotnet build -c Release
       - name: Publish
-        run: dotnet publish src/DevBoard.csproj -c Release -o publish -r ${{ matrix.runtime }}
+        run: dotnet publish src/DevBoard.csproj -c Release -o publish -r ${{ matrix.runtime }} --self-contained true -p:DisableAOT=true
       - name: Verify Windows terminal native payload
         if: startsWith(matrix.runtime, 'win-')
         shell: pwsh

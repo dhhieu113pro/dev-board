@@ -78,8 +78,11 @@ namespace DevBoard.DevSpaces
                 var roslynItem = CreateToolNavigationItem(view, "Icons.Code", "Roslyn", "Roslyn");
                 var terminalsItem = CreateToolNavigationItem(view, "Icons.Terminal", App.Text("DevSpaces.Terminals"), "Terminals");
                 var terminalsLabel = GetToolNavigationLabel(terminalsItem);
-                pageSwitcher.Items.Add(item);
+
+                // Files stays a sibling repository tool. Dev is intentionally a one-item
+                // section (Dashboard), while AI Router/Roslyn/Terminals live under Agent.
                 pageSwitcher.Items.Add(filesItem);
+                pageSwitcher.Items.Add(item);
                 pageSwitcher.Items.Add(aiRouterItem);
                 pageSwitcher.Items.Add(roslynItem);
                 pageSwitcher.Items.Add(terminalsItem);
@@ -202,6 +205,8 @@ namespace DevBoard.DevSpaces
 
             private void OnPageSwitcherSelectionChanged(object sender, SelectionChangedEventArgs e)
             {
+                UpdateNavigationVisualStates();
+
                 if (_syncingNavigationSelection || !ViewModels.Preferences.Instance.EnableDevSpaces)
                     return;
 
@@ -302,19 +307,30 @@ namespace DevBoard.DevSpaces
 
                 if (active)
                     _spaces?.EnsureFirstSession();
+
+                UpdateNavigationVisualStates();
             }
 
             private void UpdateNavigationLabel()
             {
                 var count = _spaces?.Sessions.Count ?? 0;
-                _navigationLabel.Text = App.Text("DevSpaces");
+                _navigationLabel.Text = App.Text("DevSpaces.Dashboard");
                 _navigationBadge.IsVisible = false;
                 _navigationBadgeLabel.Text = count.ToString();
                 _terminalsNavigationLabel.Text = $"{App.Text("DevSpaces.Terminals")} ({count})";
             }
 
+            private void UpdateNavigationVisualStates()
+            {
+                ApplyNavigationVisualState(_filesNavigationItem);
+                ApplyNavigationVisualState(_navigationItem);
+                ApplyNavigationVisualState(_aiRouterNavigationItem);
+                ApplyNavigationVisualState(_roslynNavigationItem);
+                ApplyNavigationVisualState(_terminalsNavigationItem);
+            }
+
             private static bool IsDevSpacesNavigationIndex(int index) =>
-                index >= DevSpacesNavigationIndex && index <= TerminalsNavigationIndex;
+                index >= FilesNavigationIndex && index <= TerminalsNavigationIndex;
 
             private static ListBoxItem CreateNavigationItem(
                 Views.Repository view,
@@ -322,27 +338,12 @@ namespace DevBoard.DevSpaces
                 out Border badge,
                 out TextBlock badgeLabel)
             {
-                var indicator = new Rectangle
-                {
-                    Width = 4,
-                    Height = 20,
-                    VerticalAlignment = VerticalAlignment.Center,
-                };
-                indicator.Classes.Add("indicator");
-
-                var icon = new Path
-                {
-                    Width = 12,
-                    Height = 12,
-                    Margin = new Thickness(6, 0),
-                };
-                icon.Classes.Add("icon");
-                if (view.TryFindResource("Icons.Terminal", out var iconResource) && iconResource is Geometry geometry)
-                    icon.Data = geometry;
+                var indicator = CreateIndicator();
+                var icon = CreatePathIcon(view, "Icons.Home");
 
                 label = new TextBlock
                 {
-                    Text = App.Text("DevSpaces"),
+                    Text = App.Text("DevSpaces.Dashboard"),
                     VerticalAlignment = VerticalAlignment.Center,
                 };
                 label.Classes.Add("header");
@@ -367,34 +368,137 @@ namespace DevBoard.DevSpaces
                 };
                 badge.Bind(Border.BackgroundProperty, view.GetResourceObservable("Brush.Badge"));
 
-                var content = new Grid
+                var rowContent = new Grid
                 {
                     ColumnDefinitions = new ColumnDefinitions("4,Auto,*,Auto"),
                 };
-                content.Children.Add(indicator);
+                rowContent.Children.Add(indicator);
                 Grid.SetColumn(icon, 1);
-                content.Children.Add(icon);
+                rowContent.Children.Add(icon);
                 Grid.SetColumn(label, 2);
-                content.Children.Add(label);
+                rowContent.Children.Add(label);
                 Grid.SetColumn(badge, 3);
-                content.Children.Add(badge);
+                rowContent.Children.Add(badge);
 
-                return new ListBoxItem
-                {
-                    Content = content,
-                };
+                var item = CreateNavigationItemCore("DEV", rowContent);
+                item.Classes.Add("dev-navigation");
+                AttachNavigationPointerState(item);
+                return item;
             }
 
             private static ListBoxItem CreateToolNavigationItem(Views.Repository view, string iconKey, string text, string tag)
             {
-                var indicator = new Rectangle
+                var indicator = CreateIndicator();
+                Control icon;
+                if (tag == "Roslyn")
                 {
-                    Width = 4,
-                    Height = 20,
+                    var csharpIcon = new TextBlock
+                    {
+                        Text = "C#",
+                        Width = 24,
+                        Margin = new Thickness(0, 0, 2, 0),
+                        FontSize = 10,
+                        FontWeight = FontWeight.SemiBold,
+                        Foreground = NavigationAccentBrush,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                    };
+                    csharpIcon.Classes.Add("tool-icon");
+                    icon = csharpIcon;
+                }
+                else
+                {
+                    icon = CreatePathIcon(view, iconKey);
+                }
+
+                var label = new TextBlock
+                {
+                    Text = text,
                     VerticalAlignment = VerticalAlignment.Center,
                 };
-                indicator.Classes.Add("indicator");
+                label.Classes.Add("header");
 
+                var rowContent = new Grid
+                {
+                    ColumnDefinitions = new ColumnDefinitions("4,Auto,*"),
+                };
+                rowContent.Children.Add(indicator);
+                Grid.SetColumn(icon, 1);
+                rowContent.Children.Add(icon);
+                Grid.SetColumn(label, 2);
+                rowContent.Children.Add(label);
+
+                var groupHeader = tag == "AIRouter" ? "AGENT" : null;
+                var item = CreateNavigationItemCore(groupHeader, rowContent);
+                item.Tag = tag;
+
+                if (tag is "AIRouter" or "Roslyn" or "Terminals")
+                    item.Classes.Add("agent-navigation");
+
+                AttachNavigationPointerState(item);
+                return item;
+            }
+
+            private static ListBoxItem CreateNavigationItemCore(string groupHeader, Grid rowContent)
+            {
+                var hasHeader = !string.IsNullOrEmpty(groupHeader);
+                var content = new Grid
+                {
+                    RowDefinitions = new RowDefinitions(hasHeader ? "18,28" : "28"),
+                };
+
+                if (hasHeader)
+                {
+                    var header = new TextBlock
+                    {
+                        Text = groupHeader,
+                        Margin = new Thickness(8, 2, 0, 0),
+                        FontSize = 10,
+                        FontWeight = FontWeight.SemiBold,
+                        Foreground = NavigationAccentBrush,
+                        VerticalAlignment = VerticalAlignment.Center,
+                    };
+                    header.Classes.Add("navigation-group-header");
+                    content.Children.Add(header);
+                }
+
+                var row = new Border
+                {
+                    CornerRadius = new CornerRadius(5),
+                    Background = Brushes.Transparent,
+                    Child = rowContent,
+                };
+                row.Classes.Add("navigation-row");
+                Grid.SetRow(row, hasHeader ? 1 : 0);
+                content.Children.Add(row);
+
+                var item = new ListBoxItem
+                {
+                    Height = hasHeader ? 46 : 28,
+                    Content = content,
+                };
+                item.Classes.Add("dev-agent-navigation");
+                if (hasHeader)
+                    item.Classes.Add("navigation-group-start");
+
+                return item;
+            }
+
+            private static Rectangle CreateIndicator()
+            {
+                var indicator = new Rectangle
+                {
+                    Width = 3,
+                    Height = 18,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Fill = Brushes.Transparent,
+                };
+                indicator.Classes.Add("indicator");
+                return indicator;
+            }
+
+            private static Path CreatePathIcon(Views.Repository view, string iconKey)
+            {
                 var icon = new Path
                 {
                     Width = 12,
@@ -404,36 +508,71 @@ namespace DevBoard.DevSpaces
                 icon.Classes.Add("icon");
                 if (view.TryFindResource(iconKey, out var iconResource) && iconResource is Geometry geometry)
                     icon.Data = geometry;
-
-                var label = new TextBlock
-                {
-                    Text = text,
-                    VerticalAlignment = VerticalAlignment.Center,
-                };
-                label.Classes.Add("header");
-
-                var content = new Grid
-                {
-                    ColumnDefinitions = new ColumnDefinitions("4,Auto,*"),
-                };
-                content.Children.Add(indicator);
-                Grid.SetColumn(icon, 1);
-                content.Children.Add(icon);
-                Grid.SetColumn(label, 2);
-                content.Children.Add(label);
-
-                return new ListBoxItem
-                {
-                    Tag = tag,
-                    Content = content,
-                };
+                return icon;
             }
 
-            private static TextBlock GetToolNavigationLabel(ListBoxItem item) =>
-                ((Grid)item.Content).Children.OfType<TextBlock>().Single();
+            private static void AttachNavigationPointerState(ListBoxItem item)
+            {
+                item.PointerEntered += (_, _) => ApplyNavigationVisualState(item);
+                item.PointerExited += (_, _) => ApplyNavigationVisualState(item);
+            }
 
-            private const int DevSpacesNavigationIndex = 3;
-            private const int FilesNavigationIndex = 4;
+            private static void ApplyNavigationVisualState(ListBoxItem item)
+            {
+                if (item.Content is not Grid content)
+                    return;
+
+                var row = content.Children
+                    .OfType<Border>()
+                    .FirstOrDefault(x => x.Classes.Contains("navigation-row"));
+                if (row?.Child is not Grid rowContent)
+                    return;
+
+                var isSelected = item.IsSelected;
+                var isActive = isSelected || item.IsPointerOver;
+                row.Background = isActive ? NavigationActiveBackgroundBrush : Brushes.Transparent;
+
+                var indicator = rowContent.Children.OfType<Rectangle>().FirstOrDefault(x => x.Classes.Contains("indicator"));
+                if (indicator != null)
+                    indicator.Fill = isSelected ? NavigationAccentBrush : Brushes.Transparent;
+
+                var label = rowContent.Children.OfType<TextBlock>().FirstOrDefault(x => x.Classes.Contains("header"));
+                if (label != null)
+                {
+                    if (isActive)
+                        label.Foreground = Brushes.White;
+                    else
+                        label.ClearValue(TextBlock.ForegroundProperty);
+                }
+
+                var icon = rowContent.Children.OfType<Path>().FirstOrDefault(x => x.Classes.Contains("icon"));
+                if (icon != null)
+                {
+                    if (isActive)
+                        icon.Fill = NavigationAccentBrush;
+                    else
+                        icon.ClearValue(Shape.FillProperty);
+                }
+            }
+
+            private static TextBlock GetToolNavigationLabel(ListBoxItem item)
+            {
+                var content = (Grid)item.Content;
+                var row = content.Children
+                    .OfType<Border>()
+                    .Single(x => x.Classes.Contains("navigation-row"));
+                return ((Grid)row.Child).Children
+                    .OfType<TextBlock>()
+                    .Single(x => x.Classes.Contains("header"));
+            }
+
+            private const string NavigationAccentColor = "#2DD4BF";
+            private const string NavigationActiveBackgroundColor = "#172126";
+            private static readonly IBrush NavigationAccentBrush = new SolidColorBrush(Color.FromRgb(0x2D, 0xD4, 0xBF));
+            private static readonly IBrush NavigationActiveBackgroundBrush = new SolidColorBrush(Color.FromRgb(0x17, 0x21, 0x26));
+
+            private const int FilesNavigationIndex = 3;
+            private const int DevSpacesNavigationIndex = 4;
             private const int AIRouterNavigationIndex = 5;
             private const int RoslynNavigationIndex = 6;
             private const int TerminalsNavigationIndex = 7;

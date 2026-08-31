@@ -105,6 +105,7 @@ public sealed class DevSpaceFileExplorerTests
     }
 
     [AvaloniaFact]
+    [Trait("Category", "UIIntegration")]
     public async Task OpenFile_requests_reveal_every_time_and_expands_parent_folders()
     {
         var repositoryPath = Path.Combine(Path.GetTempPath(), $"devboard-files-{Guid.NewGuid():N}");

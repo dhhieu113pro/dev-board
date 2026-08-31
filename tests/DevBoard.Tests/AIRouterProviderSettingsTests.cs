@@ -116,6 +116,37 @@ public class AIRouterProviderSettingsTests
     }
 
     [Fact]
+    public async Task ImportAsync_RetainsAIStudioRoutingMetadata()
+    {
+        const string json = """
+        [
+          {
+            "providerId": "opencode",
+            "name": "OpenCode",
+            "baseUrl": "https://opencode.ai/zen/v1",
+            "priority": 10,
+            "maxRetries": 7,
+            "timeoutSeconds": 45,
+            "mode": "roundrobin",
+            "passthroughModels": true,
+            "useAutoProxy": true,
+            "models": "[\"deepseek-v4-flash-free\",\"fallback-model\"]",
+            "isActive": true
+          }
+        ]
+        """;
+
+        await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
+        var provider = Assert.Single(await AIRouterProviderExchange.ImportAsync(stream));
+
+        Assert.Equal(7, provider.MaxRetries);
+        Assert.Equal(45, provider.TimeoutSeconds);
+        Assert.Equal("roundrobin", provider.GetType().GetProperty("Mode")?.GetValue(provider));
+        Assert.Equal(true, provider.GetType().GetProperty("PassthroughModels")?.GetValue(provider));
+        Assert.Equal(true, provider.GetType().GetProperty("UseAutoProxy")?.GetValue(provider));
+    }
+
+    [Fact]
     public async Task ImportAsync_RejectsUnsupportedVersion()
     {
         const string json = "{\"version\":2,\"providers\":[]}";

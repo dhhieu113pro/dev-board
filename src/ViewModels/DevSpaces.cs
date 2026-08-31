@@ -71,11 +71,11 @@ namespace DevBoard.ViewModels
 
         public int LayoutIndex
         {
-            get => (int)_layout;
+            get => Array.IndexOf(LayoutOptions, _layout);
             set
             {
-                if (value >= 0 && value <= 3)
-                    Layout = (Models.DevSpaceLayout)value;
+                if (value >= 0 && value < LayoutOptions.Length)
+                    Layout = LayoutOptions[value];
             }
         }
 
@@ -305,6 +305,14 @@ namespace DevBoard.ViewModels
             OnPropertyChanged(nameof(VisibleSlots));
         }
 
+        private static readonly Models.DevSpaceLayout[] LayoutOptions =
+        [
+            Models.DevSpaceLayout.Auto,
+            Models.DevSpaceLayout.Tab,
+            Models.DevSpaceLayout.OneByTwo,
+            Models.DevSpaceLayout.TwoByTwo,
+            Models.DevSpaceLayout.ThreeByThree,
+        ];
         private readonly string _workingDirectory;
         private readonly DevBoard.DevSpaces.Terminal.DevSpaceTerminalRegistry _terminalRegistry;
         private DevSpaceTerminal _activeTerminal;

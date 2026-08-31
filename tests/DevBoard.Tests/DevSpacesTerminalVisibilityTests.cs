@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Threading.Tasks;
 
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -10,7 +9,6 @@ using Avalonia.Controls.Templates;
 using Avalonia.Headless.XUnit;
 using Avalonia.Layout;
 using Avalonia.LogicalTree;
-using Avalonia.Threading;
 
 using DevBoard.DevSpaces;
 using DevBoard.DevSpaces.Terminal;
@@ -131,27 +129,24 @@ namespace DevBoard.Tests
         }
 
         [AvaloniaFact]
-        public async Task NativeTerminalSurfaceExposesPersistentVerticalScrollbar()
+        public void NativeTerminalSurfaceExposesPersistentVerticalScrollbar()
         {
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                var surfaceType = typeof(IDevSpaceSessionLauncher).Assembly
-                    .GetType("DevBoard.DevSpaces.WindowsTerminalDevSpaceSurface");
-                Assert.NotNull(surfaceType);
+            var surfaceType = typeof(IDevSpaceSessionLauncher).Assembly
+                .GetType("DevBoard.DevSpaces.WindowsTerminalDevSpaceSurface");
+            Assert.NotNull(surfaceType);
 
-                var constructor = Assert.Single(surfaceType.GetConstructors(
-                    BindingFlags.Instance | BindingFlags.NonPublic));
-                using var surface = Assert.IsAssignableFrom<IDisposable>(
-                    constructor.Invoke([new TerminalTranscriptStore()]));
-                var viewProperty = surfaceType.GetProperty("View", BindingFlags.Instance | BindingFlags.Public);
-                Assert.NotNull(viewProperty);
-                var surfaceView = Assert.IsAssignableFrom<Control>(viewProperty.GetValue(surface));
+            var constructor = Assert.Single(surfaceType.GetConstructors(
+                BindingFlags.Instance | BindingFlags.NonPublic));
+            using var surface = Assert.IsAssignableFrom<IDisposable>(
+                constructor.Invoke([new TerminalTranscriptStore()]));
+            var viewProperty = surfaceType.GetProperty("View", BindingFlags.Instance | BindingFlags.Public);
+            Assert.NotNull(viewProperty);
+            var surfaceView = Assert.IsAssignableFrom<Control>(viewProperty.GetValue(surface));
 
-                var scrollbar = Assert.Single(surfaceView.GetLogicalDescendants().OfType<ScrollBar>());
-                Assert.Equal(Orientation.Vertical, scrollbar.Orientation);
-                Assert.False(scrollbar.AllowAutoHide);
-                Assert.True(scrollbar.IsVisible);
-            });
+            var scrollbar = Assert.Single(surfaceView.GetLogicalDescendants().OfType<ScrollBar>());
+            Assert.Equal(Orientation.Vertical, scrollbar.Orientation);
+            Assert.False(scrollbar.AllowAutoHide);
+            Assert.True(scrollbar.IsVisible);
         }
 
         private static string CreateTempDirectory()

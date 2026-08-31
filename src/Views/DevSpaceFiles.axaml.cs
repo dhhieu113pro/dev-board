@@ -1,12 +1,45 @@
+using System;
+using System.Linq;
+
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 namespace DevBoard.Views
 {
     public partial class DevSpaceFiles : UserControl
     {
-        public DevSpaceFiles() => InitializeComponent();
+        public DevSpaceFiles()
+        {
+            InitializeComponent();
+            DataContextChanged += OnDataContextChanged;
+        }
+
+        private void OnDataContextChanged(object sender, EventArgs e)
+        {
+            if (_files != null)
+                _files.RevealRequested -= OnRevealRequested;
+
+            _files = DataContext as ViewModels.DevSpaceFiles;
+            if (_files != null)
+                _files.RevealRequested += OnRevealRequested;
+        }
+
+        private void OnRevealRequested(ViewModels.DevSpaceFileNode node)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (_files == null || !ReferenceEquals(_files.SelectedNode, node))
+                    return;
+
+                var tree = this.GetVisualDescendants()
+                    .OfType<ListBox>()
+                    .FirstOrDefault(list => ReferenceEquals(list.ItemsSource, _files.VisibleItems));
+                tree?.ScrollIntoView(node);
+            });
+        }
 
         private async void OnRefresh(object sender, RoutedEventArgs e)
         {
@@ -51,5 +84,7 @@ namespace DevBoard.Views
                 e.Handled = true;
             }
         }
+
+        private ViewModels.DevSpaceFiles _files;
     }
 }

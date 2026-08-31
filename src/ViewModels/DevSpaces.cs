@@ -27,6 +27,10 @@ namespace DevBoard.ViewModels
         public AvaloniaList<DevSpaceGridSlot> VisibleSlots { get; } = [];
         public int TerminalCount => Sessions.Count;
 
+        public DevSpaceTerminal CopilotSession => _copilotSession;
+        public DevSpaceTerminal CodexSession => _codexSession;
+        public DevSpaceTerminal AntigravitySession => _antigravitySession;
+
         public Models.DevSpacePage ActivePage
         {
             get => _activePage;
@@ -39,6 +43,8 @@ namespace DevBoard.ViewModels
                 OnPropertyChanged(nameof(IsAIRouterActive));
                 OnPropertyChanged(nameof(IsTerminalsActive));
                 OnPropertyChanged(nameof(IsRoslynActive));
+                OnPropertyChanged(nameof(IsAgentActive));
+                OnPropertyChanged(nameof(ActiveAgentTerminal));
             }
         }
 
@@ -47,6 +53,15 @@ namespace DevBoard.ViewModels
         public bool IsAIRouterActive => ActivePage == Models.DevSpacePage.AIRouter;
         public bool IsTerminalsActive => ActivePage == Models.DevSpacePage.Terminals;
         public bool IsRoslynActive => ActivePage == Models.DevSpacePage.Roslyn;
+        public bool IsAgentActive => ActivePage is Models.DevSpacePage.Copilot or Models.DevSpacePage.Codex or Models.DevSpacePage.Antigravity;
+
+        public DevSpaceTerminal ActiveAgentTerminal => ActivePage switch
+        {
+            Models.DevSpacePage.Copilot => _copilotSession,
+            Models.DevSpacePage.Codex => _codexSession,
+            Models.DevSpacePage.Antigravity => _antigravitySession,
+            _ => null,
+        };
 
         public DevSpaceTerminal ActiveTerminal
         {
@@ -196,25 +211,40 @@ namespace DevBoard.ViewModels
                 profile.Command);
         }
 
-        public DevSpaceTerminal CreateCopilotTerminalAt(int preferredSlot)
-        {
-            DevBoard.DevSpaces.CopilotWorkspaceTrust.EnsureTrusted(_workingDirectory);
-            var settings = DevBoard.DevSpaces.DevSpaceProfileSettings.Instance;
-            return CreateTerminalAt(preferredSlot, settings.DefaultTerminal, "Copilot", _workingDirectory, "copilot");
-        }
+        public DevSpaceTerminal CreateCopilotTerminalAt(int preferredSlot) =>
+            CreateAgentTerminalAt(preferredSlot, DevBoard.DevSpaces.DevSpaceAgent.BuiltIn[0]);
 
         public DevSpaceTerminal CreateAgentTerminalAt(int preferredSlot, DevBoard.DevSpaces.DevSpaceAgent agent)
         {
             ArgumentNullException.ThrowIfNull(agent);
-            if (string.Equals(agent.Command, "copilot", StringComparison.OrdinalIgnoreCase))
-                return CreateCopilotTerminalAt(preferredSlot);
-            if (string.Equals(agent.Command, "codex", StringComparison.OrdinalIgnoreCase))
-                DevBoard.DevSpaces.CodexWorkspaceTrust.EnsureTrusted(_workingDirectory);
-            else if (string.Equals(agent.Command, "agy", StringComparison.OrdinalIgnoreCase))
-                DevBoard.DevSpaces.AntigravityWorkspaceTrust.EnsureTrusted(_workingDirectory);
 
+            var page = GetBuiltInAgentPage(agent.Command);
+            if (page == null)
+            {
+                var fallbackSettings = DevBoard.DevSpaces.DevSpaceProfileSettings.Instance;
+                return CreateTerminalAt(preferredSlot, fallbackSettings.DefaultTerminal, agent.Name, _workingDirectory, agent.Command);
+            }
+
+            var existing = GetAgentSession(page.Value);
+            if (existing != null)
+            {
+                ActivePage = page.Value;
+                return existing;
+            }
+
+            EnsureAgentWorkspaceTrusted(agent.Command);
             var settings = DevBoard.DevSpaces.DevSpaceProfileSettings.Instance;
-            return CreateTerminalAt(preferredSlot, settings.DefaultTerminal, agent.Name, _workingDirectory, agent.Command);
+            var created = new DevSpaceTerminal(
+                agent.Name,
+                settings.DefaultTerminal,
+                _workingDirectory,
+                agent.Command,
+                _workingDirectory);
+            _terminalRegistry.Register(created);
+            SetAgentSession(page.Value, created);
+            ActivePage = page.Value;
+            Dashboard.AddActivity(DevSpaceActivityKind.SessionStarted, $"{agent.Name} started");
+            return created;
         }
 
         public void ActivateTerminal(DevSpaceTerminal terminal)
@@ -261,6 +291,74 @@ namespace DevBoard.ViewModels
         {
             Dashboard.Dispose();
             StopAll();
+            StopAgents();
+        }
+
+        private void StopAgents()
+        {
+            StopAgent(_copilotSession);
+            StopAgent(_codexSession);
+            StopAgent(_antigravitySession);
+            _copilotSession = null;
+            _codexSession = null;
+            _antigravitySession = null;
+        }
+
+        private void StopAgent(DevSpaceTerminal terminal)
+        {
+            if (terminal == null)
+                return;
+            _terminalRegistry.Unregister(terminal.Id);
+            terminal.Dispose();
+        }
+
+        private static Models.DevSpacePage? GetBuiltInAgentPage(string command)
+        {
+            if (string.Equals(command, "copilot", StringComparison.OrdinalIgnoreCase))
+                return Models.DevSpacePage.Copilot;
+            if (string.Equals(command, "codex", StringComparison.OrdinalIgnoreCase))
+                return Models.DevSpacePage.Codex;
+            if (string.Equals(command, "agy", StringComparison.OrdinalIgnoreCase))
+                return Models.DevSpacePage.Antigravity;
+            return null;
+        }
+
+        private DevSpaceTerminal GetAgentSession(Models.DevSpacePage page) => page switch
+        {
+            Models.DevSpacePage.Copilot => _copilotSession,
+            Models.DevSpacePage.Codex => _codexSession,
+            Models.DevSpacePage.Antigravity => _antigravitySession,
+            _ => null,
+        };
+
+        private void SetAgentSession(Models.DevSpacePage page, DevSpaceTerminal terminal)
+        {
+            switch (page)
+            {
+                case Models.DevSpacePage.Copilot:
+                    _copilotSession = terminal;
+                    OnPropertyChanged(nameof(CopilotSession));
+                    break;
+                case Models.DevSpacePage.Codex:
+                    _codexSession = terminal;
+                    OnPropertyChanged(nameof(CodexSession));
+                    break;
+                case Models.DevSpacePage.Antigravity:
+                    _antigravitySession = terminal;
+                    OnPropertyChanged(nameof(AntigravitySession));
+                    break;
+            }
+            OnPropertyChanged(nameof(ActiveAgentTerminal));
+        }
+
+        private void EnsureAgentWorkspaceTrusted(string command)
+        {
+            if (string.Equals(command, "copilot", StringComparison.OrdinalIgnoreCase))
+                DevBoard.DevSpaces.CopilotWorkspaceTrust.EnsureTrusted(_workingDirectory);
+            else if (string.Equals(command, "codex", StringComparison.OrdinalIgnoreCase))
+                DevBoard.DevSpaces.CodexWorkspaceTrust.EnsureTrusted(_workingDirectory);
+            else if (string.Equals(command, "agy", StringComparison.OrdinalIgnoreCase))
+                DevBoard.DevSpaces.AntigravityWorkspaceTrust.EnsureTrusted(_workingDirectory);
         }
 
         private void RebuildSlots()
@@ -316,6 +414,9 @@ namespace DevBoard.ViewModels
         private readonly string _workingDirectory;
         private readonly DevBoard.DevSpaces.Terminal.DevSpaceTerminalRegistry _terminalRegistry;
         private DevSpaceTerminal _activeTerminal;
+        private DevSpaceTerminal _copilotSession;
+        private DevSpaceTerminal _codexSession;
+        private DevSpaceTerminal _antigravitySession;
         private Models.DevSpaceLayout _layout;
         private Models.DevSpacePage _activePage = Models.DevSpacePage.Dashboard;
         private int _nextSessionNumber = 1;

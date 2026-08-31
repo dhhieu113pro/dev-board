@@ -13,22 +13,19 @@ namespace DevBoard.Tests
     public sealed class DevSpacesNavigationTests
     {
         [AvaloniaFact]
-        public void RepositoryDevSpacesToolsUseSiblingNativeNavigationItems()
+        public void RepositoryDevSpacesToolsKeepOriginalNativeNavigationItems()
         {
             var assembly = typeof(Views.Repository).Assembly;
             var integrationType = assembly.GetType("DevBoard.DevSpaces.DevSpacesBootstrap+RepositoryIntegration");
             Assert.NotNull(integrationType);
 
             var devSpacesFactory = integrationType.GetMethod("CreateNavigationItem", BindingFlags.Static | BindingFlags.NonPublic);
-            Assert.NotNull(devSpacesFactory);
-
-            var devSpacesArguments = new object[] { new Views.Repository(), null, null, null };
-            var devSpacesItem = Assert.IsType<ListBoxItem>(devSpacesFactory.Invoke(null, devSpacesArguments));
-            Assert.IsType<Grid>(devSpacesItem.Content);
-
             var toolFactory = integrationType.GetMethod("CreateToolNavigationItem", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.NotNull(devSpacesFactory);
             Assert.NotNull(toolFactory);
 
+            var devArguments = new object[] { new Views.Repository(), null, null, null };
+            var devItem = Assert.IsType<ListBoxItem>(devSpacesFactory.Invoke(null, devArguments));
             var filesItem = Assert.IsType<ListBoxItem>(toolFactory.Invoke(null, new object[]
             {
                 new Views.Repository(), "Icons.Folder", App.Text("DevSpaces.Files"), "Files"
@@ -46,97 +43,80 @@ namespace DevBoard.Tests
                 new Views.Repository(), "Icons.Terminal", App.Text("DevSpaces.Terminals"), "Terminals"
             }));
 
-            var items = new[] { devSpacesItem, filesItem, aiRouterItem, roslynItem, terminalsItem };
-            Assert.All(items, item => Assert.IsType<Grid>(item.Content));
+            Assert.Equal(new[] { App.Text("DevSpaces") }, DescendantText(devItem));
+            Assert.Contains(App.Text("DevSpaces.Files"), DescendantText(filesItem));
+            Assert.Contains("AI Router", DescendantText(aiRouterItem));
+            Assert.Contains("Roslyn", DescendantText(roslynItem));
+            Assert.DoesNotContain("C#", DescendantText(roslynItem));
+            Assert.Contains(App.Text("DevSpaces.Terminals"), DescendantText(terminalsItem));
 
-            var labels = items
-                .Select(item => Assert.IsType<Grid>(item.Content))
-                .SelectMany(grid => grid.GetVisualDescendants().OfType<TextBlock>().Prepend(grid.Children.OfType<TextBlock>().FirstOrDefault()).Where(x => x != null))
-                .Select(x => x!.Text)
-                .ToArray();
-
-            Assert.Contains(App.Text("DevSpaces.Dashboard"), labels);
-            Assert.Contains(App.Text("DevSpaces.Files"), labels);
-            Assert.Contains("AI Router", labels);
-            Assert.Contains("Roslyn", labels);
-            Assert.Contains(App.Text("DevSpaces.Terminals"), labels);
-        }
-
-        [AvaloniaFact]
-        public void RepositoryNavigationSeparatesDevAndAgentMenusWithoutOverridingNativeSelectionStyle()
-        {
-            var assembly = typeof(Views.Repository).Assembly;
-            var integrationType = assembly.GetType("DevBoard.DevSpaces.DevSpacesBootstrap+RepositoryIntegration");
-            Assert.NotNull(integrationType);
-
-            var devSpacesFactory = integrationType.GetMethod("CreateNavigationItem", BindingFlags.Static | BindingFlags.NonPublic);
-            var toolFactory = integrationType.GetMethod("CreateToolNavigationItem", BindingFlags.Static | BindingFlags.NonPublic);
-            Assert.NotNull(devSpacesFactory);
-            Assert.NotNull(toolFactory);
-
-            var devArguments = new object[] { new Views.Repository(), null, null, null };
-            var dashboardItem = Assert.IsType<ListBoxItem>(devSpacesFactory.Invoke(null, devArguments));
-            var aiRouterItem = Assert.IsType<ListBoxItem>(toolFactory.Invoke(null, new object[]
-            {
-                new Views.Repository(), "Icons.AIAssist", "AI Router", "AIRouter"
-            }));
-            var roslynItem = Assert.IsType<ListBoxItem>(toolFactory.Invoke(null, new object[]
-            {
-                new Views.Repository(), "Icons.Code", "Roslyn", "Roslyn"
-            }));
-
-            var dashboardLabels = DescendantText(dashboardItem);
-            var aiRouterLabels = DescendantText(aiRouterItem);
-            var roslynLabels = DescendantText(roslynItem);
-
-            Assert.Contains("DEV", dashboardLabels);
-            Assert.Contains(App.Text("DevSpaces.Dashboard"), dashboardLabels);
-            Assert.Contains("AGENT", aiRouterLabels);
-            Assert.Contains("AI Router", aiRouterLabels);
-            Assert.Contains("C#", roslynLabels);
-
-            Assert.Contains("dev-agent-navigation", dashboardItem.Classes);
-            Assert.Contains("navigation-group-start", dashboardItem.Classes);
-            Assert.Contains("dev-navigation", dashboardItem.Classes);
-            Assert.Contains("dev-agent-navigation", aiRouterItem.Classes);
-            Assert.Contains("navigation-group-start", aiRouterItem.Classes);
-            Assert.Contains("agent-navigation", aiRouterItem.Classes);
-            Assert.Contains("agent-navigation", roslynItem.Classes);
-
-            // Dev/Agent grouping must not paint its own selected/hover background or accent rail.
-            // The repository ListBox already owns those visual states and should remain consistent
-            // with History, Local Changes, Stashes, Files, and the rest of SourceGit.
             Assert.Null(integrationType.GetMethod("ApplyNavigationVisualState", BindingFlags.Static | BindingFlags.NonPublic));
             Assert.Null(integrationType.GetMethod("AttachNavigationPointerState", BindingFlags.Static | BindingFlags.NonPublic));
             Assert.Null(integrationType.GetField("NavigationAccentColor", BindingFlags.Static | BindingFlags.NonPublic));
             Assert.Null(integrationType.GetField("NavigationActiveBackgroundColor", BindingFlags.Static | BindingFlags.NonPublic));
 
-            var filesIndex = integrationType.GetField("FilesNavigationIndex", BindingFlags.Static | BindingFlags.NonPublic);
-            var dashboardIndex = integrationType.GetField("DevSpacesNavigationIndex", BindingFlags.Static | BindingFlags.NonPublic);
-            Assert.NotNull(filesIndex);
-            Assert.NotNull(dashboardIndex);
-            Assert.Equal(3, filesIndex.GetRawConstantValue());
-            Assert.Equal(4, dashboardIndex.GetRawConstantValue());
+            Assert.Equal(3, GetConstant(integrationType, "DevSpacesNavigationIndex"));
+            Assert.Equal(4, GetConstant(integrationType, "FilesNavigationIndex"));
+            Assert.Equal(5, GetConstant(integrationType, "AIRouterNavigationIndex"));
+            Assert.Equal(6, GetConstant(integrationType, "RoslynNavigationIndex"));
+            Assert.Equal(7, GetConstant(integrationType, "TerminalsNavigationIndex"));
         }
 
-        [Fact]
-        public void RepositoryNavigationReservesSeparateRoslynAndTerminalsIndexes()
+        [AvaloniaFact]
+        public void RepositoryNavigationAddsOnlyBuiltInAgentsAfterTerminals()
         {
             var assembly = typeof(Views.Repository).Assembly;
             var integrationType = assembly.GetType("DevBoard.DevSpaces.DevSpacesBootstrap+RepositoryIntegration");
             Assert.NotNull(integrationType);
 
-            var roslynIndex = integrationType.GetField("RoslynNavigationIndex", BindingFlags.Static | BindingFlags.NonPublic);
-            var terminalsIndex = integrationType.GetField("TerminalsNavigationIndex", BindingFlags.Static | BindingFlags.NonPublic);
-            Assert.NotNull(roslynIndex);
-            Assert.NotNull(terminalsIndex);
-            Assert.Equal(6, roslynIndex.GetRawConstantValue());
-            Assert.Equal(7, terminalsIndex.GetRawConstantValue());
+            var factory = integrationType.GetMethod("CreateAgentNavigationItem", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.NotNull(factory);
 
-            var isDevNavigationIndex = integrationType.GetMethod("IsDevSpacesNavigationIndex", BindingFlags.Static | BindingFlags.NonPublic);
-            Assert.NotNull(isDevNavigationIndex);
-            Assert.True(Assert.IsType<bool>(isDevNavigationIndex.Invoke(null, new object[] { 6 })));
-            Assert.True(Assert.IsType<bool>(isDevNavigationIndex.Invoke(null, new object[] { 7 })));
+            var view = new Views.Repository();
+            var items = DevBoard.DevSpaces.DevSpaceAgent.BuiltIn
+                .Select(agent => Assert.IsType<ListBoxItem>(factory.Invoke(null, new object[] { view, agent })))
+                .ToArray();
+
+            Assert.Equal(new[] { "Copilot", "Codex", "Antigravity" }, items.Select(item => DescendantText(item).Single()).ToArray());
+            Assert.Equal(new[] { "Agent:copilot", "Agent:codex", "Agent:agy" }, items.Select(item => item.Tag).ToArray());
+            Assert.All(items, item =>
+            {
+                var grid = Assert.IsType<Grid>(item.Content);
+                Assert.Single(grid.Children.OfType<Image>());
+                Assert.DoesNotContain("DEV", DescendantText(item));
+                Assert.DoesNotContain("AGENT", DescendantText(item));
+            });
+
+            Assert.Equal(8, GetConstant(integrationType, "CopilotNavigationIndex"));
+            Assert.Equal(9, GetConstant(integrationType, "CodexNavigationIndex"));
+            Assert.Equal(10, GetConstant(integrationType, "AntigravityNavigationIndex"));
+        }
+
+        [Fact]
+        public void TerminalPickerNoLongerOwnsBuiltInAgentMenuItems()
+        {
+            var viewType = typeof(Views.DevSpaces);
+            Assert.Null(viewType.GetMethod("CreateAgentMenuItem", BindingFlags.Instance | BindingFlags.NonPublic));
+        }
+
+        [Fact]
+        public void BuiltInAgentsRemainCopilotCodexAndAntigravity()
+        {
+            Assert.Equal(
+                new[]
+                {
+                    ("Copilot", "copilot"),
+                    ("Codex", "codex"),
+                    ("Antigravity", "agy"),
+                },
+                DevBoard.DevSpaces.DevSpaceAgent.BuiltIn.Select(x => (x.Name, x.Command)).ToArray());
+        }
+
+        private static int GetConstant(System.Type integrationType, string name)
+        {
+            var field = integrationType.GetField(name, BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.NotNull(field);
+            return Assert.IsType<int>(field.GetRawConstantValue());
         }
 
         private static string[] DescendantText(ListBoxItem item)

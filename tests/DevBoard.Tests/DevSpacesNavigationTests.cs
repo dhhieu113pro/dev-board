@@ -63,7 +63,7 @@ namespace DevBoard.Tests
         }
 
         [AvaloniaFact]
-        public void RepositoryNavigationSeparatesDevAndAgentMenus()
+        public void RepositoryNavigationSeparatesDevAndAgentMenusWithoutOverridingNativeSelectionStyle()
         {
             var assembly = typeof(Views.Repository).Assembly;
             var integrationType = assembly.GetType("DevBoard.DevSpaces.DevSpacesBootstrap+RepositoryIntegration");
@@ -103,15 +103,20 @@ namespace DevBoard.Tests
             Assert.Contains("agent-navigation", aiRouterItem.Classes);
             Assert.Contains("agent-navigation", roslynItem.Classes);
 
+            // Dev/Agent grouping must not paint its own selected/hover background or accent rail.
+            // The repository ListBox already owns those visual states and should remain consistent
+            // with History, Local Changes, Stashes, Files, and the rest of SourceGit.
+            Assert.Null(integrationType.GetMethod("ApplyNavigationVisualState", BindingFlags.Static | BindingFlags.NonPublic));
+            Assert.Null(integrationType.GetMethod("AttachNavigationPointerState", BindingFlags.Static | BindingFlags.NonPublic));
+            Assert.Null(integrationType.GetField("NavigationAccentColor", BindingFlags.Static | BindingFlags.NonPublic));
+            Assert.Null(integrationType.GetField("NavigationActiveBackgroundColor", BindingFlags.Static | BindingFlags.NonPublic));
+
             var filesIndex = integrationType.GetField("FilesNavigationIndex", BindingFlags.Static | BindingFlags.NonPublic);
             var dashboardIndex = integrationType.GetField("DevSpacesNavigationIndex", BindingFlags.Static | BindingFlags.NonPublic);
-            var accent = integrationType.GetField("NavigationAccentColor", BindingFlags.Static | BindingFlags.NonPublic);
             Assert.NotNull(filesIndex);
             Assert.NotNull(dashboardIndex);
-            Assert.NotNull(accent);
             Assert.Equal(3, filesIndex.GetRawConstantValue());
             Assert.Equal(4, dashboardIndex.GetRawConstantValue());
-            Assert.Equal("#2DD4BF", accent.GetRawConstantValue());
         }
 
         [Fact]

@@ -12,8 +12,8 @@ namespace DevBoard.Views
         {
             InitializeComponent();
 
-            if (StatisticsRangeSwitcher.Items.Count > 2 && StatisticsRangeSwitcher.Items[2] is ListBoxItem totalFilter)
-                totalFilter.IsVisible = false;
+            if (StatisticsRangeSwitcher.Items.Count > 2)
+                StatisticsRangeSwitcher.Items.RemoveAt(2);
         }
 
         private ViewModels.DevSpaceDashboard Model => DataContext as ViewModels.DevSpaceDashboard;

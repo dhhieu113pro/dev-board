@@ -44,7 +44,7 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Run dashboard regression tests
-        run: dotnet test tests/DevBoard.Tests/DevBoard.Tests.csproj -c Release --filter "FullyQualifiedName~DevSpaceDashboardProfileDisplayTests"
+        run: dotnet test tests/DevBoard.Tests/DevBoard.Tests.csproj -c Release --filter "FullyQualifiedName~DevSpaceDashboardProfileDisplayTests|FullyQualifiedName~DevSpaceFileExplorerTests"
   build:
     name: Build
     uses: ./.github/workflows/build.yml

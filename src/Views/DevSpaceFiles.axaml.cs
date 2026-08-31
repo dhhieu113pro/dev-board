@@ -48,6 +48,41 @@ namespace DevBoard.Views
             e.Handled = true;
         }
 
+        private void OnEditFile(object sender, RoutedEventArgs e)
+        {
+            _files?.BeginEditSelectedFile();
+            e.Handled = true;
+        }
+
+        private async void OnSaveFile(object sender, RoutedEventArgs e)
+        {
+            e.Handled = true;
+            if (_files != null)
+                await _files.SaveSelectedFileAsync();
+        }
+
+        private void OnCancelEditFile(object sender, RoutedEventArgs e)
+        {
+            _files?.CancelEditSelectedFile();
+            e.Handled = true;
+        }
+
+        private async void OnDeleteFile(object sender, RoutedEventArgs e)
+        {
+            e.Handled = true;
+            if (_files?.DetailContext is not ViewModels.DevSpaceWorkspaceFile file || file.IsBusy)
+                return;
+
+            if (TopLevel.GetTopLevel(this) is not Window owner)
+                return;
+
+            var confirmed = await new ConfirmDeleteFile().ShowAsync(owner, file.Path);
+            if (!confirmed || !ReferenceEquals(_files.DetailContext, file))
+                return;
+
+            await _files.DeleteSelectedFileAsync();
+        }
+
         private void OnTreeArrowClick(object sender, RoutedEventArgs e)
         {
             if (DataContext is ViewModels.DevSpaceFiles files &&

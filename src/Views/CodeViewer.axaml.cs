@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -26,15 +27,66 @@ namespace DevBoard.Views
             _editor.Options.HighlightCurrentLine = true;
             _editor.Options.EnableTextDragDrop = false;
             _editor.TextArea.RightClickMovesCaret = true;
+            _editor.TextChanged += OnEditorTextChanged;
 
-            DataContextChanged += (_, _) => UpdateDocument();
+            DataContextChanged += OnDataContextChanged;
             ActualThemeVariantChanged += (_, _) => ApplyTheme();
             AttachedToLogicalTree += (_, _) =>
             {
+                _isAttached = true;
+                SetFile(DataContext as DevSpaceWorkspaceFile);
                 EnsureTextMate();
                 UpdateDocument();
             };
-            DetachedFromLogicalTree += (_, _) => DisposeTextMate();
+            DetachedFromLogicalTree += (_, _) =>
+            {
+                _isAttached = false;
+                SetFile(null);
+                DisposeTextMate();
+            };
+        }
+
+        private void OnDataContextChanged(object sender, EventArgs e)
+        {
+            if (_isAttached)
+                SetFile(DataContext as DevSpaceWorkspaceFile);
+        }
+
+        private void SetFile(DevSpaceWorkspaceFile file)
+        {
+            if (ReferenceEquals(_file, file))
+            {
+                UpdateDocument();
+                return;
+            }
+
+            if (_file != null)
+                _file.PropertyChanged -= OnFilePropertyChanged;
+
+            _file = file;
+            if (_file != null)
+                _file.PropertyChanged += OnFilePropertyChanged;
+
+            UpdateDocument();
+        }
+
+        private void OnFilePropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName is nameof(DevSpaceWorkspaceFile.Content)
+                or nameof(DevSpaceWorkspaceFile.EditableContent)
+                or nameof(DevSpaceWorkspaceFile.IsEditing)
+                or nameof(DevSpaceWorkspaceFile.IsBusy))
+            {
+                UpdateEditorState();
+            }
+        }
+
+        private void OnEditorTextChanged(object sender, EventArgs e)
+        {
+            if (_updatingEditor || _file == null || !_file.IsEditing || _file.IsBusy)
+                return;
+
+            _file.EditableContent = _editor.Text ?? string.Empty;
         }
 
         private void EnsureTextMate()
@@ -61,16 +113,14 @@ namespace DevBoard.Views
 
         private void UpdateDocument()
         {
-            if (DataContext is not DevSpaceWorkspaceFile file)
-            {
-                _editor.Text = string.Empty;
-                return;
-            }
+            UpdateEditorState();
 
-            _editor.Text = file.Content;
+            if (_file == null)
+                return;
+
             EnsureTextMate();
 
-            var grammarExtension = DevSpaceCodeLanguageResolver.ResolveGrammarExtension(file.Path);
+            var grammarExtension = DevSpaceCodeLanguageResolver.ResolveGrammarExtension(_file.Path);
             var language = string.IsNullOrEmpty(grammarExtension)
                 ? null
                 : _registryOptions?.GetLanguageByExtension(grammarExtension);
@@ -82,6 +132,28 @@ namespace DevBoard.Views
             }
 
             _textMateInstallation?.SetGrammar(_registryOptions.GetScopeByLanguageId(language.Id));
+        }
+
+        private void UpdateEditorState()
+        {
+            var text = _file == null
+                ? string.Empty
+                : _file.IsEditing ? _file.EditableContent : _file.Content;
+
+            if (!string.Equals(_editor.Text, text, StringComparison.Ordinal))
+            {
+                _updatingEditor = true;
+                try
+                {
+                    _editor.Text = text;
+                }
+                finally
+                {
+                    _updatingEditor = false;
+                }
+            }
+
+            _editor.IsReadOnly = _file == null || !_file.IsEditing || _file.IsBusy;
         }
 
         private void ApplyTheme()
@@ -130,7 +202,10 @@ namespace DevBoard.Views
         }
 
         private readonly TextEditor _editor;
+        private DevSpaceWorkspaceFile _file;
         private RegistryOptions _registryOptions;
         private TextMateInstallation _textMateInstallation;
+        private bool _updatingEditor;
+        private bool _isAttached;
     }
 }

@@ -94,6 +94,7 @@
       <v:DevSpaceFiles x:Name="FilesView" DataContext="{Binding Files}"/>
       <v:DevSpaceRoslynAnalytics IsVisible="{Binding IsRoslynActive}"/>
       <Grid x:Name="TerminalGrid" Margin="2"/>
+      <Grid x:Name="AgentGrid" Margin="2" IsVisible="False"/>
     </Grid>
   </Grid>
 </UserControl>

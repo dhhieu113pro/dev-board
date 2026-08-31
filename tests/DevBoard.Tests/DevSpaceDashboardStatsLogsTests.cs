@@ -1,5 +1,9 @@
 using System;
 using System.IO;
+using System.Linq;
+
+using Avalonia.Headless.XUnit;
+using Avalonia.LogicalTree;
 
 using DevBoard.DevSpaces;
 using DevBoard.Models;
@@ -19,6 +23,14 @@ public sealed class DevSpaceDashboardStatsLogsTests
     {
         Assert.Equal(expected, DevSpaceDashboard.GetStatisticsMode(index));
         Assert.Equal(index, DevSpaceDashboard.GetStatisticsModeIndex(expected));
+    }
+
+    [AvaloniaFact]
+    public void DashboardStatsDoesNotExposeBranchFilter()
+    {
+        var view = new Views.DevSpaceDashboard();
+
+        Assert.Empty(view.GetLogicalDescendants().OfType<Views.BranchSelector>());
     }
 
     [Fact]

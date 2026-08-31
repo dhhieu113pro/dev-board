@@ -4,7 +4,6 @@ namespace DevBoard.Models
     {
         Dashboard,
         Files,
-        AIRouter,
         Terminals,
         Roslyn,
     }

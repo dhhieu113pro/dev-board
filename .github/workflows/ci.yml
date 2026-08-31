@@ -30,7 +30,7 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Run focused regression tests
-        run: dotnet test tests/DevBoard.Tests/DevBoard.Tests.csproj -c Release --filter "FullyQualifiedName~GitAuthenticationTests|FullyQualifiedName~GitHubAccountBindingTests|FullyQualifiedName~AIRouterToggleTests|FullyQualifiedName~AIRouterTests|FullyQualifiedName~AIRouterProviderDiagnosticTests|FullyQualifiedName~OpenAICompatibleProviderTests|FullyQualifiedName~PullRequestRemoteTests|FullyQualifiedName~PullRequestCommitRangeTests|FullyQualifiedName~RoslynUiResponsivenessTests|FullyQualifiedName~RoslynManualInitializationTests|FullyQualifiedName~DevSpaceCodeLanguageResolverTests|FullyQualifiedName~DevSpacesNavigationTests|FullyQualifiedName~DevSpacesTerminalVisibilityTests"
+        run: dotnet test tests/DevBoard.Tests/DevBoard.Tests.csproj -c Release --filter "FullyQualifiedName~GitAuthenticationTests|FullyQualifiedName~GitHubAccountBindingTests|FullyQualifiedName~AIRouterToggleTests|FullyQualifiedName~AIRouterTests|FullyQualifiedName~AIRouterProviderDiagnosticTests|FullyQualifiedName~OpenAICompatibleProviderTests|FullyQualifiedName~PullRequestRemoteTests|FullyQualifiedName~PullRequestCommitRangeTests|FullyQualifiedName~RoslynUiResponsivenessTests|FullyQualifiedName~RoslynManualInitializationTests|FullyQualifiedName~DevSpaceCodeLanguageResolverTests|FullyQualifiedName~DevSpacesNavigationTests|FullyQualifiedName~DevSpacesTerminalVisibilityTests|FullyQualifiedName~GoToFileSearchFocusTests"
   devspace-dashboard-tests:
     name: DevSpace dashboard regression tests
     runs-on: ubuntu-latest

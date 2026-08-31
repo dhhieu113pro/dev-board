@@ -14,7 +14,7 @@ namespace DevBoard.ViewModels
         public Thickness Indent => new(Depth * 16, 0, 0, 0);
         public DevSpaceFileNodeChildren Children { get; }
         public IReadOnlyList<DevSpaceFileTreeGuideSegment> TreeGuideSegments => BuildTreeGuideSegments();
-        public bool ShowChildGuideStem => IsDirectory && IsExpanded && Children.Count > 0;
+        public bool ShowChildGuideStem => IsDirectory && Children.Count > 0 && (IsExpanded || _showVisibleChildGuideStem);
 
         internal DevSpaceFileNode Parent { get; set; }
 
@@ -97,6 +97,15 @@ namespace DevBoard.ViewModels
             Children = new DevSpaceFileNodeChildren(this);
         }
 
+        internal void SetVisibleChildGuideStem(bool value)
+        {
+            if (_showVisibleChildGuideStem == value)
+                return;
+
+            _showVisibleChildGuideStem = value;
+            OnPropertyChanged(nameof(ShowChildGuideStem));
+        }
+
         private IReadOnlyList<DevSpaceFileTreeGuideSegment> BuildTreeGuideSegments()
         {
             if (Parent == null)
@@ -124,6 +133,7 @@ namespace DevBoard.ViewModels
 
         private Models.Change _change;
         private bool _isExpanded;
+        private bool _showVisibleChildGuideStem;
     }
 
     public sealed class DevSpaceFileNodeChildren : List<DevSpaceFileNode>

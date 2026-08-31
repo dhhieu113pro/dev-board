@@ -143,6 +143,51 @@ public sealed class DevSpaceDashboardProfileDisplayTests
         }
     }
 
+    [AvaloniaFact]
+    public void DashboardShowsSourceGitStatisticsAndLogsWithWeeklyDefault()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"devboard-stats-logs-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+
+        try
+        {
+            using var spaces = new ViewModels.DevSpaces(root, new FakeLauncher());
+            var view = new Views.DevSpaceDashboard
+            {
+                DataContext = spaces.Dashboard,
+            };
+            var window = Show(view);
+
+            Assert.Contains(view.GetVisualDescendants().OfType<TextBlock>(), x => x.Text == "Stats");
+            Assert.Contains(view.GetVisualDescendants().OfType<TextBlock>(), x => x.Text == "Logs");
+            Assert.Single(view.GetVisualDescendants().OfType<Chart>());
+            Assert.Single(view.GetVisualDescendants().OfType<CommandLogContentPresenter>());
+
+            var rangeSwitcher = view.GetVisualDescendants()
+                .OfType<ListBox>()
+                .Single(x => x.Name == "StatisticsRangeSwitcher");
+            Assert.Equal(0, rangeSwitcher.SelectedIndex);
+
+            var rangeLabels = rangeSwitcher.GetVisualDescendants()
+                .OfType<TextBlock>()
+                .Select(x => x.Text)
+                .ToArray();
+            Assert.Equal(new[] { "Weekly", "Monthly", "Total" }, rangeLabels);
+
+            Assert.Equal(Models.StatisticsMode.ThisWeek, spaces.Dashboard.StatisticsViewMode);
+            spaces.Dashboard.StatisticsRange = DevSpaceStatisticsRange.Monthly;
+            Assert.Equal(Models.StatisticsMode.ThisMonth, spaces.Dashboard.StatisticsViewMode);
+            spaces.Dashboard.StatisticsRange = DevSpaceStatisticsRange.Total;
+            Assert.Equal(Models.StatisticsMode.All, spaces.Dashboard.StatisticsViewMode);
+
+            window.Close();
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
     private static Window Show(Control view)
     {
         var window = new Window

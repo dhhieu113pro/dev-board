@@ -11,6 +11,9 @@ namespace DevBoard.Views
         public DevSpaceDashboard()
         {
             InitializeComponent();
+
+            if (StatisticsRangeSwitcher.Items.Count > 2)
+                StatisticsRangeSwitcher.Items.RemoveAt(2);
         }
 
         private ViewModels.DevSpaceDashboard Model => DataContext as ViewModels.DevSpaceDashboard;

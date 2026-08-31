@@ -36,7 +36,6 @@ namespace DevBoard.ViewModels
                     return;
                 OnPropertyChanged(nameof(IsDashboardActive));
                 OnPropertyChanged(nameof(IsFilesActive));
-                OnPropertyChanged(nameof(IsAIRouterActive));
                 OnPropertyChanged(nameof(IsTerminalsActive));
                 OnPropertyChanged(nameof(IsRoslynActive));
             }
@@ -44,7 +43,6 @@ namespace DevBoard.ViewModels
 
         public bool IsDashboardActive => ActivePage == Models.DevSpacePage.Dashboard;
         public bool IsFilesActive => ActivePage == Models.DevSpacePage.Files;
-        public bool IsAIRouterActive => ActivePage == Models.DevSpacePage.AIRouter;
         public bool IsTerminalsActive => ActivePage == Models.DevSpacePage.Terminals;
         public bool IsRoslynActive => ActivePage == Models.DevSpacePage.Roslyn;
 
@@ -121,7 +119,6 @@ namespace DevBoard.ViewModels
 
         public void ActivateDashboard() => ActivePage = Models.DevSpacePage.Dashboard;
         public void ActivateFiles() => ActivePage = Models.DevSpacePage.Files;
-        public void ActivateAIRouter() => ActivePage = Models.DevSpacePage.AIRouter;
         public void ActivateTerminals() => ActivePage = Models.DevSpacePage.Terminals;
         public void ActivateRoslyn() => ActivePage = Models.DevSpacePage.Roslyn;
 

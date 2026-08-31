@@ -13,7 +13,7 @@ namespace DevBoard.ViewModels
         public int Depth { get; }
         public Thickness Indent => new(Depth * 16, 0, 0, 0);
         public DevSpaceFileNodeChildren Children { get; }
-        public IReadOnlyList<DevSpaceFileTreeGuideSegment> TreeGuideSegments => BuildTreeGuideSegments();
+        public IReadOnlyList<DevSpaceFileTreeGuideSegment> TreeGuideSegments => _visibleTreeGuideSegments ?? BuildTreeGuideSegments();
         public bool ShowChildGuideStem => IsDirectory && Children.Count > 0 && (IsExpanded || _showVisibleChildGuideStem);
 
         internal DevSpaceFileNode Parent { get; set; }
@@ -106,7 +106,13 @@ namespace DevBoard.ViewModels
             OnPropertyChanged(nameof(ShowChildGuideStem));
         }
 
-        private IReadOnlyList<DevSpaceFileTreeGuideSegment> BuildTreeGuideSegments()
+        internal void SetVisibleTreeGuideSegments(ISet<DevSpaceFileNode> visibleNodes)
+        {
+            _visibleTreeGuideSegments = BuildTreeGuideSegments(visibleNodes);
+            OnPropertyChanged(nameof(TreeGuideSegments));
+        }
+
+        private IReadOnlyList<DevSpaceFileTreeGuideSegment> BuildTreeGuideSegments(ISet<DevSpaceFileNode> visibleNodes = null)
         {
             if (Parent == null)
                 return [];
@@ -120,7 +126,7 @@ namespace DevBoard.ViewModels
             {
                 var branchNode = lineage.Pop();
                 var parent = branchNode.Parent;
-                var isLastSibling = parent.Children.Count == 0 || object.ReferenceEquals(parent.Children[^1], branchNode);
+                var isLastSibling = IsLastSibling(parent, branchNode, visibleNodes);
                 var isCurrentNode = object.ReferenceEquals(branchNode, this);
 
                 segments.Add(isCurrentNode
@@ -131,9 +137,25 @@ namespace DevBoard.ViewModels
             return segments;
         }
 
+        private static bool IsLastSibling(DevSpaceFileNode parent, DevSpaceFileNode branchNode, ISet<DevSpaceFileNode> visibleNodes)
+        {
+            if (visibleNodes == null)
+                return parent.Children.Count == 0 || object.ReferenceEquals(parent.Children[^1], branchNode);
+
+            for (var i = parent.Children.Count - 1; i >= 0; i--)
+            {
+                var sibling = parent.Children[i];
+                if (visibleNodes.Contains(sibling))
+                    return object.ReferenceEquals(sibling, branchNode);
+            }
+
+            return true;
+        }
+
         private Models.Change _change;
         private bool _isExpanded;
         private bool _showVisibleChildGuideStem;
+        private IReadOnlyList<DevSpaceFileTreeGuideSegment> _visibleTreeGuideSegments;
     }
 
     public sealed class DevSpaceFileNodeChildren : List<DevSpaceFileNode>

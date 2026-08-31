@@ -10,6 +10,13 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace DevBoard.ViewModels
 {
+    public enum DevSpaceStatisticsRange
+    {
+        Weekly = 0,
+        Monthly,
+        Total,
+    }
+
     public sealed class DevSpaceDashboard : ObservableObject, IDisposable
     {
         public string WorkspacePath { get; }
@@ -18,6 +25,30 @@ namespace DevBoard.ViewModels
         public DevSpaceCapabilityState CopilotCapability { get; }
         public DevSpaceCapabilityState CodexCapability { get; }
         public DevSpaceCapabilityState AntigravityCapability { get; }
+
+        public Statistics RepositoryStatistics { get; }
+        public ViewLogs RepositoryLogs { get; }
+
+        public DevSpaceStatisticsRange StatisticsRange
+        {
+            get => _statisticsRange;
+            set
+            {
+                if (!SetProperty(ref _statisticsRange, value))
+                    return;
+
+                OnPropertyChanged(nameof(StatisticsViewMode));
+                if (RepositoryStatistics != null)
+                    RepositoryStatistics.ViewMode = StatisticsViewMode;
+            }
+        }
+
+        public Models.StatisticsMode StatisticsViewMode => StatisticsRange switch
+        {
+            DevSpaceStatisticsRange.Monthly => Models.StatisticsMode.ThisMonth,
+            DevSpaceStatisticsRange.Total => Models.StatisticsMode.All,
+            _ => Models.StatisticsMode.ThisWeek,
+        };
 
         public DevBoard.DevSpaces.RoslynDevSpaceState RoslynState => _roslynService.State;
         public string RoslynFailureReason => _roslynService.FailureReason;
@@ -127,6 +158,12 @@ namespace DevBoard.ViewModels
 
             if (_repository != null)
             {
+                RepositoryStatistics = new Statistics(_repository.FullPath)
+                {
+                    ViewMode = StatisticsViewMode,
+                };
+                RepositoryLogs = new ViewLogs(_repository);
+
                 _repository.PropertyChanged += OnRepositoryPropertyChanged;
                 if (_repository.WorkingCopy != null)
                     _repository.WorkingCopy.PropertyChanged += OnWorkingCopyPropertyChanged;
@@ -345,5 +382,6 @@ namespace DevBoard.ViewModels
         private int _behindCount;
         private DevSpaceGitSummary _gitSummary = DevSpaceGitSummary.Empty;
         private string _unusedCodeFilter = "All";
+        private DevSpaceStatisticsRange _statisticsRange = DevSpaceStatisticsRange.Weekly;
     }
 }

@@ -49,7 +49,7 @@
         </Grid>
       </Border>
 
-      <!-- Primary dashboard: quick actions/health at left, SourceGit stats/logs at right. -->
+      <!-- Primary dashboard: quick actions/health at left, repository stats/logs at right. -->
       <Grid ColumnDefinitions="430,*">
         <StackPanel Grid.Column="0" Margin="0,0,12,0" Spacing="12">
           <Border MinHeight="190" Padding="14" CornerRadius="6" Background="{DynamicResource Brush.Contents}" BorderBrush="{DynamicResource Brush.Border2}" BorderThickness="1">
@@ -106,7 +106,7 @@
         </StackPanel>
 
         <StackPanel Grid.Column="1" Spacing="12">
-          <!-- SourceGit statistics: existing Statistics VM + Chart control. -->
+          <!-- Repository statistics: existing Statistics VM + Chart control. -->
           <Border MinHeight="280" Padding="14" CornerRadius="6" Background="{DynamicResource Brush.Contents}" BorderBrush="{DynamicResource Brush.Border2}" BorderThickness="1">
             <Grid RowDefinitions="Auto,*">
               <Grid ColumnDefinitions="*,Auto">
@@ -208,7 +208,7 @@
             </Grid>
           </Border>
 
-          <!-- SourceGit command logs: existing ViewLogs VM + log presenter. -->
+          <!-- Repository command logs: existing ViewLogs VM + log presenter. -->
           <Border MinHeight="330" Padding="14" CornerRadius="6" Background="{DynamicResource Brush.Contents}" BorderBrush="{DynamicResource Brush.Border2}" BorderThickness="1">
             <Grid RowDefinitions="Auto,*">
               <TextBlock FontSize="15" FontWeight="SemiBold" Text="Logs"/>

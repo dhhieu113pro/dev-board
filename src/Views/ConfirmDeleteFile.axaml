@@ -1,0 +1,37 @@
+<v:ChromelessWindow xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                    xmlns:v="using:DevBoard.Views"
+                    mc:Ignorable="d" d:DesignWidth="440" d:DesignHeight="180"
+                    x:Class="DevBoard.Views.ConfirmDeleteFile"
+                    x:Name="ThisControl"
+                    Icon="/App.ico"
+                    SizeToContent="WidthAndHeight"
+                    CanResize="False"
+                    WindowStartupLocation="CenterOwner">
+  <Grid RowDefinitions="Auto,Auto,Auto">
+    <Grid Grid.Row="0" Height="28" IsVisible="{Binding !#ThisControl.UseSystemWindowFrame}">
+      <Border Background="{DynamicResource Brush.TitleBar}"
+              BorderThickness="0,0,0,1" BorderBrush="{DynamicResource Brush.Border0}"
+              PointerPressed="BeginMoveWindow"/>
+      <TextBlock Classes="bold"
+                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                 IsHitTestVisible="False"
+                 Text="Delete file"/>
+      <v:CaptionButtons HorizontalAlignment="Right"
+                        IsCloseButtonOnly="True"
+                        IsVisible="{OnPlatform True, macOS=False}"/>
+    </Grid>
+
+    <StackPanel Grid.Row="1" Margin="16" Spacing="8" MinWidth="360" MaxWidth="520">
+      <TextBlock Text="Delete this file from the workspace?"/>
+      <TextBlock x:Name="FilePath" TextWrapping="Wrap" Foreground="{DynamicResource Brush.FG2}"/>
+    </StackPanel>
+
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="16,0,16,16">
+      <Button Classes="flat" Width="80" Height="30" HorizontalContentAlignment="Center" Content="Cancel" Click="OnCancel"/>
+      <Button Classes="flat primary" Width="80" Height="30" HorizontalContentAlignment="Center" Content="Delete" Click="OnDelete"/>
+    </StackPanel>
+  </Grid>
+</v:ChromelessWindow>

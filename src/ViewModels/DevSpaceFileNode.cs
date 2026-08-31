@@ -12,7 +12,11 @@ namespace DevBoard.ViewModels
         public bool IsDirectory { get; }
         public int Depth { get; }
         public Thickness Indent => new(Depth * 16, 0, 0, 0);
-        public List<DevSpaceFileNode> Children { get; } = [];
+        public DevSpaceFileNodeChildren Children { get; }
+        public IReadOnlyList<DevSpaceFileTreeGuideSegment> TreeGuideSegments => _visibleTreeGuideSegments ?? BuildTreeGuideSegments();
+        public bool ShowChildGuideStem => IsDirectory && Children.Count > 0 && (_visibleChildGuideStem ?? IsExpanded);
+
+        internal DevSpaceFileNode Parent { get; set; }
 
         public DevSpaceFileIconKind IconKind => DevSpaceFileIconResolver.Resolve(Name, IsDirectory, Depth);
         public bool IsFolderIcon => IconKind == DevSpaceFileIconKind.Folder;
@@ -77,7 +81,10 @@ namespace DevBoard.ViewModels
             set
             {
                 if (SetProperty(ref _isExpanded, value))
+                {
                     OnPropertyChanged(nameof(ExpansionGlyph));
+                    OnPropertyChanged(nameof(ShowChildGuideStem));
+                }
             }
         }
 
@@ -87,9 +94,83 @@ namespace DevBoard.ViewModels
             RelativePath = relativePath;
             IsDirectory = isDirectory;
             Depth = depth;
+            Children = new DevSpaceFileNodeChildren(this);
+        }
+
+        internal void SetVisibleChildGuideStem(bool value)
+        {
+            if (_visibleChildGuideStem == value)
+                return;
+
+            _visibleChildGuideStem = value;
+            OnPropertyChanged(nameof(ShowChildGuideStem));
+        }
+
+        internal void SetVisibleTreeGuideSegments(ISet<DevSpaceFileNode> visibleNodes)
+        {
+            _visibleTreeGuideSegments = BuildTreeGuideSegments(visibleNodes);
+            OnPropertyChanged(nameof(TreeGuideSegments));
+        }
+
+        private IReadOnlyList<DevSpaceFileTreeGuideSegment> BuildTreeGuideSegments(ISet<DevSpaceFileNode> visibleNodes = null)
+        {
+            if (Parent == null)
+                return [];
+
+            var lineage = new Stack<DevSpaceFileNode>();
+            for (var current = this; current.Parent != null; current = current.Parent)
+                lineage.Push(current);
+
+            var segments = new List<DevSpaceFileTreeGuideSegment>(lineage.Count);
+            while (lineage.Count > 0)
+            {
+                var branchNode = lineage.Pop();
+                var parent = branchNode.Parent;
+                var isLastSibling = IsLastSibling(parent, branchNode, visibleNodes);
+                var isCurrentNode = object.ReferenceEquals(branchNode, this);
+
+                segments.Add(isCurrentNode
+                    ? new DevSpaceFileTreeGuideSegment(true, !isLastSibling, true)
+                    : new DevSpaceFileTreeGuideSegment(!isLastSibling, !isLastSibling, false));
+            }
+
+            return segments;
+        }
+
+        private static bool IsLastSibling(DevSpaceFileNode parent, DevSpaceFileNode branchNode, ISet<DevSpaceFileNode> visibleNodes)
+        {
+            if (visibleNodes == null)
+                return parent.Children.Count == 0 || object.ReferenceEquals(parent.Children[^1], branchNode);
+
+            for (var i = parent.Children.Count - 1; i >= 0; i--)
+            {
+                var sibling = parent.Children[i];
+                if (visibleNodes.Contains(sibling))
+                    return object.ReferenceEquals(sibling, branchNode);
+            }
+
+            return true;
         }
 
         private Models.Change _change;
         private bool _isExpanded;
+        private bool? _visibleChildGuideStem;
+        private IReadOnlyList<DevSpaceFileTreeGuideSegment> _visibleTreeGuideSegments;
+    }
+
+    public sealed class DevSpaceFileNodeChildren : List<DevSpaceFileNode>
+    {
+        internal DevSpaceFileNodeChildren(DevSpaceFileNode parent)
+        {
+            _parent = parent;
+        }
+
+        public new void Add(DevSpaceFileNode item)
+        {
+            item.Parent = _parent;
+            base.Add(item);
+        }
+
+        private readonly DevSpaceFileNode _parent;
     }
 }

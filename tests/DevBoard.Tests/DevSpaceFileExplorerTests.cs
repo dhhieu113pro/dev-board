@@ -50,6 +50,19 @@ public sealed class DevSpaceFileExplorerTests
         Assert.Equal("⌄", folder.ExpansionGlyph);
     }
 
+    [Fact]
+    public void TreeGuideChildStem_follows_expansion_state()
+    {
+        var folder = new DevSpaceFileNode("src", "src", true, 0);
+        folder.Children.Add(new DevSpaceFileNode("Demo.cs", "src/Demo.cs", false, 1));
+
+        Assert.False(folder.ShowChildGuideStem);
+
+        folder.IsExpanded = true;
+
+        Assert.True(folder.ShowChildGuideStem);
+    }
+
     [AvaloniaFact]
     public async Task TreeGuides_preserve_ancestor_continuations_and_stop_at_last_sibling()
     {
@@ -70,10 +83,10 @@ public sealed class DevSpaceFileExplorerTests
             await files.RefreshAsync();
 
             var src = Assert.Single(files.VisibleItems);
-            var controllers = Assert.Single(src.Children.Where(x => x.Name == "Controllers"));
-            var services = Assert.Single(src.Children.Where(x => x.Name == "Services"));
-            var alpha = Assert.Single(controllers.Children.Where(x => x.Name == "Alpha.cs"));
-            var beta = Assert.Single(controllers.Children.Where(x => x.Name == "Beta.cs"));
+            var controllers = Assert.Single(src.Children, x => x.Name == "Controllers");
+            var services = Assert.Single(src.Children, x => x.Name == "Services");
+            var alpha = Assert.Single(controllers.Children, x => x.Name == "Alpha.cs");
+            var beta = Assert.Single(controllers.Children, x => x.Name == "Beta.cs");
 
             Assert.Empty(src.TreeGuideSegments);
 

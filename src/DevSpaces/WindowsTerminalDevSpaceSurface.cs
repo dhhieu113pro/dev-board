@@ -4,7 +4,11 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Layout;
+using Avalonia.Threading;
 
 using Porta.Pty;
 
@@ -17,11 +21,28 @@ namespace DevBoard.DevSpaces
         internal WindowsTerminalDevSpaceSurface(TerminalTranscriptStore transcript)
         {
             _transcriptSink = new TerminalTranscriptSink(transcript);
+
+            _view.ColumnDefinitions = new ColumnDefinitions("*,Auto");
+            _view.Children.Add(_host);
+
+            _scrollBar.Orientation = Orientation.Vertical;
+            _scrollBar.AllowAutoHide = false;
+            _scrollBar.IsVisible = true;
+            _scrollBar.Minimum = 0;
+            _scrollBar.Maximum = 0;
+            _scrollBar.Value = 0;
+            _scrollBar.ViewportSize = 0;
+            _scrollBar.IsEnabled = false;
+            Grid.SetColumn(_scrollBar, 1);
+            _view.Children.Add(_scrollBar);
+
             _host.InputGenerated += OnInputGenerated;
             _host.TerminalResized += OnTerminalResized;
+            _host.ScrollChanged += OnScrollChanged;
+            _scrollBar.PropertyChanged += OnScrollBarPropertyChanged;
         }
 
-        public Control View => _host;
+        public Control View => _view;
 
         public string BackendName => "Windows Terminal";
 
@@ -56,8 +77,11 @@ namespace DevBoard.DevSpaces
         {
             // Native HWNDs ignore Avalonia opacity. Toggle the NativeControlHost itself so
             // inactive repository pages/overflow panes cannot bleed over adjacent content.
+            _view.IsVisible = active;
             _host.IsVisible = active;
             _host.IsHitTestVisible = active;
+            _scrollBar.IsVisible = active;
+            _scrollBar.IsHitTestVisible = active;
         }
 
         public void Stop()
@@ -71,6 +95,8 @@ namespace DevBoard.DevSpaces
 
             _host.InputGenerated -= OnInputGenerated;
             _host.TerminalResized -= OnTerminalResized;
+            _host.ScrollChanged -= OnScrollChanged;
+            _scrollBar.PropertyChanged -= OnScrollBarPropertyChanged;
 
             var pty = _pty;
             _pty = null;
@@ -195,6 +221,43 @@ namespace DevBoard.DevSpaces
             }
         }
 
+        private void OnScrollChanged(int viewTop, int viewHeight, int bufferSize)
+        {
+            Dispatcher.UIThread.Post(() => SyncScrollBar(viewTop, viewHeight, bufferSize));
+        }
+
+        private void SyncScrollBar(int viewTop, int viewHeight, int bufferSize)
+        {
+            if (Volatile.Read(ref _stopped) != 0)
+                return;
+
+            var viewport = Math.Max(0, viewHeight);
+            var maxTop = Math.Max(0, bufferSize - viewport);
+            var value = Math.Clamp(viewTop, 0, maxTop);
+
+            _syncingScrollBar = true;
+            try
+            {
+                _scrollBar.Minimum = 0;
+                _scrollBar.Maximum = maxTop;
+                _scrollBar.ViewportSize = viewport;
+                _scrollBar.Value = value;
+                _scrollBar.IsEnabled = maxTop > 0;
+            }
+            finally
+            {
+                _syncingScrollBar = false;
+            }
+        }
+
+        private void OnScrollBarPropertyChanged(object sender, AvaloniaPropertyChangedEventArgs e)
+        {
+            if (_syncingScrollBar || e.Property != ScrollBar.ValueProperty)
+                return;
+
+            _host.UserScroll((int)Math.Round(_scrollBar.Value));
+        }
+
         private void OnProcessExited(object sender, PtyExitedEventArgs e)
         {
             RaiseExited(e.ExitCode);
@@ -209,7 +272,9 @@ namespace DevBoard.DevSpaces
             Exited?.Invoke(this, new DevSpaceTerminalExitedEventArgs(exitCode));
         }
 
+        private readonly Grid _view = new();
         private readonly Views.WindowsTerminalNativeHost _host = new();
+        private readonly ScrollBar _scrollBar = new();
         private readonly TerminalTranscriptSink _transcriptSink;
         private readonly CancellationTokenSource _cts = new();
         private readonly Channel<string> _input = Channel.CreateUnbounded<string>(new UnboundedChannelOptions
@@ -223,6 +288,7 @@ namespace DevBoard.DevSpaces
         private Task _readerTask;
         private Task _writerTask;
         private bool _acceptInput;
+        private bool _syncingScrollBar;
         private int _started;
         private int _stopped;
         private int _exitRaised;

@@ -45,9 +45,14 @@
                         CornerRadius="4"
                         Background="{DynamicResource Brush.Contents}"
                         PointerPressed="OnTerminalTabPressed">
-                  <Grid ColumnDefinitions="Auto,Auto">
-                    <TextBlock VerticalAlignment="Center" Text="{Binding Title}"/>
-                    <Button Grid.Column="1"
+                  <Grid ColumnDefinitions="Auto,Auto,Auto">
+                    <Image Width="16" Height="16"
+                           Margin="0,0,6,0"
+                           VerticalAlignment="Center"
+                           Source="{Binding AgentIcon}"
+                           IsVisible="{Binding HasAgentIcon}"/>
+                    <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Title}"/>
+                    <Button Grid.Column="2"
                             Classes="icon_button"
                             Width="24" Height="24"
                             Margin="4,0,0,0"

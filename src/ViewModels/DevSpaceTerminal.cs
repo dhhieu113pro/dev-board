@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 
+using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using DevBoard.DevSpaces.Terminal;
 
@@ -28,6 +29,10 @@ namespace DevBoard.ViewModels
         public string StartupCommand { get; }
 
         public string WorkingDirectory { get; }
+
+        public IImage AgentIcon => DevBoard.DevSpaces.DevSpaceAgentIconProvider.Get(StartupCommand);
+
+        public bool HasAgentIcon => DevBoard.DevSpaces.DevSpaceAgentIconProvider.HasIcon(StartupCommand);
 
         public TerminalTranscriptStore Transcript { get; } = new();
 

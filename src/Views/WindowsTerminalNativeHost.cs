@@ -35,6 +35,7 @@ namespace DevBoard.Views
 
         internal event Action<string> InputGenerated;
         internal event Action<int, int> TerminalResized;
+        internal event Action<int, int, int> ScrollChanged;
 
         internal bool NativeCreated => _terminal != 0 && _hwnd != 0;
 
@@ -52,6 +53,19 @@ namespace DevBoard.Views
                 return;
 
             Native.WindowsTerminal.TerminalSendOutput(_terminal, text);
+        }
+
+        internal void UserScroll(int viewTop)
+        {
+            if (_terminal == 0)
+                return;
+
+            var viewHeight = Volatile.Read(ref _viewHeight);
+            var bufferSize = Volatile.Read(ref _bufferSize);
+            var maxTop = Math.Max(0, bufferSize - Math.Max(0, viewHeight));
+            var target = Math.Clamp(viewTop, 0, maxTop);
+            Volatile.Write(ref _viewTop, target);
+            Native.WindowsTerminal.TerminalUserScroll(_terminal, target);
         }
 
         internal async Task CopySelectionAsync()
@@ -157,6 +171,7 @@ namespace DevBoard.Views
             Volatile.Write(ref _viewTop, viewTop);
             Volatile.Write(ref _viewHeight, viewHeight);
             Volatile.Write(ref _bufferSize, bufferSize);
+            ScrollChanged?.Invoke(viewTop, viewHeight, bufferSize);
         }
 
         private nint? HandleWindowMessage(uint message, nuint wParam, nint lParam)
@@ -346,8 +361,7 @@ namespace DevBoard.Views
             if (target == viewTop)
                 return;
 
-            Volatile.Write(ref _viewTop, target);
-            Native.WindowsTerminal.TerminalUserScroll(_terminal, target);
+            UserScroll(target);
         }
 
         private void AttachTopLevel()

@@ -33,4 +33,16 @@ public sealed class DevSpaceFileExplorerTestsFilteredGuides
         var guide = Assert.Single(alpha.TreeGuideSegments);
         Assert.False(guide.ShowBottom);
     }
+
+    [Fact]
+    public void Filtered_tree_hides_expanded_parent_stem_when_no_child_is_visible()
+    {
+        var folder = new DevSpaceFileNode("src", "src", true, 0);
+        folder.Children.Add(new DevSpaceFileNode("Demo.cs", "src/Demo.cs", false, 1));
+        folder.IsExpanded = true;
+
+        DevSpaceFiles.UpdateTreeGuideVisibility([folder]);
+
+        Assert.False(folder.ShowChildGuideStem);
+    }
 }

@@ -18,4 +18,19 @@ public sealed class DevSpaceFileExplorerTestsFilteredGuides
 
         Assert.True(folder.ShowChildGuideStem);
     }
+
+    [Fact]
+    public void Filtered_tree_stops_guide_at_last_visible_sibling()
+    {
+        var folder = new DevSpaceFileNode("src", "src", true, 0);
+        var alpha = new DevSpaceFileNode("Alpha.cs", "src/Alpha.cs", false, 1);
+        var beta = new DevSpaceFileNode("Beta.cs", "src/Beta.cs", false, 1);
+        folder.Children.Add(alpha);
+        folder.Children.Add(beta);
+
+        DevSpaceFiles.UpdateTreeGuideVisibility([folder, alpha]);
+
+        var guide = Assert.Single(alpha.TreeGuideSegments);
+        Assert.False(guide.ShowBottom);
+    }
 }

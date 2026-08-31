@@ -14,7 +14,6 @@ namespace DevBoard.ViewModels
     {
         Weekly = 0,
         Monthly,
-        Total,
     }
 
     public sealed class DevSpaceDashboard : ObservableObject, IDisposable
@@ -46,7 +45,6 @@ namespace DevBoard.ViewModels
         public Models.StatisticsMode StatisticsViewMode => StatisticsRange switch
         {
             DevSpaceStatisticsRange.Monthly => Models.StatisticsMode.ThisMonth,
-            DevSpaceStatisticsRange.Total => Models.StatisticsMode.All,
             _ => Models.StatisticsMode.ThisWeek,
         };
 

@@ -72,6 +72,7 @@
                   Margin="8,4,0,4"
                   SelectedIndex="{Binding LayoutIndex, Mode=TwoWay}">
           <ComboBoxItem Content="{DynamicResource Text.DevSpaces.Layout.Auto}"/>
+          <ComboBoxItem Content="{DynamicResource Text.DevSpaces.Layout.Tab}"/>
           <ComboBoxItem Content="{DynamicResource Text.DevSpaces.Layout.1x2}"/>
           <ComboBoxItem Content="{DynamicResource Text.DevSpaces.Layout.2x2}"/>
           <ComboBoxItem Content="{DynamicResource Text.DevSpaces.Layout.3x3}"/>

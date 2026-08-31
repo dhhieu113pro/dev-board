@@ -7,6 +7,7 @@ namespace DevBoard.Models
         TwoByTwo = 2,
         ThreeByThree = 3,
         FourByFour = 4,
+        Tab = 5,
     }
 
     public static class DevSpaceLayoutExtensions
@@ -15,6 +16,7 @@ namespace DevBoard.Models
         {
             return layout switch
             {
+                DevSpaceLayout.Tab => 1,
                 DevSpaceLayout.OneByTwo => 1,
                 DevSpaceLayout.TwoByTwo => 2,
                 DevSpaceLayout.ThreeByThree => 3,
@@ -32,6 +34,7 @@ namespace DevBoard.Models
         {
             return layout switch
             {
+                DevSpaceLayout.Tab => 1,
                 DevSpaceLayout.OneByTwo => 2,
                 DevSpaceLayout.TwoByTwo => 2,
                 DevSpaceLayout.ThreeByThree => 3,

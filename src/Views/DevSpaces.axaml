@@ -95,6 +95,7 @@
       <v:DevSpaceAIRouter x:Name="AIRouterView" IsVisible="False"/>
       <v:DevSpaceRoslynAnalytics IsVisible="{Binding IsRoslynActive}"/>
       <Grid x:Name="TerminalGrid" Margin="2"/>
+      <Border x:Name="AgentHost" Margin="2" IsVisible="False"/>
     </Grid>
   </Grid>
 </UserControl>

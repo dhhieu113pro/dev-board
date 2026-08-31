@@ -1,9 +1,5 @@
 using System;
 using System.IO;
-using System.Linq;
-
-using Avalonia.Headless.XUnit;
-using Avalonia.LogicalTree;
 
 using DevBoard.DevSpaces;
 using DevBoard.Models;
@@ -25,12 +21,17 @@ public sealed class DevSpaceDashboardStatsLogsTests
         Assert.Equal(index, DevSpaceDashboard.GetStatisticsModeIndex(expected));
     }
 
-    [AvaloniaFact]
+    [Fact]
     public void DashboardStatsDoesNotExposeBranchFilter()
     {
-        var view = new Views.DevSpaceDashboard();
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory != null && !File.Exists(Path.Combine(directory.FullName, "DevBoard.slnx")))
+            directory = directory.Parent;
 
-        Assert.Empty(view.GetLogicalDescendants().OfType<Views.BranchSelector>());
+        Assert.NotNull(directory);
+        var xaml = File.ReadAllText(Path.Combine(directory!.FullName, "src", "Views", "DevSpaceDashboard.axaml"));
+
+        Assert.DoesNotContain("<v:BranchSelector", xaml);
     }
 
     [Fact]

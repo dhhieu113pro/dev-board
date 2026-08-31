@@ -293,8 +293,6 @@ namespace DevBoard.Views
             var flyout = new MenuFlyout();
             var defaultName = DevBoard.DevSpaces.DevSpaceProfileSettings.GetTerminalDisplayName(settings.DefaultTerminal);
             flyout.Items.Add(CreateTerminalMenuItem($"New {defaultName}", settings.DefaultTerminal, defaultName, preferredSlot));
-            foreach (var agent in DevBoard.DevSpaces.DevSpaceAgent.BuiltIn)
-                flyout.Items.Add(CreateAgentMenuItem(agent, preferredSlot));
             if (settings.Profiles.Count > 0)
             {
                 flyout.Items.Add(new Separator());
@@ -321,17 +319,6 @@ namespace DevBoard.Views
             };
             flyout.Items.Add(manage);
             flyout.ShowAt(target);
-        }
-
-        private MenuItem CreateAgentMenuItem(DevBoard.DevSpaces.DevSpaceAgent agent, int preferredSlot)
-        {
-            var item = new MenuItem { Header = agent.Name };
-            item.Click += (_, e) =>
-            {
-                _owner?.CreateAgentTerminalAt(preferredSlot, agent);
-                e.Handled = true;
-            };
-            return item;
         }
 
         private MenuItem CreateProfileMenuItem(DevBoard.DevSpaces.DevSpaceTerminalProfile profile, int preferredSlot)

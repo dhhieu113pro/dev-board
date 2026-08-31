@@ -20,6 +20,9 @@ public sealed class AIRouterProviderSettings
     public int Priority { get; set; } = 100;
     public int MaxRetries { get; set; } = 2;
     public int TimeoutSeconds { get; set; } = 120;
+    public bool PassthroughModels { get; set; }
+    public bool UseAutoProxy { get; set; }
+    public string Mode { get; set; } = "fallback";
     public bool IsActive { get; set; } = true;
     public Dictionary<string, string> ExtraHeaders { get; set; } = [];
 
@@ -37,6 +40,9 @@ public sealed class AIRouterProviderSettings
             Priority = Priority,
             MaxRetries = MaxRetries,
             TimeoutSeconds = TimeoutSeconds,
+            PassthroughModels = PassthroughModels,
+            UseAutoProxy = UseAutoProxy,
+            Mode = Mode,
             IsActive = IsActive,
             ExtraHeaders = new Dictionary<string, string>(ExtraHeaders, StringComparer.OrdinalIgnoreCase),
         };
@@ -185,6 +191,11 @@ public static class AIRouterProviderExchange
                 DefaultModel = models.FirstOrDefault() ?? string.Empty,
                 Models = models,
                 Priority = ReadInt32(item, "priority", 100),
+                MaxRetries = ReadInt32(item, "maxRetries", 2),
+                TimeoutSeconds = ReadInt32(item, "timeoutSeconds", 120),
+                PassthroughModels = ReadBoolean(item, "passthroughModels", false),
+                UseAutoProxy = ReadBoolean(item, "useAutoProxy", false),
+                Mode = ReadString(item, "mode", "fallback"),
                 IsActive = ReadBoolean(item, "isActive", true),
                 ExtraHeaders = ReadExtraHeaders(item),
             });
@@ -261,11 +272,11 @@ public static class AIRouterProviderExchange
         return headers;
     }
 
-    private static string ReadString(JsonElement item, string propertyName)
+    private static string ReadString(JsonElement item, string propertyName, string defaultValue = "")
     {
         return item.TryGetProperty(propertyName, out var value) && value.ValueKind == JsonValueKind.String
-            ? value.GetString() ?? string.Empty
-            : string.Empty;
+            ? value.GetString() ?? defaultValue
+            : defaultValue;
     }
 
     private static int ReadInt32(JsonElement item, string propertyName, int defaultValue)

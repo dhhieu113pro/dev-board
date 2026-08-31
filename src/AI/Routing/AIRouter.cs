@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
@@ -21,6 +23,14 @@ public sealed record AIRouterResult(
 public interface IAIProvider
 {
     string Id { get; }
+    string DefaultModel => string.Empty;
+    IReadOnlyList<string> Models => Array.Empty<string>();
+    string Mode => "fallback";
+    bool PassthroughModels => false;
+
+    Task<IReadOnlyList<string>> ListModelsAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(Models);
+
     Task<AIRouterResult> SendAsync(AIRouterRequest request, CancellationToken cancellationToken = default);
 }
 
@@ -44,35 +54,209 @@ public sealed class AIRouter
             }
             : request;
 
-        var (providerId, model, automatic) = Resolve(request.Model);
-        var candidates = automatic
-            ? _providers
-            : _providers.Where(x => string.Equals(x.Id, providerId, StringComparison.OrdinalIgnoreCase)).ToArray();
-
+        var selection = Resolve(request.Model);
+        var candidates = GetCandidateProviders(selection.ProviderId);
         if (candidates.Count == 0)
-            return new AIRouterResult(false, 400, providerId ?? string.Empty, model, null, $"Unknown AI provider '{providerId}'.");
-
-        AIRouterResult last = null;
-        foreach (var provider in candidates)
         {
-            var result = await provider.SendAsync(providerRequest with { Model = model }, cancellationToken);
-            if (result.Success)
-            {
-                if (!responsesRequest)
-                    return result;
-
-                return result with
-                {
-                    Payload = ConvertChatToResponsesPayload(result.Payload, request.Model),
-                };
-            }
-
-            last = result;
-            if (!IsTransient(result.StatusCode))
-                return result;
+            return new AIRouterResult(
+                false,
+                400,
+                selection.ProviderId ?? string.Empty,
+                selection.Model ?? string.Empty,
+                null,
+                $"Unknown AI provider '{selection.ProviderId}'.");
         }
 
-        return last ?? new AIRouterResult(false, 503, string.Empty, model, null, "No AI providers are available.");
+        if (!selection.TryAllModels)
+        {
+            var provider = candidates[0];
+            var result = await provider.SendAsync(
+                providerRequest with { Model = selection.Model ?? string.Empty },
+                cancellationToken);
+            return TranslateResponsesIfNeeded(result, responsesRequest, request.Model);
+        }
+
+        AIRouterResult last = null;
+        var fallbackProviders = candidates
+            .Where(provider => !string.Equals(provider.Mode, "roundrobin", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        var roundRobinProviders = candidates
+            .Where(provider => string.Equals(provider.Mode, "roundrobin", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        foreach (var provider in fallbackProviders)
+        {
+            var result = await TryProviderModelsAsync(provider, providerRequest, cancellationToken);
+            if (result.Success)
+                return TranslateResponsesIfNeeded(result, responsesRequest, request.Model);
+            last = result;
+        }
+
+        if (roundRobinProviders.Length > 0)
+        {
+            var index = Interlocked.Increment(ref _roundRobinIndex);
+            var start = PositiveModulo(index, roundRobinProviders.Length);
+            for (var offset = 0; offset < roundRobinProviders.Length; offset++)
+            {
+                var provider = roundRobinProviders[(start + offset) % roundRobinProviders.Length];
+                var result = await TryProviderModelsAsync(provider, providerRequest, cancellationToken);
+                if (result.Success)
+                    return TranslateResponsesIfNeeded(result, responsesRequest, request.Model);
+                last = result;
+            }
+        }
+
+        return last ?? new AIRouterResult(
+            false,
+            503,
+            string.Empty,
+            selection.Model ?? string.Empty,
+            null,
+            "No AI providers are available.");
+    }
+
+    private async Task<AIRouterResult> TryProviderModelsAsync(
+        IAIProvider provider,
+        AIRouterRequest request,
+        CancellationToken cancellationToken)
+    {
+        var models = await GetProviderModelsAsync(provider, cancellationToken);
+        if (models.Count == 0)
+        {
+            return new AIRouterResult(
+                false,
+                503,
+                provider.Id,
+                string.Empty,
+                null,
+                $"Provider '{provider.Id}' has no available models.");
+        }
+
+        IReadOnlyList<string> modelsToTry = models;
+        if (models.Count > 1 && string.Equals(provider.Mode, "roundrobin", StringComparison.OrdinalIgnoreCase))
+        {
+            var index = _providerModelRoundRobinIndices.AddOrUpdate(provider.Id, 0, static (_, previous) => previous + 1);
+            var start = PositiveModulo(index, models.Count);
+            var rotated = new string[models.Count];
+            for (var i = 0; i < models.Count; i++)
+                rotated[i] = models[(start + i) % models.Count];
+            modelsToTry = rotated;
+        }
+
+        AIRouterResult last = null;
+        foreach (var model in modelsToTry)
+        {
+            var result = await provider.SendAsync(request with { Model = model }, cancellationToken);
+            if (result.Success)
+                return result;
+            last = result;
+        }
+
+        return last ?? new AIRouterResult(
+            false,
+            503,
+            provider.Id,
+            string.Empty,
+            null,
+            $"Provider '{provider.Id}' did not return a result.");
+    }
+
+    private async Task<IReadOnlyList<string>> GetProviderModelsAsync(
+        IAIProvider provider,
+        CancellationToken cancellationToken)
+    {
+        var configured = NormalizeModels(provider.Id, provider.Models);
+        if (configured.Count > 0)
+            return configured;
+
+        try
+        {
+            var live = NormalizeModels(provider.Id, await provider.ListModelsAsync(cancellationToken));
+            if (live.Count > 0)
+                return live;
+        }
+        catch (HttpRequestException)
+        {
+        }
+
+        if (!string.IsNullOrWhiteSpace(provider.DefaultModel) &&
+            !string.Equals(provider.DefaultModel, "all", StringComparison.OrdinalIgnoreCase))
+            return [StripProviderPrefix(provider.Id, provider.DefaultModel.Trim())];
+
+        return [provider.Id];
+    }
+
+    private static IReadOnlyList<string> NormalizeModels(string providerId, IReadOnlyList<string> models)
+    {
+        if (models == null || models.Count == 0)
+            return [];
+
+        return models
+            .Where(model => !string.IsNullOrWhiteSpace(model) &&
+                            !string.Equals(model.Trim(), "all", StringComparison.OrdinalIgnoreCase))
+            .Select(model => StripProviderPrefix(providerId, model.Trim()))
+            .Where(model => !string.IsNullOrWhiteSpace(model))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static string StripProviderPrefix(string providerId, string model)
+    {
+        var prefix = providerId + "/";
+        return model.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            ? model[prefix.Length..]
+            : model;
+    }
+
+    private IReadOnlyList<IAIProvider> GetCandidateProviders(string providerId)
+    {
+        if (string.IsNullOrWhiteSpace(providerId))
+            return _providers;
+
+        var normalized = string.Equals(providerId, "oc", StringComparison.OrdinalIgnoreCase)
+            ? "opencode"
+            : providerId;
+        return _providers
+            .Where(provider => string.Equals(provider.Id, normalized, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+    }
+
+    private static AIRouterResult TranslateResponsesIfNeeded(
+        AIRouterResult result,
+        bool responsesRequest,
+        string requestedModel)
+    {
+        if (!result.Success || !responsesRequest)
+            return result;
+
+        return result with
+        {
+            Payload = ConvertChatToResponsesPayload(result.Payload, requestedModel),
+        };
+    }
+
+    private static int PositiveModulo(int value, int modulus) =>
+        ((value % modulus) + modulus) % modulus;
+
+    private static RouteSelection Resolve(string value)
+    {
+        var model = value?.Trim() ?? string.Empty;
+        if (string.Equals(model, "all", StringComparison.OrdinalIgnoreCase))
+            return new RouteSelection(null, null, true);
+
+        var slash = model.IndexOf('/');
+        if (slash < 0)
+        {
+            var providerId = string.Equals(model, "oc", StringComparison.OrdinalIgnoreCase)
+                ? "opencode"
+                : model;
+            return new RouteSelection(providerId, null, true);
+        }
+
+        var provider = model[..slash];
+        if (string.Equals(provider, "oc", StringComparison.OrdinalIgnoreCase))
+            provider = "opencode";
+        return new RouteSelection(provider, model[(slash + 1)..], false);
     }
 
     private static string ConvertResponsesToChatPayload(string payload)
@@ -324,23 +508,12 @@ public sealed class AIRouter
         string.Equals(path, ResponsesPath, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(path, ResponseAliasPath, StringComparison.OrdinalIgnoreCase);
 
-    private static (string ProviderId, string Model, bool Automatic) Resolve(string value)
-    {
-        var model = value?.Trim() ?? string.Empty;
-        if (string.Equals(model, "all", StringComparison.OrdinalIgnoreCase))
-            return (null, model, true);
-
-        var slash = model.IndexOf('/');
-        if (slash < 0)
-            return (model, string.Empty, false);
-
-        return (model[..slash], model[(slash + 1)..], false);
-    }
-
-    private static bool IsTransient(int statusCode) => statusCode == 408 || statusCode == 429 || statusCode >= 500;
+    private sealed record RouteSelection(string ProviderId, string Model, bool TryAllModels);
 
     private const string ChatCompletionsPath = "/v1/chat/completions";
     private const string ResponsesPath = "/v1/responses";
     private const string ResponseAliasPath = "/v1/response";
     private readonly IReadOnlyList<IAIProvider> _providers;
+    private readonly ConcurrentDictionary<string, int> _providerModelRoundRobinIndices = new();
+    private int _roundRobinIndex = -1;
 }

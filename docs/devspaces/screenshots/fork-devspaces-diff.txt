@@ -135,6 +135,7 @@ src/ViewModels/DeleteRepositoryNode.cs
 src/ViewModels/DeleteSubmodule.cs
 src/ViewModels/DeleteTag.cs
 src/ViewModels/DevSpaceAIRouter.cs
+src/ViewModels/DevSpaceCodeLanguageResolver.cs
 src/ViewModels/DevSpaceDashboard.cs
 src/ViewModels/DevSpaceDashboardModels.cs
 src/ViewModels/DevSpaceFileIconResolver.cs
@@ -300,6 +301,8 @@ src/Views/ClearStashes.axaml
 src/Views/ClearStashes.axaml.cs
 src/Views/Clone.axaml
 src/Views/Clone.axaml.cs
+src/Views/CodeViewer.axaml
+src/Views/CodeViewer.axaml.cs
 src/Views/ColorPicker.cs
 src/Views/CommandLogContentPresenter.cs
 src/Views/CommandLogTime.cs

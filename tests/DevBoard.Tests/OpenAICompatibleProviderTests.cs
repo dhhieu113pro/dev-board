@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
@@ -39,6 +40,23 @@ public class OpenAICompatibleProviderTests
         await provider.SendAsync(new AIRouterRequest("all", "{\"model\":\"all\",\"messages\":[]}", "/v1/chat/completions"));
 
         Assert.Contains("\"model\":\"qwen3-coder\"", handler.LastBody);
+    }
+
+    [Fact]
+    public async Task ListModelsAsync_UsesModelsEndpointAndParsesOpenAIModelList()
+    {
+        var handler = new RecordingHandler(
+            HttpStatusCode.OK,
+            "{\"object\":\"list\",\"data\":[{\"id\":\"deepseek-v4-flash-free\"},{\"id\":\"fallback-model\"}]}");
+        using var http = new HttpClient(handler);
+        var provider = new OpenAICompatibleProvider("opencode", "https://example.test/v1", "secret", http);
+
+        dynamic dynamicProvider = provider;
+        IReadOnlyList<string> models = await dynamicProvider.ListModelsAsync(CancellationToken.None);
+
+        Assert.Equal("https://example.test/v1/models", handler.LastUrl);
+        Assert.Equal(["deepseek-v4-flash-free", "fallback-model"], models);
+        Assert.Equal("secret", handler.LastAuthParameter);
     }
 
     [Fact]
@@ -132,7 +150,7 @@ public class OpenAICompatibleProviderTests
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             LastUrl = request.RequestUri?.ToString();
-            LastBody = await request.Content.ReadAsStringAsync(cancellationToken);
+            LastBody = request.Content == null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken);
             LastAuthScheme = request.Headers.Authorization?.Scheme;
             LastAuthParameter = request.Headers.Authorization?.Parameter;
             return new HttpResponseMessage(_statusCode)

@@ -56,12 +56,7 @@ public sealed class AIRouterHostService
                         apiKey = Environment.GetEnvironmentVariable(provider.ApiKeyEnvironment) ?? string.Empty;
 
                     clients.Add(client);
-                    providers.Add(new OpenAICompatibleProvider(
-                        provider.Id,
-                        provider.BaseUrl,
-                        apiKey,
-                        client,
-                        provider.DefaultModel));
+                    providers.Add(CreateProvider(provider, apiKey, client));
                 }
 
                 var options = new AIRouterHostOptions
@@ -101,6 +96,40 @@ public sealed class AIRouterHostService
         {
             _gate.Release();
         }
+    }
+
+    private static IAIProvider CreateProvider(
+        AIRouterProviderSettings settings,
+        string apiKey,
+        HttpClient client)
+    {
+        var deepSeekCompatible =
+            string.Equals(settings.Id, "opencode", StringComparison.OrdinalIgnoreCase) ||
+            settings.Id.StartsWith("deepseek", StringComparison.OrdinalIgnoreCase) ||
+            settings.BaseUrl.Contains("deepseek", StringComparison.OrdinalIgnoreCase);
+
+        if (deepSeekCompatible)
+        {
+            return new DeepSeekCompatibleProvider(
+                settings.Id,
+                settings.BaseUrl,
+                apiKey,
+                client,
+                settings.DefaultModel,
+                settings.Models,
+                settings.Mode,
+                settings.PassthroughModels);
+        }
+
+        return new OpenAICompatibleProvider(
+            settings.Id,
+            settings.BaseUrl,
+            apiKey,
+            client,
+            settings.DefaultModel,
+            settings.Models,
+            settings.Mode,
+            settings.PassthroughModels);
     }
 
     private async Task StopCoreAsync()

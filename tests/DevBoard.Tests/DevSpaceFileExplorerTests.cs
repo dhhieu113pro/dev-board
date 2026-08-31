@@ -51,6 +51,60 @@ public sealed class DevSpaceFileExplorerTests
     }
 
     [Fact]
+    public void TreeGuideChildStem_follows_expansion_state()
+    {
+        var folder = new DevSpaceFileNode("src", "src", true, 0);
+        folder.Children.Add(new DevSpaceFileNode("Demo.cs", "src/Demo.cs", false, 1));
+
+        Assert.False(folder.ShowChildGuideStem);
+
+        folder.IsExpanded = true;
+
+        Assert.True(folder.ShowChildGuideStem);
+    }
+
+    [Fact]
+    public void TreeGuides_preserve_ancestor_continuations_and_stop_at_last_sibling()
+    {
+        var src = new DevSpaceFileNode("src", "src", true, 0);
+        var controllers = new DevSpaceFileNode("Controllers", "src/Controllers", true, 1);
+        var services = new DevSpaceFileNode("Services", "src/Services", true, 1);
+        var alpha = new DevSpaceFileNode("Alpha.cs", "src/Controllers/Alpha.cs", false, 2);
+        var beta = new DevSpaceFileNode("Beta.cs", "src/Controllers/Beta.cs", false, 2);
+
+        src.Children.Add(controllers);
+        src.Children.Add(services);
+        controllers.Children.Add(alpha);
+        controllers.Children.Add(beta);
+
+        Assert.Empty(src.TreeGuideSegments);
+
+        var controllersGuide = Assert.Single(controllers.TreeGuideSegments);
+        Assert.True(controllersGuide.ShowTop);
+        Assert.True(controllersGuide.ShowBottom);
+        Assert.True(controllersGuide.ShowHorizontal);
+
+        var servicesGuide = Assert.Single(services.TreeGuideSegments);
+        Assert.True(servicesGuide.ShowTop);
+        Assert.False(servicesGuide.ShowBottom);
+        Assert.True(servicesGuide.ShowHorizontal);
+
+        Assert.Equal(2, alpha.TreeGuideSegments.Count);
+        Assert.True(alpha.TreeGuideSegments[0].ShowTop);
+        Assert.True(alpha.TreeGuideSegments[0].ShowBottom);
+        Assert.False(alpha.TreeGuideSegments[0].ShowHorizontal);
+        Assert.True(alpha.TreeGuideSegments[1].ShowBottom);
+        Assert.True(alpha.TreeGuideSegments[1].ShowHorizontal);
+
+        Assert.Equal(2, beta.TreeGuideSegments.Count);
+        Assert.True(beta.TreeGuideSegments[0].ShowTop);
+        Assert.True(beta.TreeGuideSegments[0].ShowBottom);
+        Assert.False(beta.TreeGuideSegments[0].ShowHorizontal);
+        Assert.False(beta.TreeGuideSegments[1].ShowBottom);
+        Assert.True(beta.TreeGuideSegments[1].ShowHorizontal);
+    }
+
+    [Fact]
     public void WorkspaceFile_cancel_edit_discards_buffer_changes()
     {
         var file = new DevSpaceWorkspaceFile("src/Demo.cs", "class Demo { }");
@@ -118,6 +172,7 @@ public sealed class DevSpaceFileExplorerTests
     }
 
     [AvaloniaFact]
+    [Trait("Category", "UIIntegration")]
     public async Task OpenFile_requests_reveal_every_time_and_expands_parent_folders()
     {
         var repositoryPath = Path.Combine(Path.GetTempPath(), $"devboard-files-{Guid.NewGuid():N}");

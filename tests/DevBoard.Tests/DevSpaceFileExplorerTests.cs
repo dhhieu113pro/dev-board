@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia.Headless.XUnit;
 using DevBoard.ViewModels;
 using Xunit;
 
@@ -49,7 +50,7 @@ public sealed class DevSpaceFileExplorerTests
         Assert.Equal("⌄", folder.ExpansionGlyph);
     }
 
-    [Fact]
+    [AvaloniaFact]
     public async Task OpenFile_requests_reveal_every_time_and_expands_parent_folders()
     {
         var repositoryPath = Path.Combine(Path.GetTempPath(), $"devboard-files-{Guid.NewGuid():N}");

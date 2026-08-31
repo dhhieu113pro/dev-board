@@ -180,8 +180,12 @@ namespace DevBoard.ViewModels
             if (visibleItems == null)
                 return;
 
+            var visibleNodes = new HashSet<DevSpaceFileNode>(visibleItems);
             foreach (var node in visibleItems)
+            {
+                node.SetVisibleTreeGuideSegments(visibleNodes);
                 node.SetVisibleChildGuideStem(false);
+            }
 
             for (var i = 0; i + 1 < visibleItems.Count; i++)
             {

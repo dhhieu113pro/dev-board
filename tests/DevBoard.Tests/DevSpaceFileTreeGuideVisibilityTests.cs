@@ -3,7 +3,7 @@ using Xunit;
 
 namespace DevBoard.Tests;
 
-public sealed class DevSpaceFileTreeGuideVisibilityTests
+public sealed class DevSpaceFileExplorerTestsFilteredGuides
 {
     [Fact]
     public void Visible_child_keeps_collapsed_parent_guide_stem_connected()

@@ -34,15 +34,7 @@ public sealed class DevSpaceDashboardProfileDisplayTests
             {
                 DataContext = spaces.Dashboard,
             };
-            var window = new Window
-            {
-                Width = 1200,
-                Height = 800,
-                Content = view,
-                SystemDecorations = SystemDecorations.None,
-            };
-            window.Show();
-            window.UpdateLayout();
+            var window = Show(view);
 
             var profileButton = view.GetVisualDescendants()
                 .OfType<Button>()
@@ -57,6 +49,112 @@ public sealed class DevSpaceDashboardProfileDisplayTests
             profiles.Remove(profile);
             Directory.Delete(root, true);
         }
+    }
+
+    [AvaloniaFact]
+    public void DashboardUsesActiveTerminalsHeading()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"devboard-active-terminals-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+
+        try
+        {
+            using var spaces = new ViewModels.DevSpaces(root, new FakeLauncher());
+            var view = new Views.DevSpaceDashboard
+            {
+                DataContext = spaces.Dashboard,
+            };
+            var window = Show(view);
+
+            Assert.Contains(view.GetVisualDescendants().OfType<TextBlock>(), x => x.Text == "Active terminals");
+            Assert.DoesNotContain(view.GetVisualDescendants().OfType<TextBlock>(), x => x.Text == "Active Spaces");
+
+            window.Close();
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [AvaloniaFact]
+    public void DashboardDoesNotShowRoslynSummaryInQuickStart()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"devboard-no-roslyn-summary-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+
+        try
+        {
+            using var spaces = new ViewModels.DevSpaces(root, new FakeLauncher());
+            var view = new Views.DevSpaceDashboard
+            {
+                DataContext = spaces.Dashboard,
+            };
+            var window = Show(view);
+
+            Assert.DoesNotContain(
+                view.GetVisualDescendants().OfType<TextBlock>(),
+                x => x.Text == "Roslyn is not running. Click Initialize to analyze this workspace.");
+
+            window.Close();
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [AvaloniaFact]
+    public void ActiveTerminalProfileIconUsesEmojiFontAndSeparateTitle()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"devboard-active-terminal-icon-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var profile = new DevSpaceTerminalProfile
+        {
+            Name = "UpTime UI",
+            Icon = "🦄",
+        };
+        var profiles = DevSpaceProfileSettings.Instance.Profiles;
+        profiles.Add(profile);
+
+        try
+        {
+            using var spaces = new ViewModels.DevSpaces(root, new FakeLauncher());
+            spaces.CreateProfileTerminalAt(-1, profile);
+            var view = new Views.DevSpaceDashboard
+            {
+                DataContext = spaces.Dashboard,
+            };
+            var window = Show(view);
+
+            var icon = view.GetVisualDescendants()
+                .OfType<TextBlock>()
+                .Single(x => x.Text == "🦄");
+
+            Assert.Contains("Segoe UI Emoji", icon.FontFamily.ToString());
+            Assert.Contains(view.GetVisualDescendants().OfType<TextBlock>(), x => x.Text == "UpTime UI 1");
+
+            window.Close();
+        }
+        finally
+        {
+            profiles.Remove(profile);
+            Directory.Delete(root, true);
+        }
+    }
+
+    private static Window Show(Control view)
+    {
+        var window = new Window
+        {
+            Width = 1200,
+            Height = 800,
+            Content = view,
+            SystemDecorations = SystemDecorations.None,
+        };
+        window.Show();
+        window.UpdateLayout();
+        return window;
     }
 
     private sealed class FakeLauncher : IDevSpaceSessionLauncher

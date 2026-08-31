@@ -22,6 +22,19 @@ public sealed class DevSpaceDashboardStatsLogsTests
     }
 
     [Fact]
+    public void DashboardStatsDoesNotExposeBranchFilter()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory != null && !File.Exists(Path.Combine(directory.FullName, "DevBoard.slnx")))
+            directory = directory.Parent;
+
+        Assert.NotNull(directory);
+        var xaml = File.ReadAllText(Path.Combine(directory!.FullName, "src", "Views", "DevSpaceDashboard.axaml"));
+
+        Assert.DoesNotContain("<v:BranchSelector", xaml);
+    }
+
+    [Fact]
     public void DashboardWithoutRepositoryDoesNotExposeRepositoryStatsOrLogs()
     {
         var root = Path.Combine(Path.GetTempPath(), $"devboard-stats-logs-{Guid.NewGuid():N}");

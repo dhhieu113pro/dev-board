@@ -215,13 +215,6 @@
                       <TextBlock Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.Statistics.TotalAuthors}"/>
                       <TextBlock FontWeight="SemiBold" Text="{Binding SelectedReport.Authors.Count}"/>
                     </StackPanel>
-                    <v:BranchSelector Grid.Column="2"
-                                      Width="220" Height="28"
-                                      HorizontalAlignment="Right"
-                                      BorderBrush="{DynamicResource Brush.Border2}"
-                                      Branches="{Binding Branches, Mode=OneWay}"
-                                      SelectedBranch="{Binding SelectedBranch, Mode=TwoWay}"
-                                      UsePureName="False"/>
                   </Grid>
 
                   <Grid Grid.Row="1" Margin="0,10,0,0">

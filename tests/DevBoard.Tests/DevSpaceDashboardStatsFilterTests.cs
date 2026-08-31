@@ -1,7 +1,9 @@
+using System;
 using System.Linq;
 
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
+using DevBoard.ViewModels;
 
 using Xunit;
 
@@ -24,6 +26,14 @@ public sealed class DevSpaceDashboardProfileDisplayTestsStatsFilter
         Assert.Equal(2, visibleItems.Length);
         Assert.Equal("Weekly", GetLabel(visibleItems[0]));
         Assert.Equal("Monthly", GetLabel(visibleItems[1]));
+    }
+
+    [Fact]
+    public void StatisticsRangeContainsOnlyWeeklyAndMonthly()
+    {
+        Assert.Equal(
+            new[] { DevSpaceStatisticsRange.Weekly, DevSpaceStatisticsRange.Monthly },
+            Enum.GetValues<DevSpaceStatisticsRange>());
     }
 
     private static string GetLabel(ListBoxItem item)

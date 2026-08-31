@@ -1,12 +1,17 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Templates;
 using Avalonia.Headless.XUnit;
+using Avalonia.Layout;
 using Avalonia.LogicalTree;
 
 using DevBoard.DevSpaces;
+using DevBoard.DevSpaces.Terminal;
 
 using Xunit;
 
@@ -85,6 +90,63 @@ namespace DevBoard.Tests
             {
                 Directory.Delete(root, true);
             }
+        }
+
+        [AvaloniaFact]
+        public void AgentTerminalTabsRenderOriginalLogos()
+        {
+            var root = CreateTempDirectory();
+            try
+            {
+                using var spaces = new ViewModels.DevSpaces(root, new FakeLauncher());
+                var sessions = new[]
+                {
+                    spaces.CreateTerminalAt(-1, "pwsh", "Copilot", root, "copilot"),
+                    spaces.CreateTerminalAt(-1, "pwsh", "Codex", root, "codex"),
+                    spaces.CreateTerminalAt(-1, "pwsh", "Antigravity", root, "agy"),
+                };
+
+                using var view = new Views.DevSpaces { DataContext = spaces };
+                var sessionTabs = view.GetLogicalDescendants()
+                    .OfType<ItemsControl>()
+                    .Single(x => ReferenceEquals(x.ItemsSource, spaces.Sessions));
+                var template = Assert.IsAssignableFrom<IDataTemplate>(sessionTabs.ItemTemplate);
+
+                foreach (var session in sessions)
+                {
+                    var tab = template.Build(session);
+                    Assert.NotNull(tab);
+                    tab.DataContext = session;
+
+                    var icon = Assert.Single(tab.GetLogicalDescendants().OfType<Image>());
+                    Assert.NotNull(icon.Source);
+                }
+            }
+            finally
+            {
+                Directory.Delete(root, true);
+            }
+        }
+
+        [Fact]
+        public void NativeTerminalSurfaceExposesPersistentVerticalScrollbar()
+        {
+            var surfaceType = typeof(IDevSpaceSessionLauncher).Assembly
+                .GetType("DevBoard.DevSpaces.WindowsTerminalDevSpaceSurface");
+            Assert.NotNull(surfaceType);
+
+            var constructor = Assert.Single(surfaceType.GetConstructors(
+                BindingFlags.Instance | BindingFlags.NonPublic));
+            using var surface = Assert.IsAssignableFrom<IDisposable>(
+                constructor.Invoke([new TerminalTranscriptStore()]));
+            var viewProperty = surfaceType.GetProperty("View", BindingFlags.Instance | BindingFlags.Public);
+            Assert.NotNull(viewProperty);
+            var surfaceView = Assert.IsAssignableFrom<Control>(viewProperty.GetValue(surface));
+
+            var scrollbar = Assert.Single(surfaceView.GetLogicalDescendants().OfType<ScrollBar>());
+            Assert.Equal(Orientation.Vertical, scrollbar.Orientation);
+            Assert.False(scrollbar.AllowAutoHide);
+            Assert.True(scrollbar.IsVisible);
         }
 
         private static string CreateTempDirectory()

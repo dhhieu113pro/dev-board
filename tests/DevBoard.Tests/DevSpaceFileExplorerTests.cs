@@ -119,6 +119,7 @@ public sealed class DevSpaceFileExplorerTests
     }
 
     [AvaloniaFact]
+    [Trait("Category", "UIIntegration")]
     public async Task SaveSelectedFile_writes_edit_buffer_and_keeps_file_selected()
     {
         var repositoryPath = CreateRepositoryWithFile("src/Demo.cs", "class Demo { }");
@@ -147,6 +148,7 @@ public sealed class DevSpaceFileExplorerTests
     }
 
     [AvaloniaFact]
+    [Trait("Category", "UIIntegration")]
     public async Task DeleteSelectedFile_removes_file_and_clears_viewer_selection()
     {
         var repositoryPath = CreateRepositoryWithFile("src/Demo.cs", "class Demo { }");

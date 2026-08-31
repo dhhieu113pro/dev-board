@@ -175,6 +175,22 @@ namespace DevBoard.ViewModels
                 folder.IsExpanded = !folder.IsExpanded;
         }
 
+        public static void UpdateTreeGuideVisibility(IReadOnlyList<DevSpaceFileNode> visibleItems)
+        {
+            if (visibleItems == null)
+                return;
+
+            foreach (var node in visibleItems)
+                node.SetVisibleChildGuideStem(false);
+
+            for (var i = 0; i + 1 < visibleItems.Count; i++)
+            {
+                var node = visibleItems[i];
+                var next = visibleItems[i + 1];
+                node.SetVisibleChildGuideStem(node.IsDirectory && object.ReferenceEquals(next.Parent, node));
+            }
+        }
+
         public void ClearFilter() => Filter = string.Empty;
 
         public void BeginEditSelectedFile()
@@ -309,6 +325,7 @@ namespace DevBoard.ViewModels
             if (_roots.Count == 0) return;
             var hasFilter = !string.IsNullOrWhiteSpace(_filter);
             foreach (var root in _roots) AppendVisible(root, hasFilter);
+            UpdateTreeGuideVisibility(VisibleItems);
         }
 
         private bool AppendVisible(DevSpaceFileNode node, bool hasFilter)

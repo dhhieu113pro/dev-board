@@ -339,6 +339,8 @@ src/Views/Confirm.axaml
 src/Views/Confirm.axaml.cs
 src/Views/ConfirmClose.axaml
 src/Views/ConfirmClose.axaml.cs
+src/Views/ConfirmDeleteFile.axaml
+src/Views/ConfirmDeleteFile.axaml.cs
 src/Views/ConfirmEmptyCommit.axaml
 src/Views/ConfirmEmptyCommit.axaml.cs
 src/Views/ConfirmRestart.axaml

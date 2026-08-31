@@ -51,6 +51,63 @@ public sealed class DevSpaceFileExplorerTests
     }
 
     [AvaloniaFact]
+    public async Task TreeGuides_preserve_ancestor_continuations_and_stop_at_last_sibling()
+    {
+        var repositoryPath = Path.Combine(Path.GetTempPath(), $"devboard-guides-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(repositoryPath, "src", "Controllers"));
+        Directory.CreateDirectory(Path.Combine(repositoryPath, "src", "Services"));
+        File.WriteAllText(Path.Combine(repositoryPath, "src", "Controllers", "Alpha.cs"), "class Alpha { }");
+        File.WriteAllText(Path.Combine(repositoryPath, "src", "Controllers", "Beta.cs"), "class Beta { }");
+        File.WriteAllText(Path.Combine(repositoryPath, "src", "Services", "Worker.cs"), "class Worker { }");
+
+        try
+        {
+            RunGit(repositoryPath, "init");
+            RunGit(repositoryPath, "add .");
+            RunGit(repositoryPath, "-c user.name=DevBoardTests -c user.email=devboard@example.invalid commit -m initial");
+
+            var files = new DevSpaceFiles(repositoryPath);
+            await files.RefreshAsync();
+
+            var src = Assert.Single(files.VisibleItems);
+            var controllers = Assert.Single(src.Children.Where(x => x.Name == "Controllers"));
+            var services = Assert.Single(src.Children.Where(x => x.Name == "Services"));
+            var alpha = Assert.Single(controllers.Children.Where(x => x.Name == "Alpha.cs"));
+            var beta = Assert.Single(controllers.Children.Where(x => x.Name == "Beta.cs"));
+
+            Assert.Empty(src.TreeGuideSegments);
+
+            var controllersGuide = Assert.Single(controllers.TreeGuideSegments);
+            Assert.True(controllersGuide.ShowTop);
+            Assert.True(controllersGuide.ShowBottom);
+            Assert.True(controllersGuide.ShowHorizontal);
+
+            var servicesGuide = Assert.Single(services.TreeGuideSegments);
+            Assert.True(servicesGuide.ShowTop);
+            Assert.False(servicesGuide.ShowBottom);
+            Assert.True(servicesGuide.ShowHorizontal);
+
+            Assert.Equal(2, alpha.TreeGuideSegments.Count);
+            Assert.True(alpha.TreeGuideSegments[0].ShowTop);
+            Assert.True(alpha.TreeGuideSegments[0].ShowBottom);
+            Assert.False(alpha.TreeGuideSegments[0].ShowHorizontal);
+            Assert.True(alpha.TreeGuideSegments[1].ShowBottom);
+            Assert.True(alpha.TreeGuideSegments[1].ShowHorizontal);
+
+            Assert.Equal(2, beta.TreeGuideSegments.Count);
+            Assert.True(beta.TreeGuideSegments[0].ShowTop);
+            Assert.True(beta.TreeGuideSegments[0].ShowBottom);
+            Assert.False(beta.TreeGuideSegments[0].ShowHorizontal);
+            Assert.False(beta.TreeGuideSegments[1].ShowBottom);
+            Assert.True(beta.TreeGuideSegments[1].ShowHorizontal);
+        }
+        finally
+        {
+            try { Directory.Delete(repositoryPath, true); } catch { }
+        }
+    }
+
+    [AvaloniaFact]
     public async Task OpenFile_requests_reveal_every_time_and_expands_parent_folders()
     {
         var repositoryPath = Path.Combine(Path.GetTempPath(), $"devboard-files-{Guid.NewGuid():N}");

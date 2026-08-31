@@ -7,5 +7,8 @@ namespace DevBoard.Models
         AIRouter,
         Terminals,
         Roslyn,
+        Copilot,
+        Codex,
+        Antigravity,
     }
 }

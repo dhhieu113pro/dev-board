@@ -1,9 +1,13 @@
-namespace DevBoard.Models;
-
-public enum DevSpacePage
+namespace DevBoard.Models
 {
-    Dashboard,
-    Files,
-    Terminals,
-    Roslyn,
+    public enum DevSpacePage
+    {
+        Dashboard,
+        Files,
+        Terminals,
+        Roslyn,
+        Copilot,
+        Codex,
+        Antigravity,
+    }
 }

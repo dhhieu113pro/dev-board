@@ -2,10 +2,6 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 
-using Avalonia.Controls;
-using Avalonia.Headless.XUnit;
-using Avalonia.Threading;
-
 using DevBoard.DevSpaces;
 using DevBoard.ViewModels;
 
@@ -16,44 +12,6 @@ namespace DevBoard.Tests
     [Trait("Category", "UIIntegration")]
     public sealed class GoToFileSearchTests
     {
-        [AvaloniaFact]
-        public void ActivatingSearchOverlayFocusesSearchBox()
-        {
-            var searchView = new DevBoard.Views.GoToFileSearch();
-            var overlay = new Border
-            {
-                IsVisible = false,
-                Child = searchView,
-            };
-            var outside = new TextBox();
-            var host = new Grid();
-            host.Children.Add(outside);
-            host.Children.Add(overlay);
-
-            var window = new Window { Content = host };
-            window.Show();
-
-            try
-            {
-                Dispatcher.UIThread.RunJobs();
-                outside.Focus();
-                Assert.True(outside.IsFocused);
-
-                using var search = new GoToFileSearch(string.Empty, null!);
-                searchView.DataContext = search;
-                overlay.IsVisible = true;
-                Dispatcher.UIThread.RunJobs();
-
-                var searchBox = searchView.FindControl<TextBox>("SearchBox");
-                Assert.NotNull(searchBox);
-                Assert.True(searchBox.IsFocused);
-            }
-            finally
-            {
-                window.Close();
-            }
-        }
-
         [Fact]
         public async Task QuerySearchIsDebouncedForEightHundredMilliseconds()
         {

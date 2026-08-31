@@ -8,7 +8,11 @@ namespace DevBoard.Views
         public GoToFileSearch()
         {
             InitializeComponent();
-            Loaded += (_, _) => Dispatcher.UIThread.Post(() => SearchBox.Focus());
+            DataContextChanged += (_, _) =>
+            {
+                if (DataContext != null)
+                    Dispatcher.UIThread.Post(() => SearchBox.Focus());
+            };
         }
     }
 }

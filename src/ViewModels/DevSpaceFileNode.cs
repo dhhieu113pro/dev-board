@@ -12,7 +12,11 @@ namespace DevBoard.ViewModels
         public bool IsDirectory { get; }
         public int Depth { get; }
         public Thickness Indent => new(Depth * 16, 0, 0, 0);
-        public List<DevSpaceFileNode> Children { get; } = [];
+        public DevSpaceFileNodeChildren Children { get; }
+        public IReadOnlyList<DevSpaceFileTreeGuideSegment> TreeGuideSegments => BuildTreeGuideSegments();
+        public bool ShowChildGuideStem => IsDirectory && IsExpanded && Children.Count > 0;
+
+        internal DevSpaceFileNode Parent { get; set; }
 
         public DevSpaceFileIconKind IconKind => DevSpaceFileIconResolver.Resolve(Name, IsDirectory, Depth);
         public bool IsFolderIcon => IconKind == DevSpaceFileIconKind.Folder;
@@ -77,7 +81,10 @@ namespace DevBoard.ViewModels
             set
             {
                 if (SetProperty(ref _isExpanded, value))
+                {
                     OnPropertyChanged(nameof(ExpansionGlyph));
+                    OnPropertyChanged(nameof(ShowChildGuideStem));
+                }
             }
         }
 
@@ -87,9 +94,51 @@ namespace DevBoard.ViewModels
             RelativePath = relativePath;
             IsDirectory = isDirectory;
             Depth = depth;
+            Children = new DevSpaceFileNodeChildren(this);
+        }
+
+        private IReadOnlyList<DevSpaceFileTreeGuideSegment> BuildTreeGuideSegments()
+        {
+            if (Parent == null)
+                return [];
+
+            var lineage = new Stack<DevSpaceFileNode>();
+            for (var current = this; current.Parent != null; current = current.Parent)
+                lineage.Push(current);
+
+            var segments = new List<DevSpaceFileTreeGuideSegment>(lineage.Count);
+            while (lineage.Count > 0)
+            {
+                var branchNode = lineage.Pop();
+                var parent = branchNode.Parent;
+                var isLastSibling = parent.Children.Count == 0 || object.ReferenceEquals(parent.Children[^1], branchNode);
+                var isCurrentNode = object.ReferenceEquals(branchNode, this);
+
+                segments.Add(isCurrentNode
+                    ? new DevSpaceFileTreeGuideSegment(true, !isLastSibling, true)
+                    : new DevSpaceFileTreeGuideSegment(!isLastSibling, !isLastSibling, false));
+            }
+
+            return segments;
         }
 
         private Models.Change _change;
         private bool _isExpanded;
+    }
+
+    public sealed class DevSpaceFileNodeChildren : List<DevSpaceFileNode>
+    {
+        internal DevSpaceFileNodeChildren(DevSpaceFileNode parent)
+        {
+            _parent = parent;
+        }
+
+        public new void Add(DevSpaceFileNode item)
+        {
+            item.Parent = _parent;
+            base.Add(item);
+        }
+
+        private readonly DevSpaceFileNode _parent;
     }
 }

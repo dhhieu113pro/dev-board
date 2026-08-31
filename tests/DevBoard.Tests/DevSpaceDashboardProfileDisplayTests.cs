@@ -174,6 +174,12 @@ public sealed class DevSpaceDashboardProfileDisplayTests
                 .ToArray();
             Assert.Equal(new[] { "Weekly", "Monthly", "Total" }, rangeLabels);
 
+            Assert.Equal(Models.StatisticsMode.ThisWeek, spaces.Dashboard.StatisticsViewMode);
+            spaces.Dashboard.StatisticsRange = DevSpaceStatisticsRange.Monthly;
+            Assert.Equal(Models.StatisticsMode.ThisMonth, spaces.Dashboard.StatisticsViewMode);
+            spaces.Dashboard.StatisticsRange = DevSpaceStatisticsRange.Total;
+            Assert.Equal(Models.StatisticsMode.All, spaces.Dashboard.StatisticsViewMode);
+
             window.Close();
         }
         finally

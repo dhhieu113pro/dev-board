@@ -128,7 +128,7 @@ namespace DevBoard.Tests
             }
         }
 
-        [Fact]
+        [AvaloniaFact]
         public void NativeTerminalSurfaceExposesPersistentVerticalScrollbar()
         {
             var surfaceType = typeof(IDevSpaceSessionLauncher).Assembly

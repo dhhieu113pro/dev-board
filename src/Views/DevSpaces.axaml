@@ -92,7 +92,6 @@
     <Grid Grid.Row="1">
       <v:DevSpaceDashboard x:Name="DashboardView" DataContext="{Binding Dashboard}"/>
       <v:DevSpaceFiles x:Name="FilesView" DataContext="{Binding Files}"/>
-      <v:DevSpaceAIRouter x:Name="AIRouterView" IsVisible="False"/>
       <v:DevSpaceRoslynAnalytics IsVisible="{Binding IsRoslynActive}"/>
       <Grid x:Name="TerminalGrid" Margin="2"/>
     </Grid>

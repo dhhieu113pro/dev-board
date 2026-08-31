@@ -177,6 +177,69 @@ namespace DevBoard.ViewModels
 
         public void ClearFilter() => Filter = string.Empty;
 
+        public void BeginEditSelectedFile()
+        {
+            if (DetailContext is DevSpaceWorkspaceFile file)
+                file.BeginEdit();
+        }
+
+        public void CancelEditSelectedFile()
+        {
+            if (DetailContext is DevSpaceWorkspaceFile file)
+                file.CancelEdit();
+        }
+
+        public async Task SaveSelectedFileAsync()
+        {
+            if (DetailContext is not DevSpaceWorkspaceFile file || !file.IsEditing || file.IsBusy)
+                return;
+
+            file.IsBusy = true;
+            try
+            {
+                var absolutePath = GetAbsolutePath(file.Path);
+                await File.WriteAllTextAsync(absolutePath, file.EditableContent);
+                file.CommitEdit();
+            }
+            catch (Exception ex)
+            {
+                file.Message = $"Failed to save file: {ex.Message}";
+            }
+            finally
+            {
+                file.IsBusy = false;
+            }
+        }
+
+        public async Task DeleteSelectedFileAsync()
+        {
+            if (DetailContext is not DevSpaceWorkspaceFile file || file.IsBusy)
+                return;
+
+            file.IsBusy = true;
+            try
+            {
+                var absolutePath = GetAbsolutePath(file.Path);
+                if (!File.Exists(absolutePath))
+                {
+                    file.Message = "File no longer exists in the workspace.";
+                    return;
+                }
+
+                File.Delete(absolutePath);
+                SelectedNode = null;
+                await RefreshAsync();
+            }
+            catch (Exception ex)
+            {
+                file.Message = $"Failed to delete file: {ex.Message}";
+            }
+            finally
+            {
+                file.IsBusy = false;
+            }
+        }
+
         public IReadOnlyList<string> GetSearchableFilePaths()
         {
             return _nodesByPath.Values.Where(x => !x.IsDirectory).Select(x => x.RelativePath)
@@ -211,10 +274,15 @@ namespace DevBoard.ViewModels
                 await Dispatcher.UIThread.InvokeAsync(() => DetailContext = new DiffContext(_workingDirectory, new Models.DiffOption(node.Change), previous));
                 return;
             }
-            var absolutePath = Path.Combine(_workingDirectory, node.RelativePath.Replace('/', Path.DirectorySeparatorChar));
+            var absolutePath = GetAbsolutePath(node.RelativePath);
             var preview = await Task.Run(() => LoadWorkspaceFile(node.RelativePath, absolutePath)).ConfigureAwait(false);
             if (!string.Equals(_selectedPath, node.RelativePath, StringComparison.Ordinal)) return;
             await Dispatcher.UIThread.InvokeAsync(() => DetailContext = preview);
+        }
+
+        private string GetAbsolutePath(string relativePath)
+        {
+            return Path.Combine(_workingDirectory, NormalizePath(relativePath).Replace('/', Path.DirectorySeparatorChar));
         }
 
         private static DevSpaceWorkspaceFile LoadWorkspaceFile(string relativePath, string absolutePath)

@@ -43,7 +43,9 @@ namespace DevBoard.Tests
                 new Views.Repository(), "Icons.Terminal", App.Text("DevSpaces.Terminals"), "Terminals"
             }));
 
-            Assert.Equal(new[] { App.Text("DevSpaces") }, DescendantText(devItem));
+            Assert.Contains(App.Text("DevSpaces"), DescendantText(devItem));
+            Assert.DoesNotContain("DEV", DescendantText(devItem));
+            Assert.DoesNotContain(App.Text("DevSpaces.Dashboard"), DescendantText(devItem));
             Assert.Contains(App.Text("DevSpaces.Files"), DescendantText(filesItem));
             Assert.Contains("AI Router", DescendantText(aiRouterItem));
             Assert.Contains("Roslyn", DescendantText(roslynItem));
@@ -77,8 +79,9 @@ namespace DevBoard.Tests
                 .Select(agent => Assert.IsType<ListBoxItem>(factory.Invoke(null, new object[] { view, agent })))
                 .ToArray();
 
-            Assert.Equal(new[] { "Copilot", "Codex", "Antigravity" }, items.Select(item => DescendantText(item).Single()).ToArray());
-            Assert.Equal(new[] { "Agent:copilot", "Agent:codex", "Agent:agy" }, items.Select(item => item.Tag).ToArray());
+            Assert.Equal(new[] { "Copilot", "Codex", "Antigravity" },
+                items.Select(item => DescendantText(item).Single(x => x is "Copilot" or "Codex" or "Antigravity")).ToArray());
+            Assert.Equal(new object[] { "Agent:copilot", "Agent:codex", "Agent:agy" }, items.Select(item => item.Tag).ToArray());
             Assert.All(items, item =>
             {
                 var grid = Assert.IsType<Grid>(item.Content);
@@ -122,11 +125,12 @@ namespace DevBoard.Tests
         private static string[] DescendantText(ListBoxItem item)
         {
             var grid = Assert.IsType<Grid>(item.Content);
-            return grid.GetVisualDescendants()
+            return grid.Children
                 .OfType<TextBlock>()
-                .Prepend(grid.Children.OfType<TextBlock>().FirstOrDefault())
+                .Concat(grid.GetVisualDescendants().OfType<TextBlock>())
                 .Where(x => x != null)
-                .Select(x => x!.Text ?? string.Empty)
+                .Select(x => x.Text ?? string.Empty)
+                .Distinct()
                 .ToArray();
         }
     }

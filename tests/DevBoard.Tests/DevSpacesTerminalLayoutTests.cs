@@ -35,7 +35,7 @@ namespace DevBoard.Tests
             }
             finally
             {
-                Directory.Delete(root, true);
+                TryDeleteDirectory(root);
             }
         }
 
@@ -59,7 +59,7 @@ namespace DevBoard.Tests
             }
             finally
             {
-                Directory.Delete(root, true);
+                TryDeleteDirectory(root);
             }
         }
 
@@ -87,7 +87,7 @@ namespace DevBoard.Tests
             }
             finally
             {
-                Directory.Delete(root, true);
+                TryDeleteDirectory(root);
             }
         }
 
@@ -112,7 +112,7 @@ namespace DevBoard.Tests
             }
             finally
             {
-                Directory.Delete(root, true);
+                TryDeleteDirectory(root);
             }
         }
 
@@ -184,6 +184,19 @@ namespace DevBoard.Tests
             var path = Path.Combine(Path.GetTempPath(), $"devboard-terminal-layout-{System.Guid.NewGuid():N}");
             Directory.CreateDirectory(path);
             return path;
+        }
+
+        private static void TryDeleteDirectory(string path)
+        {
+            try
+            {
+                Directory.Delete(path, true);
+            }
+            catch
+            {
+                // DevSpaceFiles starts an asynchronous Git refresh on construction, so Windows can
+                // still have the temporary workspace open briefly after the layout assertion ends.
+            }
         }
 
         private sealed class FakeLauncher : IDevSpaceSessionLauncher

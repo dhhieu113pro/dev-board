@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:DevBoard.ViewModels"
              xmlns:ds="using:DevBoard.DevSpaces"
+             xmlns:v="using:DevBoard.Views"
              x:Class="DevBoard.Views.DevSpaceDashboard"
              x:DataType="vm:DevSpaceDashboard">
   <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
@@ -162,6 +163,167 @@
           </Grid>
         </Border>
       </WrapPanel>
+
+      <Border IsVisible="{Binding HasRepositoryInsights}"
+              Padding="14" CornerRadius="6"
+              Background="{DynamicResource Brush.Contents}"
+              BorderBrush="{DynamicResource Brush.Border2}" BorderThickness="1">
+        <Grid RowDefinitions="Auto,*">
+          <Grid ColumnDefinitions="*,Auto">
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <Path Width="14" Height="14" Data="{StaticResource Icons.Statistics}"/>
+              <TextBlock FontSize="15" FontWeight="SemiBold" Text="Stats"/>
+            </StackPanel>
+
+            <ListBox Grid.Column="1"
+                     SelectedIndex="{Binding StatisticsModeIndex, Mode=TwoWay}"
+                     Background="Transparent"
+                     BorderThickness="1"
+                     BorderBrush="{DynamicResource Brush.Border2}"
+                     CornerRadius="4"
+                     Padding="2">
+              <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Orientation="Horizontal"/>
+                </ItemsPanelTemplate>
+              </ListBox.ItemsPanel>
+              <ListBox.Styles>
+                <Style Selector="ListBoxItem">
+                  <Setter Property="MinWidth" Value="76"/>
+                  <Setter Property="Height" Value="28"/>
+                  <Setter Property="Padding" Value="8,0"/>
+                  <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                  <Setter Property="VerticalContentAlignment" Value="Center"/>
+                </Style>
+              </ListBox.Styles>
+              <ListBoxItem Content="Weekly"/>
+              <ListBoxItem Content="Monthly"/>
+              <ListBoxItem Content="Total"/>
+            </ListBox>
+          </Grid>
+
+          <ContentControl Grid.Row="1" Margin="0,12,0,0" Content="{Binding RepositoryStatistics}">
+            <ContentControl.DataTemplates>
+              <DataTemplate DataType="vm:Statistics">
+                <Grid RowDefinitions="Auto,*" MinHeight="280">
+                  <Grid ColumnDefinitions="Auto,Auto,*">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5">
+                      <TextBlock Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.Statistics.TotalCommits}"/>
+                      <TextBlock FontWeight="SemiBold" Text="{Binding SelectedReport.Total}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="18,0,0,0" Orientation="Horizontal" Spacing="5">
+                      <TextBlock Foreground="{DynamicResource Brush.FG2}" Text="{DynamicResource Text.Statistics.TotalAuthors}"/>
+                      <TextBlock FontWeight="SemiBold" Text="{Binding SelectedReport.Authors.Count}"/>
+                    </StackPanel>
+                    <v:BranchSelector Grid.Column="2"
+                                      Width="220" Height="28"
+                                      HorizontalAlignment="Right"
+                                      BorderBrush="{DynamicResource Brush.Border2}"
+                                      Branches="{Binding Branches, Mode=OneWay}"
+                                      SelectedBranch="{Binding SelectedBranch, Mode=TwoWay}"
+                                      UsePureName="False"/>
+                  </Grid>
+
+                  <Grid Grid.Row="1" Margin="0,10,0,0">
+                    <v:Chart Samples="{Binding Samples, Mode=OneWay}"
+                             SampleBrush="{DynamicResource Brush.Accent}"
+                             LabelFontFamily="{DynamicResource Fonts.Monospace}"/>
+                    <v:LoadingIcon Width="40" Height="40"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   IsVisible="{Binding IsLoading}"/>
+                  </Grid>
+                </Grid>
+              </DataTemplate>
+            </ContentControl.DataTemplates>
+          </ContentControl>
+        </Grid>
+      </Border>
+
+      <Border IsVisible="{Binding HasRepositoryInsights}"
+              Padding="14" CornerRadius="6"
+              Background="{DynamicResource Brush.Contents}"
+              BorderBrush="{DynamicResource Brush.Border2}" BorderThickness="1">
+        <Grid RowDefinitions="Auto,*">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Path Width="14" Height="14" Data="{StaticResource Icons.Logs}"/>
+            <TextBlock FontSize="15" FontWeight="SemiBold" Text="Logs"/>
+          </StackPanel>
+
+          <ContentControl Grid.Row="1" Margin="0,12,0,0" Content="{Binding RepositoryLogs}">
+            <ContentControl.DataTemplates>
+              <DataTemplate DataType="vm:ViewLogs">
+                <Grid Height="300" RowDefinitions="*,Auto">
+                  <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="300" MinWidth="240"/>
+                      <ColumnDefinition Width="4"/>
+                      <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <ListBox Grid.Column="0"
+                             Padding="4"
+                             Background="{DynamicResource Brush.Window}"
+                             BorderThickness="1"
+                             BorderBrush="{DynamicResource Brush.Border2}"
+                             ItemsSource="{Binding Logs}"
+                             SelectedItem="{Binding SelectedLog, Mode=TwoWay}"
+                             SelectionMode="Single"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto">
+                      <ListBox.Styles>
+                        <Style Selector="ListBoxItem">
+                          <Setter Property="Margin" Value="0"/>
+                          <Setter Property="Padding" Value="0"/>
+                          <Setter Property="Height" Value="28"/>
+                          <Setter Property="CornerRadius" Value="4"/>
+                        </Style>
+                      </ListBox.Styles>
+                      <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <VirtualizingStackPanel Orientation="Vertical"/>
+                        </ItemsPanelTemplate>
+                      </ListBox.ItemsPanel>
+                      <ListBox.ItemTemplate>
+                        <DataTemplate DataType="vm:CommandLog">
+                          <Grid Background="Transparent" ColumnDefinitions="Auto,*,Auto,Auto">
+                            <v:LoadingIcon Grid.Column="0" Width="14" Height="14" Margin="4,0" IsVisible="{Binding !IsComplete}"/>
+                            <TextBlock Grid.Column="1" Margin="4,0,0,0" Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Grid.Column="2" Margin="6,0" Foreground="{DynamicResource Brush.FG2}" Text="{Binding StartTime, StringFormat=HH:mm:ss}"/>
+                            <v:CommandLogTime Grid.Column="3" Margin="6,0" Foreground="{DynamicResource Brush.FG2}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                          </Grid>
+                        </DataTemplate>
+                      </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <GridSplitter Grid.Column="1"
+                                  MinWidth="1"
+                                  HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                  Background="Transparent"
+                                  BorderThickness="0"
+                                  Focusable="False"/>
+
+                    <Border Grid.Column="2"
+                            BorderBrush="{DynamicResource Brush.Border2}"
+                            BorderThickness="1"
+                            Background="{DynamicResource Brush.Window}">
+                      <v:CommandLogContentPresenter Log="{Binding SelectedLog}"
+                                                    FontFamily="{DynamicResource Fonts.Monospace}"
+                                                    HorizontalScrollBarVisibility="Auto"
+                                                    VerticalScrollBarVisibility="Auto"/>
+                    </Border>
+                  </Grid>
+
+                  <Button Grid.Row="1" Margin="0,10,0,0"
+                          Classes="flat"
+                          HorizontalAlignment="Right"
+                          Content="{DynamicResource Text.ViewLogs.Clear}"
+                          Command="{Binding ClearAll}"/>
+                </Grid>
+              </DataTemplate>
+            </ContentControl.DataTemplates>
+          </ContentControl>
+        </Grid>
+      </Border>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

@@ -15,6 +15,27 @@ namespace DevBoard.ViewModels
         public string WorkspacePath { get; }
         public string WorkspaceName { get; }
 
+        public Statistics RepositoryStatistics { get; }
+        public ViewLogs RepositoryLogs { get; }
+        public bool HasRepositoryInsights => _repository != null;
+
+        public int StatisticsModeIndex
+        {
+            get => RepositoryStatistics == null ? 0 : GetStatisticsModeIndex(RepositoryStatistics.ViewMode);
+            set
+            {
+                if (RepositoryStatistics == null)
+                    return;
+
+                var mode = GetStatisticsMode(value);
+                if (RepositoryStatistics.ViewMode == mode)
+                    return;
+
+                RepositoryStatistics.ViewMode = mode;
+                OnPropertyChanged();
+            }
+        }
+
         public DevSpaceCapabilityState CopilotCapability { get; }
         public DevSpaceCapabilityState CodexCapability { get; }
         public DevSpaceCapabilityState AntigravityCapability { get; }
@@ -127,12 +148,32 @@ namespace DevBoard.ViewModels
 
             if (_repository != null)
             {
+                RepositoryStatistics = new Statistics(_repository.FullPath)
+                {
+                    ViewMode = Models.StatisticsMode.ThisWeek,
+                };
+                RepositoryLogs = new ViewLogs(_repository);
+
                 _repository.PropertyChanged += OnRepositoryPropertyChanged;
                 if (_repository.WorkingCopy != null)
                     _repository.WorkingCopy.PropertyChanged += OnWorkingCopyPropertyChanged;
                 RefreshRepositorySummary();
             }
         }
+
+        public static Models.StatisticsMode GetStatisticsMode(int index) => index switch
+        {
+            0 => Models.StatisticsMode.ThisWeek,
+            1 => Models.StatisticsMode.ThisMonth,
+            _ => Models.StatisticsMode.All,
+        };
+
+        public static int GetStatisticsModeIndex(Models.StatisticsMode mode) => mode switch
+        {
+            Models.StatisticsMode.ThisWeek => 0,
+            Models.StatisticsMode.ThisMonth => 1,
+            _ => 2,
+        };
 
         public static DevSpaceGitSummary BuildGitSummary(
             IEnumerable<Models.Change> staged,

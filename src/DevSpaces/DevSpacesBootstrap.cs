@@ -75,9 +75,14 @@ namespace DevBoard.DevSpaces
                 var item = CreateNavigationItem(view, out var label, out var badge, out var badgeLabel);
                 var filesItem = CreateToolNavigationItem(view, "Icons.Folder", App.Text("DevSpaces.Files"), "Files");
                 var aiRouterItem = CreateToolNavigationItem(view, "Icons.AIAssist", "AI Router", "AIRouter");
+                var roslynItem = CreateToolNavigationItem(view, "Icons.Code", "Roslyn", "Roslyn");
+                var terminalsItem = CreateToolNavigationItem(view, "Icons.Terminal", App.Text("DevSpaces.Terminals"), "Terminals");
+                var terminalsLabel = GetToolNavigationLabel(terminalsItem);
                 pageSwitcher.Items.Add(item);
                 pageSwitcher.Items.Add(filesItem);
                 pageSwitcher.Items.Add(aiRouterItem);
+                pageSwitcher.Items.Add(roslynItem);
+                pageSwitcher.Items.Add(terminalsItem);
 
                 var host = new Border
                 {
@@ -93,9 +98,12 @@ namespace DevBoard.DevSpaces
                     item,
                     filesItem,
                     aiRouterItem,
+                    roslynItem,
+                    terminalsItem,
                     label,
                     badge,
                     badgeLabel,
+                    terminalsLabel,
                     host);
             }
 
@@ -105,9 +113,12 @@ namespace DevBoard.DevSpaces
                 ListBoxItem navigationItem,
                 ListBoxItem filesNavigationItem,
                 ListBoxItem aiRouterNavigationItem,
+                ListBoxItem roslynNavigationItem,
+                ListBoxItem terminalsNavigationItem,
                 TextBlock navigationLabel,
                 Border navigationBadge,
                 TextBlock navigationBadgeLabel,
+                TextBlock terminalsNavigationLabel,
                 Border host)
             {
                 _repository = repository;
@@ -115,9 +126,12 @@ namespace DevBoard.DevSpaces
                 _navigationItem = navigationItem;
                 _filesNavigationItem = filesNavigationItem;
                 _aiRouterNavigationItem = aiRouterNavigationItem;
+                _roslynNavigationItem = roslynNavigationItem;
+                _terminalsNavigationItem = terminalsNavigationItem;
                 _navigationLabel = navigationLabel;
                 _navigationBadge = navigationBadge;
                 _navigationBadgeLabel = navigationBadgeLabel;
+                _terminalsNavigationLabel = terminalsNavigationLabel;
                 _host = host;
 
                 _repository.PropertyChanged += OnRepositoryPropertyChanged;
@@ -167,6 +181,8 @@ namespace DevBoard.DevSpaces
                 {
                     Models.DevSpacePage.Files => FilesNavigationIndex,
                     Models.DevSpacePage.AIRouter => AIRouterNavigationIndex,
+                    Models.DevSpacePage.Roslyn => RoslynNavigationIndex,
+                    Models.DevSpacePage.Terminals => TerminalsNavigationIndex,
                     _ => DevSpacesNavigationIndex,
                 };
 
@@ -204,6 +220,12 @@ namespace DevBoard.DevSpaces
                         break;
                     case AIRouterNavigationIndex:
                         _spaces.ActivateAIRouter();
+                        break;
+                    case RoslynNavigationIndex:
+                        _spaces.ActivateRoslyn();
+                        break;
+                    case TerminalsNavigationIndex:
+                        _spaces.ActivateTerminals();
                         break;
                     default:
                         _spaces.ActivateDashboard();
@@ -246,6 +268,8 @@ namespace DevBoard.DevSpaces
                 _navigationItem.IsVisible = enabled;
                 _filesNavigationItem.IsVisible = enabled;
                 _aiRouterNavigationItem.IsVisible = enabled;
+                _roslynNavigationItem.IsVisible = enabled;
+                _terminalsNavigationItem.IsVisible = enabled;
 
                 if (!enabled)
                 {
@@ -284,12 +308,13 @@ namespace DevBoard.DevSpaces
             {
                 var count = _spaces?.Sessions.Count ?? 0;
                 _navigationLabel.Text = App.Text("DevSpaces");
-                _navigationBadge.IsVisible = count > 0;
+                _navigationBadge.IsVisible = false;
                 _navigationBadgeLabel.Text = count.ToString();
+                _terminalsNavigationLabel.Text = $"{App.Text("DevSpaces.Terminals")} ({count})";
             }
 
             private static bool IsDevSpacesNavigationIndex(int index) =>
-                index >= DevSpacesNavigationIndex && index <= AIRouterNavigationIndex;
+                index >= DevSpacesNavigationIndex && index <= TerminalsNavigationIndex;
 
             private static ListBoxItem CreateNavigationItem(
                 Views.Repository view,
@@ -404,18 +429,26 @@ namespace DevBoard.DevSpaces
                 };
             }
 
+            private static TextBlock GetToolNavigationLabel(ListBoxItem item) =>
+                ((Grid)item.Content).Children.OfType<TextBlock>().Single();
+
             private const int DevSpacesNavigationIndex = 3;
             private const int FilesNavigationIndex = 4;
             private const int AIRouterNavigationIndex = 5;
+            private const int RoslynNavigationIndex = 6;
+            private const int TerminalsNavigationIndex = 7;
 
             private readonly ViewModels.Repository _repository;
             private readonly ListBox _pageSwitcher;
             private readonly ListBoxItem _navigationItem;
             private readonly ListBoxItem _filesNavigationItem;
             private readonly ListBoxItem _aiRouterNavigationItem;
+            private readonly ListBoxItem _roslynNavigationItem;
+            private readonly ListBoxItem _terminalsNavigationItem;
             private readonly TextBlock _navigationLabel;
             private readonly Border _navigationBadge;
             private readonly TextBlock _navigationBadgeLabel;
+            private readonly TextBlock _terminalsNavigationLabel;
             private readonly Border _host;
             private ViewModels.DevSpaces _spaces;
             private bool _syncingNavigationSelection;

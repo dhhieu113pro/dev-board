@@ -4,7 +4,7 @@ using System.Linq;
 
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
-using Avalonia.VisualTree;
+using Avalonia.LogicalTree;
 
 using DevBoard.DevSpaces;
 
@@ -61,7 +61,7 @@ namespace DevBoard.Tests
         }
 
         [AvaloniaFact]
-        public void OpenTerminalTabsRemainVisibleFromDashboard()
+        public void TerminalTabsAreOnlyVisibleOnTerminalsPage()
         {
             var root = CreateTempDirectory();
             try
@@ -71,9 +71,13 @@ namespace DevBoard.Tests
                 spaces.ActivateDashboard();
 
                 using var view = new Views.DevSpaces { DataContext = spaces };
-                var sessionTabs = view.GetVisualDescendants()
+                var sessionTabs = view.GetLogicalDescendants()
                     .OfType<ItemsControl>()
                     .Single(x => ReferenceEquals(x.ItemsSource, spaces.Sessions));
+
+                Assert.False(sessionTabs.IsVisible);
+
+                spaces.ActivateTerminals();
 
                 Assert.True(sessionTabs.IsVisible);
             }

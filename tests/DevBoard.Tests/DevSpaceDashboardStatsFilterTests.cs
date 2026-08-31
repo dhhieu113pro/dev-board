@@ -7,7 +7,7 @@ using Xunit;
 
 namespace DevBoard.Tests;
 
-public sealed class DevSpaceDashboardStatsFilterTests
+public sealed class DevSpaceDashboardProfileDisplayTestsStatsFilter
 {
     [AvaloniaFact]
     public void StatisticsRangeSwitcherShowsOnlyWeeklyAndMonthly()

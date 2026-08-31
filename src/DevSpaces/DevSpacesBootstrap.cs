@@ -200,6 +200,9 @@ namespace DevBoard.DevSpaces
                     Models.DevSpacePage.AIRouter => AIRouterNavigationIndex,
                     Models.DevSpacePage.Roslyn => RoslynNavigationIndex,
                     Models.DevSpacePage.Terminals => TerminalsNavigationIndex,
+                    Models.DevSpacePage.Copilot => CopilotNavigationIndex,
+                    Models.DevSpacePage.Codex => CodexNavigationIndex,
+                    Models.DevSpacePage.Antigravity => AntigravityNavigationIndex,
                     _ => DevSpacesNavigationIndex,
                 };
 
@@ -252,19 +255,7 @@ namespace DevBoard.DevSpaces
 
             private void OpenAgent(DevSpaceAgent agent)
             {
-                if (_spaces == null)
-                    return;
-
-                var existing = _spaces.Sessions.FirstOrDefault(x =>
-                    string.Equals(x.StartupCommand, agent.Command, StringComparison.OrdinalIgnoreCase));
-                if (existing != null)
-                    _spaces.ActivateTerminal(existing);
-                else
-                    _spaces.CreateAgentTerminalAt(-1, agent);
-
-                // Agent rows are launch/focus shortcuts, not a new DevSpaces page.
-                // Once launched, keep the native Terminals row selected.
-                SelectNavigationIndex(TerminalsNavigationIndex);
+                _spaces?.CreateAgentTerminalAt(-1, agent);
             }
 
             private void SelectNavigationIndex(int index)

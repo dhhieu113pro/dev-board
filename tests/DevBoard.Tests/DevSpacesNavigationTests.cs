@@ -1,9 +1,13 @@
+using System;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.VisualTree;
+
+using DevBoard.DevSpaces;
 
 using Xunit;
 
@@ -96,6 +100,57 @@ namespace DevBoard.Tests
         }
 
         [Fact]
+        public void BuiltInAgentShortcutIsSingletonAndExcludedFromTerminalSessions()
+        {
+            var root = Path.Combine(Path.GetTempPath(), $"devboard-agent-singleton-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(root);
+
+            try
+            {
+                using var spaces = new ViewModels.DevSpaces(root, new FakeLauncher());
+                var copilot = DevSpaceAgent.BuiltIn.Single(x => x.Command == "copilot");
+
+                var first = spaces.CreateAgentTerminalAt(-1, copilot);
+                var second = spaces.CreateAgentTerminalAt(-1, copilot);
+
+                Assert.Same(first, second);
+                Assert.Equal("Copilot", first.Title);
+                Assert.Equal("Copilot", spaces.ActivePage.ToString());
+                Assert.Empty(spaces.Sessions);
+                Assert.Equal(0, spaces.TerminalCount);
+            }
+            finally
+            {
+                try { Directory.Delete(root, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void RegularTerminalCountIgnoresStandaloneAgents()
+        {
+            var root = Path.Combine(Path.GetTempPath(), $"devboard-agent-count-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(root);
+
+            try
+            {
+                using var spaces = new ViewModels.DevSpaces(root, new FakeLauncher());
+                var terminal = spaces.CreateTerminal();
+                var codex = DevSpaceAgent.BuiltIn.Single(x => x.Command == "codex");
+                var agent = spaces.CreateAgentTerminalAt(-1, codex);
+
+                Assert.Single(spaces.Sessions);
+                Assert.Same(terminal, spaces.Sessions[0]);
+                Assert.DoesNotContain(agent, spaces.Sessions);
+                Assert.Equal(1, spaces.TerminalCount);
+                Assert.Equal("Codex", spaces.ActivePage.ToString());
+            }
+            finally
+            {
+                try { Directory.Delete(root, true); } catch { }
+            }
+        }
+
+        [Fact]
         public void TerminalPickerNoLongerOwnsBuiltInAgentMenuItems()
         {
             var viewType = typeof(Views.DevSpaces);
@@ -132,6 +187,14 @@ namespace DevBoard.Tests
                 .Select(x => x.Text ?? string.Empty)
                 .Distinct()
                 .ToArray();
+        }
+
+        private sealed class FakeLauncher : IDevSpaceSessionLauncher
+        {
+            public DevSpaceLaunchSpec Create(string terminal, string workingDirectory, string startupCommand = null)
+            {
+                return new DevSpaceLaunchSpec(terminal ?? string.Empty, [], workingDirectory);
+            }
         }
     }
 }

@@ -50,6 +50,7 @@ namespace DevBoard.Views
                 _owner.PropertyChanged += OnOwnerPropertyChanged;
             UpdatePageVisibility();
             RebuildGrid();
+            RebuildAgentSurfaces();
         }
 
         private void OnOwnerPropertyChanged(object sender, PropertyChangedEventArgs e)
@@ -59,7 +60,8 @@ namespace DevBoard.Views
                 e.PropertyName == nameof(ViewModels.DevSpaces.IsFilesActive) ||
                 e.PropertyName == nameof(ViewModels.DevSpaces.IsAIRouterActive) ||
                 e.PropertyName == nameof(ViewModels.DevSpaces.IsTerminalsActive) ||
-                e.PropertyName == nameof(ViewModels.DevSpaces.IsRoslynActive))
+                e.PropertyName == nameof(ViewModels.DevSpaces.IsRoslynActive) ||
+                e.PropertyName == nameof(ViewModels.DevSpaces.IsAgentActive))
                 Dispatcher.UIThread.Post(UpdatePageVisibility);
 
             if (e.PropertyName == nameof(ViewModels.DevSpaces.VisibleSlots) ||
@@ -68,6 +70,9 @@ namespace DevBoard.Views
                 e.PropertyName == nameof(ViewModels.DevSpaces.ActiveTerminal) ||
                 e.PropertyName == nameof(ViewModels.DevSpaces.Layout))
                 Dispatcher.UIThread.Post(RebuildGrid);
+
+            if (e.PropertyName == nameof(ViewModels.DevSpaces.ActiveAgentTerminal))
+                Dispatcher.UIThread.Post(RebuildAgentSurfaces);
         }
 
         private void OnCreateTerminal(object sender, RoutedEventArgs e)
@@ -133,6 +138,7 @@ namespace DevBoard.Views
             var showFiles = _owner?.IsFilesActive == true;
             var showAIRouter = _owner?.IsAIRouterActive == true;
             var showTerminals = _owner?.IsTerminalsActive == true;
+            var showAgent = _owner?.IsAgentActive == true;
             DashboardView.IsVisible = showDashboard;
             DashboardView.IsHitTestVisible = showDashboard;
             FilesView.IsVisible = showFiles;
@@ -142,6 +148,9 @@ namespace DevBoard.Views
             TerminalGrid.IsVisible = true;
             TerminalGrid.Opacity = showTerminals ? 1 : 0;
             TerminalGrid.IsHitTestVisible = showTerminals;
+            AgentGrid.IsVisible = true;
+            AgentGrid.Opacity = showAgent ? 1 : 0;
+            AgentGrid.IsHitTestVisible = showAgent;
             UpdateSurfaceVisibility();
         }
 
@@ -195,17 +204,46 @@ namespace DevBoard.Views
             UpdateSurfaceVisibility();
         }
 
+        private void RebuildAgentSurfaces()
+        {
+            var active = _owner?.ActiveAgentTerminal;
+            if (active != null)
+                GetOrCreateAgentView(active);
+
+            foreach (var pair in _agentViews)
+            {
+                var isActive = active != null && pair.Key == active.Id;
+                pair.Value.Opacity = isActive ? 1 : 0;
+                pair.Value.IsHitTestVisible = isActive;
+                pair.Value.ZIndex = isActive ? 1 : 0;
+            }
+
+            UpdateSurfaceVisibility();
+        }
+
         private void UpdateSurfaceVisibility()
         {
             foreach (var pane in _panes.Values)
                 pane.TerminalView.SetPageActive(false);
-            if (!_pageActive || _owner?.IsTerminalsActive != true)
+            foreach (var agentView in _agentViews.Values)
+                agentView.SetPageActive(false);
+
+            if (!_pageActive || _owner == null)
                 return;
-            foreach (var slot in _owner.VisibleSlots)
+
+            if (_owner.IsTerminalsActive)
             {
-                if (slot.Terminal != null && _panes.TryGetValue(slot.Terminal.Id, out var pane))
-                    pane.TerminalView.SetPageActive(true);
+                foreach (var slot in _owner.VisibleSlots)
+                {
+                    if (slot.Terminal != null && _panes.TryGetValue(slot.Terminal.Id, out var pane))
+                        pane.TerminalView.SetPageActive(true);
+                }
+                return;
             }
+
+            var activeAgent = _owner.ActiveAgentTerminal;
+            if (_owner.IsAgentActive && activeAgent != null && _agentViews.TryGetValue(activeAgent.Id, out var activeAgentView))
+                activeAgentView.SetPageActive(true);
         }
 
         private Border GetOrCreatePane(ViewModels.DevSpaceTerminal session)
@@ -262,6 +300,23 @@ namespace DevBoard.Views
             terminalView.Start(_owner.Launcher);
             TerminalGrid.Children.Add(root);
             return root;
+        }
+
+        private DevSpaceTerminal GetOrCreateAgentView(ViewModels.DevSpaceTerminal session)
+        {
+            if (_agentViews.TryGetValue(session.Id, out var cached))
+                return cached;
+
+            var terminalView = new DevSpaceTerminal
+            {
+                DataContext = session,
+                Opacity = 0,
+                IsHitTestVisible = false,
+            };
+            _agentViews.Add(session.Id, terminalView);
+            terminalView.Start(_owner.Launcher);
+            AgentGrid.Children.Add(terminalView);
+            return terminalView;
         }
 
         private Button CreateEmptySlot(int slotIndex)
@@ -382,12 +437,20 @@ namespace DevBoard.Views
                 pane.TerminalView.SetPageActive(false);
                 pane.TerminalView.Dispose();
             }
+            foreach (var agentView in _agentViews.Values)
+            {
+                agentView.SetPageActive(false);
+                agentView.Dispose();
+            }
             _panes.Clear();
+            _agentViews.Clear();
             _emptySlots.Clear();
             TerminalGrid.Children.Clear();
+            AgentGrid.Children.Clear();
         }
 
         private readonly Dictionary<Guid, TerminalPaneHandle> _panes = [];
+        private readonly Dictionary<Guid, DevSpaceTerminal> _agentViews = [];
         private readonly List<Button> _emptySlots = [];
         private ViewModels.DevSpaces _owner;
         private bool _pageActive;

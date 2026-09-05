@@ -33,6 +33,18 @@ namespace DevBoard.DevSpaces
             return entry.Model;
         }
 
+        public static void PrepareForRepositorySwitch(ViewModels.Repository repository)
+        {
+            if (repository == null ||
+                string.IsNullOrEmpty(repository.FullPath) ||
+                !_spaces.TryGetValue(repository.FullPath, out var entry))
+                return;
+
+            entry.Repository = repository;
+            entry.Model.ActivateDashboard();
+            repository.SelectedViewIndex = DevSpacesNavigationIndex;
+        }
+
         public static void Close(ViewModels.Repository repository)
         {
             if (repository == null || !_spaces.Remove(repository.FullPath, out var entry))
@@ -49,7 +61,7 @@ namespace DevBoard.DevSpaces
         {
             foreach (var entry in _spaces.Values)
             {
-                if (entry.Repository?.SelectedViewIndex == 3)
+                if (entry.Repository?.SelectedViewIndex == DevSpacesNavigationIndex)
                     entry.Repository.SelectedViewIndex = 0;
 
                 if (entry.Host != null && ReferenceEquals(entry.Host.Child, entry.View))
@@ -98,6 +110,7 @@ namespace DevBoard.DevSpaces
             }
         }
 
+        private const int DevSpacesNavigationIndex = 3;
         private static readonly StringComparer _pathComparer = OperatingSystem.IsWindows()
             ? StringComparer.OrdinalIgnoreCase
             : StringComparer.Ordinal;

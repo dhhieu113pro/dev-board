@@ -511,7 +511,7 @@ namespace DevBoard.ViewModels
         private LauncherPage _activePage;
         private bool _ignoreIndexChange;
         private string _title = string.Empty;
-        private ICommandPalette _command_palette;
+        private ICommandPalette _commandPalette;
         private GoToFileSearch _goToFileSearch;
         private Models.Version _newVersion = null;
     }

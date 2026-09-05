@@ -12,6 +12,15 @@ namespace DevBoard.DevSpaces
             return GetOrCreateEntry(repository)?.Model;
         }
 
+        public static void PrepareForRepositorySwitch(ViewModels.Repository repository)
+        {
+            if (repository == null || string.IsNullOrEmpty(repository.FullPath))
+                return;
+
+            if (_spaces.TryGetValue(repository.FullPath, out var entry))
+                entry.Model.ActivateDashboard();
+        }
+
         public static ViewModels.DevSpaces Attach(ViewModels.Repository repository, Border host)
         {
             if (repository == null || host == null)

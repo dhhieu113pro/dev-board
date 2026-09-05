@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Reflection;
 
 using Avalonia.Headless.XUnit;
 
@@ -27,12 +26,7 @@ public sealed class DevSpacesNavigationTestsRepositorySwitch
             spaces.ActivateTerminals();
             repository.SelectedViewIndex = 7;
 
-            var prepare = typeof(DevSpaceRegistry).GetMethod(
-                "PrepareForRepositorySwitch",
-                BindingFlags.Public | BindingFlags.Static);
-
-            Assert.NotNull(prepare);
-            prepare.Invoke(null, new object[] { repository });
+            DevSpaceRegistry.PrepareForRepositorySwitch(repository);
 
             Assert.Equal(3, repository.SelectedViewIndex);
             Assert.Equal(Models.DevSpacePage.Dashboard, spaces.ActivePage);

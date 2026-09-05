@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 
+using Avalonia.Headless.XUnit;
+
 using DevBoard.DevSpaces;
 
 using Xunit;
@@ -9,7 +11,7 @@ namespace DevBoard.Tests
 {
     public sealed class DevSpacesTerminalVisibilityTestsRepositorySwitch
     {
-        [Fact]
+        [AvaloniaFact]
         public void PreparingRepositorySwitchReturnsDevSpacesToDashboardWithoutStoppingTerminals()
         {
             var root = Path.Combine(Path.GetTempPath(), $"devboard-repo-switch-{Guid.NewGuid():N}");

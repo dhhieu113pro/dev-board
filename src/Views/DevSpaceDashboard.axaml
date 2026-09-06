@@ -54,7 +54,10 @@
         <StackPanel Grid.Column="0" Margin="0,0,12,0" Spacing="12">
           <Border MinHeight="190" Padding="14" CornerRadius="6" Background="{DynamicResource Brush.Contents}" BorderBrush="{DynamicResource Brush.Border2}" BorderThickness="1">
             <StackPanel Spacing="10">
-              <TextBlock FontSize="15" FontWeight="SemiBold" Text="{DynamicResource Text.DevSpaces.QuickStart}"/>
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" Text="{DynamicResource Text.DevSpaces.QuickStart}"/>
+                <Button Grid.Column="1" Classes="flat" Content="↻" Click="OnRefreshProfiles" ToolTip.Tip="Refresh projects"/>
+              </Grid>
               <WrapPanel>
                 <Button Margin="0,0,8,8" Tag="copilot" Click="OnStartAgent">
                   <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">

@@ -55,6 +55,12 @@ namespace DevBoard.Views
             e.Handled = true;
         }
 
+        private void OnRefreshProfiles(object sender, RoutedEventArgs e)
+        {
+            Model?.RefreshProfiles();
+            e.Handled = true;
+        }
+
         private void OnStartTerminal(object sender, RoutedEventArgs e)
         {
             Model?.StartDefaultTerminal();

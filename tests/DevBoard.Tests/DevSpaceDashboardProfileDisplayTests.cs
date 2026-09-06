@@ -52,6 +52,71 @@ public sealed class DevSpaceDashboardProfileDisplayTests
     }
 
     [AvaloniaFact]
+    public void QuickStartShowsDiscoveredWebAndAngularProjects()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"devboard-discovered-profile-display-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(root, "src", "Time.Web"));
+        Directory.CreateDirectory(Path.Combine(root, "ui"));
+        File.WriteAllText(
+            Path.Combine(root, "src", "Time.Web", "Time.Web.csproj"),
+            "<Project Sdk=\"Microsoft.NET.Sdk.Web\"></Project>");
+        File.WriteAllText(
+            Path.Combine(root, "ui", "angular.json"),
+            "{\"projects\":{\"uptime-ui\":{\"projectType\":\"application\"}}}");
+
+        try
+        {
+            using var spaces = new ViewModels.DevSpaces(root, new FakeLauncher());
+            var view = new Views.DevSpaceDashboard
+            {
+                DataContext = spaces.Dashboard,
+            };
+            var window = Show(view);
+
+            var profileLabels = view.GetVisualDescendants()
+                .OfType<Button>()
+                .Select(x => x.Content?.ToString())
+                .ToArray();
+
+            Assert.Contains("🌐 Time.Web", profileLabels);
+            Assert.Contains("🅰 uptime-ui", profileLabels);
+
+            window.Close();
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Fact]
+    public void RefreshProfilesFindsProjectsAddedAfterDashboardCreation()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"devboard-discovered-profile-refresh-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+
+        try
+        {
+            using var spaces = new ViewModels.DevSpaces(root, new FakeLauncher());
+            Assert.DoesNotContain(spaces.Dashboard.Profiles, x => x.Name == "Later.Api");
+
+            var projectDirectory = Path.Combine(root, "src", "Later.Api");
+            Directory.CreateDirectory(projectDirectory);
+            File.WriteAllText(
+                Path.Combine(projectDirectory, "Later.Api.csproj"),
+                "<Project Sdk=\"Microsoft.NET.Sdk.Web\"></Project>");
+
+            spaces.Dashboard.RefreshProfiles();
+
+            Assert.Contains(spaces.Dashboard.Profiles, x => x.Name == "Later.Api");
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [AvaloniaFact]
     public void DashboardUsesActiveTerminalsHeading()
     {
         var root = Path.Combine(Path.GetTempPath(), $"devboard-active-terminals-{Guid.NewGuid():N}");

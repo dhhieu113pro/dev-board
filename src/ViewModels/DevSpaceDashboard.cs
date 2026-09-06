@@ -96,8 +96,11 @@ namespace DevBoard.ViewModels
             })
             .ToArray();
 
-        public IReadOnlyList<DevBoard.DevSpaces.DevSpaceTerminalProfile> Profiles =>
-            DevBoard.DevSpaces.DevSpaceProfileSettings.Instance.Profiles;
+        public IReadOnlyList<DevBoard.DevSpaces.DevSpaceTerminalProfile> Profiles
+        {
+            get => _profiles;
+            private set => SetProperty(ref _profiles, value ?? []);
+        }
 
         public string CurrentBranch
         {
@@ -145,6 +148,7 @@ namespace DevBoard.ViewModels
             _repository = repository;
             WorkspacePath = workspacePath;
             WorkspaceName = GetWorkspaceName(workspacePath);
+            RefreshProfiles();
             CopilotCapability = DevBoard.DevSpaces.DevSpaceToolHealth.CheckCommand("copilot");
             CodexCapability = DevBoard.DevSpaces.DevSpaceToolHealth.CheckCommand("codex");
             AntigravityCapability = DevBoard.DevSpaces.DevSpaceToolHealth.CheckCommand("agy");
@@ -241,6 +245,13 @@ namespace DevBoard.ViewModels
 
         public Task InitializeRoslynAsync() => _roslynService.InitializeAsync();
         public Task RefreshUnusedCodeAsync() => _roslynService.RefreshUnusedCodeAsync();
+
+        public void RefreshProfiles()
+        {
+            Profiles = DevBoard.DevSpaces.DevSpaceProjectDiscovery.Discover(
+                WorkspacePath,
+                DevBoard.DevSpaces.DevSpaceProfileSettings.Instance.Profiles);
+        }
 
         public void SetUnusedCodeFilter(string filter)
         {
@@ -374,6 +385,7 @@ namespace DevBoard.ViewModels
         private readonly DevSpaces _owner;
         private readonly Repository _repository;
         private readonly DevBoard.DevSpaces.RoslynDevSpaceService _roslynService;
+        private IReadOnlyList<DevBoard.DevSpaces.DevSpaceTerminalProfile> _profiles = [];
         private string _currentBranch = string.Empty;
         private string _baseBranch = string.Empty;
         private int _aheadCount;

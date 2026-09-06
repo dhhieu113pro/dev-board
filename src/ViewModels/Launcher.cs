@@ -34,6 +34,15 @@ namespace DevBoard.ViewModels
             get => _activePage;
             set
             {
+                if (ReferenceEquals(_activePage, value))
+                    return;
+
+                if (_activePage?.Data is Repository outgoingRepository &&
+                    value?.Data is Repository)
+                {
+                    DevBoard.DevSpaces.DevSpaceRegistry.PrepareForRepositorySwitch(outgoingRepository);
+                }
+
                 if (SetProperty(ref _activePage, value))
                     PostActivePageChanged();
             }

@@ -55,18 +55,20 @@ namespace DevBoard.DevSpaces
 
             await _host.WaitForNativeCreatedAsync(_cts.Token).ConfigureAwait(false);
 
+            var viewport = _viewport.Current;
             var options = new PtyOptions
             {
                 Name = spec.Process,
                 App = spec.Process,
                 CommandLine = spec.Arguments,
                 Cwd = spec.WorkingDirectory,
-                Cols = 80,
-                Rows = 25,
+                Cols = viewport.Columns,
+                Rows = viewport.Rows,
             };
 
             _pty = await PtyProvider.SpawnAsync(options, _cts.Token).ConfigureAwait(false);
             _pty.ProcessExited += OnProcessExited;
+            _viewport.Attach(ResizePty);
             _acceptInput = true;
 
             _readerTask = ReadOutputAsync(_cts.Token);
@@ -97,6 +99,7 @@ namespace DevBoard.DevSpaces
             _host.TerminalResized -= OnTerminalResized;
             _host.ScrollChanged -= OnScrollChanged;
             _scrollBar.PropertyChanged -= OnScrollBarPropertyChanged;
+            _viewport.Detach();
 
             var pty = _pty;
             _pty = null;
@@ -208,9 +211,11 @@ namespace DevBoard.DevSpaces
 
         private void OnTerminalResized(int cols, int rows)
         {
-            if (cols <= 0 || rows <= 0)
-                return;
+            _viewport.Update(cols, rows);
+        }
 
+        private void ResizePty(int cols, int rows)
+        {
             try
             {
                 _pty?.Resize(cols, rows);
@@ -276,6 +281,7 @@ namespace DevBoard.DevSpaces
         private readonly Views.WindowsTerminalNativeHost _host = new();
         private readonly ScrollBar _scrollBar = new();
         private readonly TerminalTranscriptSink _transcriptSink;
+        private readonly TerminalViewportState _viewport = new();
         private readonly CancellationTokenSource _cts = new();
         private readonly Channel<string> _input = Channel.CreateUnbounded<string>(new UnboundedChannelOptions
         {
